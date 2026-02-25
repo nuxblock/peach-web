@@ -1,0 +1,1873 @@
+import { useState, useEffect, useRef } from "react";
+
+// ─── LOGO ─────────────────────────────────────────────────────────────────────
+const PeachIcon = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 352 353" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect y="0.38" width="352" height="352" rx="58.13" fill="#FFF9F6"/>
+    <path d="M151.8 45.5c11.2-1.2 21.1 5.35 24.2 16.02.54 1.88.82 3.89.88 5.86.13 4.2.05 8.41.05 12.62 0 .39-.33.69-.72.7-3.07.11-6.08-.02-9.02-1-9.21-3.03-15.33-11.47-15.42-21.35-.04-4-.01-8.01 0-12.01" fill="#05A85A"/>
+    <path d="M205.3 64.23c.99 8.75-5.26 16.21-13.69 16.46-4.77.14-9.15-3.93-7.14-8.26.95-2.06 2.42-3.88 4.47-5.44 2.3-1.76 4.93-2.69 7.82-2.74 2.83-.04 5.66 0 8.54 0" fill="#05A85A"/>
+    <path fillRule="evenodd" clipRule="evenodd" d="M276 155.69c0 49.73-43.64 96.87-97.47 96.87-19.52 0-37.71-6.2-52.95-16.48v49.48c0 12.29-9.96 22.26-22.26 22.26s-22.26-9.97-22.26-22.26V157.39h.02c-.01-.57-.02-1.13-.02-1.7 0-43.02 32.67-72.02 76.33-68.64 14.01 1.09 28.26 1.09 42.27 0 43.67-3.39 76.34 25.62 76.34 68.64zM125.61 163.8v-.39c.1-24.1 19.36-39.92 44.44-36.17 5.13.77 10.37.77 15.49 0 25.15-3.77 44.44 12.15 44.44 36.35 0 26.64-23.36 51.89-52.19 51.89-28.75 0-52.07-25.13-52.18-51.68z" fill="url(#pg_te)"/>
+    <defs>
+      <radialGradient id="pg_te" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(276 88) rotate(159) scale(220 130)">
+        <stop stopColor="#FFA24C"/><stop offset=".5" stopColor="#FF7A50"/><stop offset="1" stopColor="#FF4D42"/>
+      </radialGradient>
+    </defs>
+  </svg>
+);
+
+// ─── ICONS ────────────────────────────────────────────────────────────────────
+const IconMarket    = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="2,14 7,9 11,12 18,5"/><polyline points="13,5 18,5 18,10"/></svg>;
+const IconTrades    = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 7h10M13 4l3 3-3 3"/><path d="M15 13H5M7 10l-3 3 3 3"/></svg>;
+const IconCreate    = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6.5" x2="10" y2="13.5"/><line x1="6.5" y1="10" x2="13.5" y2="10"/></svg>;
+const IconSettings  = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="2.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/></svg>;
+const IconNews      = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="16" height="13" rx="2"/><line x1="6" y1="8" x2="14" y2="8"/><line x1="6" y1="11" x2="14" y2="11"/><line x1="6" y1="14" x2="10" y2="14"/></svg>;
+const IconChevLeft  = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9,2 4,7 9,12"/></svg>;
+const IconChevRight = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="5,2 10,7 5,12"/></svg>;
+const IconBurger    = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="2" y1="4.5" x2="16" y2="4.5"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="13.5" x2="16" y2="13.5"/></svg>;
+const IconBack      = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="10,3 5,8 10,13"/></svg>;
+const IconSend      = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="14" y1="2" x2="6" y2="10"/><polygon points="14,2 9,14 6,10 2,7" fill="currentColor" stroke="none"/></svg>;
+const IconLock      = () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="5.5" width="8" height="5.5" rx="1.5"/><path d="M4 5.5V3.5a2 2 0 0 1 4 0v2"/></svg>;
+const IconCopy      = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M2 9.5V2.5a1 1 0 0 1 1-1h7"/></svg>;
+const IconCheck     = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="2,7 5.5,10.5 12,4"/></svg>;
+const IconAlert     = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M7 2L1 12h12L7 2z"/><line x1="7" y1="6" x2="7" y2="9"/><circle cx="7" cy="11" r=".5" fill="currentColor"/></svg>;
+const IconClock     = () => <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="6.5" cy="6.5" r="5"/><path d="M6.5 3.5v3l2 1.5"/></svg>;
+const IconQR        = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="10" y="1" width="5" height="5" rx="1"/><rect x="1" y="10" width="5" height="5" rx="1"/><rect x="2.5" y="2.5" width="2" height="2" fill="currentColor" stroke="none"/><rect x="11.5" y="2.5" width="2" height="2" fill="currentColor" stroke="none"/><rect x="2.5" y="11.5" width="2" height="2" fill="currentColor" stroke="none"/><line x1="10" y1="10" x2="10" y2="10"/><line x1="13" y1="10" x2="15" y2="10"/><line x1="10" y1="13" x2="10" y2="15"/><line x1="13" y1="13" x2="15" y2="15"/></svg>;
+const IconThumbUp   = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l2-5c.5-1.5 2-1.5 2.5 0L11 7h3.5a1 1 0 0 1 1 1.2l-1 5a1 1 0 0 1-1 .8H7a1 1 0 0 1-1-1V9z"/><path d="M6 9H4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h2"/></svg>;
+const IconThumbDown = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9l-2 5c-.5 1.5-2 1.5-2.5 0L7 11H3.5a1 1 0 0 1-1-1.2l1-5a1 1 0 0 1 1-.8H11a1 1 0 0 1 1 1V9z"/><path d="M12 9h2a1 1 0 0 1 1-1V4a1 1 0 0 0-1-1h-2"/></svg>;
+const IconDispute   = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="8" cy="8" r="6.5"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="11" r=".6" fill="currentColor" stroke="none"/></svg>;
+const IconChevronDown = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3,5 7,9 11,5"/></svg>;
+const IconChevronUp   = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3,9 7,5 11,9"/></svg>;
+
+// ─── SIDENAV ──────────────────────────────────────────────────────────────────
+const NAV_ITEMS = [
+  { id:"home",     label:"Home",     icon:()=><PeachIcon size={20}/> },
+  { id:"market",   label:"Market",   icon:()=><IconMarket/> },
+  { id:"trades",   label:"Trades",   icon:()=><IconTrades/> },
+  { id:"create",   label:"Create",   icon:()=><IconCreate/> },
+  { id:"settings", label:"Settings", icon:()=><IconSettings/> },
+  { id:"news",     label:"News",     icon:()=><IconNews/> },
+];
+
+function SideNav({ active, collapsed, onToggle, mobileOpen, onClose }) {
+  return (
+    <>
+      <div className={`sidenav-backdrop${mobileOpen ? " open" : ""}`} onClick={onClose}/>
+      <nav className={`sidenav${collapsed ? " sidenav-collapsed" : ""}${mobileOpen ? " sidenav-mobile-open" : ""}`}>
+        <button className="sidenav-toggle" onClick={onToggle}>{collapsed ? <IconChevRight/> : <IconChevLeft/>}</button>
+        {NAV_ITEMS.map(({ id, label, icon }) => (
+          <button key={id} className={`sidenav-item${active === id ? " sidenav-active" : ""}`}>
+            <span className="sidenav-icon">{icon()}</span>
+            <span className="sidenav-label">{label}</span>
+          </button>
+        ))}
+      </nav>
+    </>
+  );
+}
+
+// ─── MOCK DATA ────────────────────────────────────────────────────────────────
+const BTC_PRICE = 87432;
+const SAT = 100_000_000;
+
+function satsToFiat(sats, price = BTC_PRICE) {
+  return ((sats / SAT) * price).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmt(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M";
+  if (n >= 1_000)     return (n / 1_000).toFixed(0) + "k";
+  return String(n);
+}
+function relTime(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60_000);
+  if (m < 1)  return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+// Trade lifecycle states in order
+const LIFECYCLE = [
+  { id:"matched",            label:"Matched",             desc:"Offers paired, awaiting escrow" },
+  { id:"escrow_funded",      label:"Escrow Funded",       desc:"Bitcoin locked in escrow" },
+  { id:"payment_in_transit", label:"Payment Sent",        desc:"Buyer marked fiat as sent — seller reviewing" },
+  { id:"completed",          label:"Completed",           desc:"Bitcoin released, trade closed" },
+];
+
+const STATUS_CONFIG = {
+  matched:             { label:"Matched",            bg:"#FEFCE5", color:"#9A7000" },
+  escrow_funded:       { label:"Escrow Funded",      bg:"#FEFCE5", color:"#9A7000" },
+  awaiting_payment:    { label:"Awaiting Payment",   bg:"#FEEDE5", color:"#C45104" },
+  payment_in_transit:  { label:"Payment Sent",       bg:"#FEEDE5", color:"#C45104" },
+  payment_confirmed:   { label:"Payment Confirmed",  bg:"#F2F9E7", color:"#65A519" },
+  completed:           { label:"Completed",          bg:"#F2F9E7", color:"#65A519" },
+  dispute:             { label:"Dispute",            bg:"#FFE6E1", color:"#DF321F" },
+  cancellation_pending:{ label:"Cancellation Req.",  bg:"#FFE6E1", color:"#DF321F" },
+  cancelled:           { label:"Cancelled",          bg:"#F4EEEB", color:"#7D675E" },
+};
+
+// Demo scenarios — switch between them to preview different states
+const DEMO_SCENARIOS = [
+  {
+    id:"buyer_escrow_pending",
+    label:"Buyer — Awaiting Escrow",
+    role:"buyer",
+    status:"matched",
+    lifecycleStep: 0,
+    contract: {
+      id:"CT-00152",
+      direction:"buy",
+      sats:85000,
+      fiat:"74.32",
+      currency:"EUR",
+      premium:-1.2,
+      method:"SEPA",
+      startedAt: Date.now() - 12 * 60_000,
+      deadline: null,
+      escrowAddress:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    },
+    counterparty:{ initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"], online:true },
+    paymentDetails:null,
+  },
+  {
+    id:"seller_escrow_pending",
+    label:"Seller — Fund Escrow",
+    role:"seller",
+    status:"matched",
+    lifecycleStep: 0,
+    contract: {
+      id:"CT-00152",
+      direction:"sell",
+      sats:85000,
+      fiat:"74.32",
+      currency:"EUR",
+      premium:-1.2,
+      method:"SEPA",
+      startedAt: Date.now() - 12 * 60_000,
+      deadline: null,
+      escrowAddress:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    },
+    counterparty:{ initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"], online:true },
+    paymentDetails:null,
+  },
+  {
+    id:"buyer_awaiting",
+    label:"Buyer — Awaiting Payment",
+    role:"buyer",
+    status:"escrow_funded",
+    lifecycleStep: 1,
+    contract: {
+      id:"CT-00148",
+      direction:"buy",
+      sats:85000,
+      fiat:"74.32",
+      currency:"EUR",
+      premium:-1.2,
+      method:"SEPA",
+      startedAt: Date.now() - 4 * 3600_000,
+      deadline: Date.now() + 8 * 3600_000,
+      escrowAddress:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    },
+    counterparty:{ initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"], online:true },
+    paymentDetails:{
+      type:"SEPA",
+      bank:"Deutsche Bank",
+      iban:"DE89 3704 0044 0532 0130 00",
+      bic:"COBADEFFXXX",
+      name:"Stefan T.",
+      reference:"PEACH-CT-00148",
+    },
+  },
+  {
+    id:"seller_awaiting",
+    label:"Seller — Awaiting Payment",
+    role:"seller",
+    status:"awaiting_payment",
+    lifecycleStep: 1,
+    contract: {
+      id:"CT-00149",
+      direction:"sell",
+      sats:120000,
+      fiat:"104.92",
+      currency:"EUR",
+      premium:0.5,
+      method:"Revolut",
+      startedAt: Date.now() - 1.5 * 3600_000,
+      deadline: Date.now() + 10.5 * 3600_000,
+      escrowAddress:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    },
+    counterparty:{ initials:"DV", color:"#9B5CFF", name:"Peer #A1F3", rep:4.6, trades:67, badges:[], online:true },
+    paymentDetails:null,
+  },
+  {
+    id:"payment_in_transit",
+    label:"Seller — Confirm Payment",
+    role:"seller",
+    status:"payment_in_transit",
+    lifecycleStep: 2,
+    contract: {
+      id:"CT-00150",
+      direction:"sell",
+      sats:55000,
+      fiat:"47.88",
+      currency:"EUR",
+      premium:-0.5,
+      method:"SEPA",
+      startedAt: Date.now() - 6 * 3600_000,
+      deadline: null,
+      escrowAddress:"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+    },
+    counterparty:{ initials:"NB", color:"#037DB5", name:"Peer #C73E", rep:4.8, trades:156, badges:["fast"], online:false },
+    paymentDetails:null,
+  },
+  {
+    id:"completed",
+    label:"Completed — Rate Counterparty",
+    role:"buyer",
+    status:"completed",
+    lifecycleStep: 3,
+    contract: {
+      id:"CT-00145",
+      direction:"buy",
+      sats:100000,
+      fiat:"87.43",
+      currency:"EUR",
+      premium:-1.5,
+      method:"SEPA",
+      startedAt: Date.now() - 26 * 3600_000,
+      deadline: null,
+      escrowAddress:"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+    },
+    counterparty:{ initials:"PW", color:"#FF7A50", name:"Peer #4E2A", rep:4.9, trades:312, badges:["supertrader"], online:false },
+    paymentDetails:null,
+  },
+  {
+    id:"dispute",
+    label:"Dispute Open",
+    role:"buyer",
+    status:"dispute",
+    lifecycleStep: 2,
+    contract: {
+      id:"CT-00143",
+      direction:"buy",
+      sats:30000,
+      fiat:"26.23",
+      currency:"EUR",
+      premium:-2.0,
+      method:"Revolut",
+      startedAt: Date.now() - 28 * 3600_000,
+      deadline: null,
+      escrowAddress:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    },
+    counterparty:{ initials:"FR", color:"#DF321F", name:"Peer #D8B1", rep:3.9, trades:9, badges:[], online:false },
+    paymentDetails:null,
+  },
+];
+
+// Mock chat messages per scenario
+const MOCK_MESSAGES = {
+  buyer_awaiting: [
+    { id:1, from:"counterparty", text:"Hey, I'm ready. Please send the payment to the SEPA details above.", ts: Date.now() - 3 * 3600_000 + 5 * 60_000 },
+    { id:2, from:"me",           text:"Got it, sending now. Will take a few minutes to process.", ts: Date.now() - 3 * 3600_000 + 8 * 60_000 },
+    { id:3, from:"counterparty", text:"Perfect, let me know once it's done.", ts: Date.now() - 3 * 3600_000 + 10 * 60_000 },
+    { id:4, from:"me",           text:"Payment is on its way! Should arrive within 2 hours.", ts: Date.now() - 2 * 3600_000 },
+  ],
+  seller_awaiting: [
+    { id:1, from:"me",           text:"Hello! The escrow is funded. Please review the payment details and send when ready.", ts: Date.now() - 1 * 3600_000 },
+    { id:2, from:"counterparty", text:"Hi, on it. My bank might take a little longer, is that ok?", ts: Date.now() - 55 * 60_000 },
+    { id:3, from:"me",           text:"That's fine, you have plenty of time. Let me know if you need anything.", ts: Date.now() - 50 * 60_000 },
+  ],
+  payment_in_transit: [
+    { id:1, from:"me",           text:"Escrow is set, waiting on your payment.", ts: Date.now() - 5 * 3600_000 },
+    { id:2, from:"counterparty", text:"Just sent it via SEPA. Reference: PEACH-CT-00150", ts: Date.now() - 4 * 3600_000 },
+    { id:3, from:"counterparty", text:"Please confirm once you see it arrive.", ts: Date.now() - 4 * 3600_000 + 2 * 60_000 },
+    { id:4, from:"me",           text:"Checking my account now…", ts: Date.now() - 30 * 60_000 },
+  ],
+  payment_confirmed: [
+    { id:1, from:"counterparty", text:"I've sent the payment. Check your Wise account.", ts: Date.now() - 7 * 3600_000 },
+    { id:2, from:"me",           text:"Got it, payment received! Releasing the bitcoin now.", ts: Date.now() - 6 * 3600_000 },
+    { id:3, from:"counterparty", text:"Great, thanks! Was a pleasure trading with you.", ts: Date.now() - 5 * 3600_000 },
+    { id:4, from:"me",           text:"Same here 🤝 Bitcoin released!", ts: Date.now() - 4 * 3600_000 },
+  ],
+  completed: [
+    { id:1, from:"counterparty", text:"Payment sent, please confirm.", ts: Date.now() - 25 * 3600_000 },
+    { id:2, from:"me",           text:"Confirmed! Releasing now.", ts: Date.now() - 24 * 3600_000 },
+    { id:3, from:"counterparty", text:"Bitcoin arrived, thank you!", ts: Date.now() - 23 * 3600_000 },
+    { id:4, from:"me",           text:"Smooth trade, thanks!", ts: Date.now() - 23 * 3600_000 + 5 * 60_000 },
+  ],
+  dispute: [
+    { id:1, from:"counterparty", text:"I sent the payment 2 days ago. Why haven't you released?", ts: Date.now() - 27 * 3600_000 },
+    { id:2, from:"me",           text:"I never received any payment in my Revolut account.", ts: Date.now() - 26 * 3600_000 },
+    { id:3, from:"counterparty", text:"Check again, I have the screenshot.", ts: Date.now() - 25 * 3600_000 },
+    { id:4, from:"me",           text:"I've opened a dispute. A Peach mediator will assist us.", ts: Date.now() - 24 * 3600_000 },
+  ],
+};
+
+// ─── AVATAR ───────────────────────────────────────────────────────────────────
+function Avatar({ initials, color, size = 36, online }) {
+  return (
+    <div style={{ position:"relative", flexShrink:0 }}>
+      <div style={{
+        width:size, height:size, borderRadius:"50%",
+        background: color || "linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        fontSize: size * 0.36, fontWeight:700, color:"white", flexShrink:0,
+      }}>{initials}</div>
+      {online && (
+        <div style={{
+          position:"absolute", bottom:0, right:0,
+          width:9, height:9, borderRadius:"50%",
+          background:"#65A519", border:"2px solid white",
+        }}/>
+      )}
+    </div>
+  );
+}
+
+// ─── STATUS CHIP ─────────────────────────────────────────────────────────────
+function StatusChip({ status, large }) {
+  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.matched;
+  return (
+    <span style={{
+      display:"inline-flex", alignItems:"center", gap:4,
+      background:cfg.bg, color:cfg.color,
+      borderRadius:999, padding: large ? "5px 14px" : "2px 10px",
+      fontSize: large ? ".8rem" : ".72rem", fontWeight:700, whiteSpace:"nowrap",
+    }}>
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── HORIZONTAL STEPPER (bottom bar) ─────────────────────────────────────────
+function HorizontalStepper({ status }) {
+  const stepMap = {
+    matched:0, escrow_funded:1, awaiting_payment:1,
+    payment_in_transit:2, payment_confirmed:2, completed:3,
+    dispute:2, cancellation_pending:2, cancelled:2,
+  };
+  const activeStep = stepMap[status] ?? 0;
+  const isAborted = status === "dispute" || status === "cancelled" || status === "cancellation_pending";
+
+  return (
+    <div className="h-stepper">
+      {LIFECYCLE.map((s, i) => {
+        const isDone   = i < activeStep;
+        const isActive = i === activeStep && !isAborted;
+        const isAbortedStep = isAborted && i === activeStep;
+        const dotColor = isDone ? "#65A519" : isActive ? "#F56522" : isAbortedStep ? "#DF321F" : "#C4B5AE";
+        const labelColor = isDone ? "#65A519" : isActive ? "#2B1911" : isAbortedStep ? "#DF321F" : "#C4B5AE";
+        const lineColor = isDone ? "#65A519" : "#EAE3DF";
+
+        return (
+          <div key={s.id} className="h-step">
+            {/* Left connector */}
+            {i > 0 && (
+              <div className="h-step-line" style={{ background: lineColor }}/>
+            )}
+            {/* Dot */}
+            <div className="h-step-dot" style={{
+              background: dotColor,
+              border: (isActive || isAbortedStep || isDone) ? "none" : "2px solid #C4B5AE",
+              boxShadow: isActive ? "0 0 0 3px #FEEDE5" : "none",
+            }}>
+              {isDone && <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><polyline points="1,4 3,6 7,2" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>}
+            </div>
+            {/* Label */}
+            <div className="h-step-label" style={{ color: labelColor, fontWeight: isActive ? 700 : 500 }}>
+              {s.label}
+            </div>
+          </div>
+        );
+      })}
+      {isAborted && (
+        <div className="h-stepper-alert">
+          <IconAlert/>
+          <span>
+            {status === "dispute" ? "Dispute open — mediator assigned" :
+             status === "cancellation_pending" ? "Cancellation requested" :
+             "Cancelled"}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+// ─── PAYMENT DETAILS CARD ────────────────────────────────────────────────────
+function PaymentDetailsCard({ details }) {
+  const [copied, setCopied] = useState(null);
+
+  function copy(val, key) {
+    navigator.clipboard?.writeText(val).catch(()=>{});
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
+  }
+
+  const rows = [
+    { label:"Bank",      value:details.bank },
+    { label:"IBAN",      value:details.iban },
+    { label:"BIC",       value:details.bic },
+    { label:"Name",      value:details.name },
+    { label:"Reference", value:details.reference },
+  ].filter(r => r.value);
+
+  return (
+    <div style={{
+      background:"#FFF9F6", border:"1.5px solid #EAE3DF", borderRadius:12,
+      overflow:"hidden", marginBottom:16,
+    }}>
+      <div style={{
+        background:"#FEEDE5", padding:"8px 14px",
+        display:"flex", alignItems:"center", gap:6,
+        fontSize:".72rem", fontWeight:700, color:"#C45104",
+        textTransform:"uppercase", letterSpacing:".05em",
+      }}>
+        <IconLock/> Payment Details — {details.type}
+      </div>
+      {rows.map(r => (
+        <div key={r.label} style={{
+          display:"flex", justifyContent:"space-between", alignItems:"center",
+          padding:"8px 14px", borderBottom:"1px solid #F4EEEB",
+        }}>
+          <div>
+            <div style={{ fontSize:".68rem", color:"#7D675E", fontWeight:600, textTransform:"uppercase", letterSpacing:".04em" }}>{r.label}</div>
+            <div style={{ fontSize:".85rem", fontWeight:600, color:"#2B1911", fontFamily: r.label === "IBAN" || r.label === "BIC" ? "monospace" : "inherit" }}>{r.value}</div>
+          </div>
+          <button
+            style={{
+              border:"none", background:"transparent", cursor:"pointer",
+              color: copied === r.label ? "#65A519" : "#7D675E", padding:4, borderRadius:6,
+              transition:"color .2s",
+            }}
+            onClick={() => copy(r.value, r.label)}
+            title="Copy"
+          >
+            {copied === r.label ? <IconCheck/> : <IconCopy/>}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── ESCROW ADDRESS CARD ─────────────────────────────────────────────────────
+function EscrowAddressCard({ address }) {
+  const [copied, setCopied] = useState(false);
+
+  function copy() {
+    navigator.clipboard?.writeText(address).catch(()=>{});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  // Simple QR placeholder — real impl would use a QR library
+  function MiniQR() {
+    return (
+      <div style={{
+        width:64, height:64, background:"white", border:"1px solid #EAE3DF",
+        borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center",
+        flexShrink:0,
+      }}>
+        <svg width="44" height="44" viewBox="0 0 9 9">
+          {/* Simplified QR pattern */}
+          {[0,1,2,3,4,5,6,7,8].map(r =>
+            [0,1,2,3,4,5,6,7,8].map(c => {
+              const isCorner = (r<3&&c<3)||(r<3&&c>5)||(r>5&&c<3);
+              const seed = (r * 9 + c) * 2654435761;
+              const fill = isCorner ? 1 : (seed % 3 === 0 ? 1 : 0);
+              return fill ? <rect key={`${r}${c}`} x={c} y={r} width={1} height={1} fill="#2B1911"/> : null;
+            })
+          )}
+          {/* Corner squares */}
+          {[[0,0],[0,6],[6,0]].map(([r,c]) => (
+            <rect key={`f${r}${c}`} x={c+1} y={r+1} width={1} height={1} fill="#2B1911"/>
+          ))}
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background:"#F4EEEB", border:"1px solid #EAE3DF", borderRadius:12,
+      padding:"12px 14px", marginBottom:16,
+    }}>
+      <div style={{ fontSize:".68rem", fontWeight:700, color:"#7D675E", textTransform:"uppercase", letterSpacing:".05em", marginBottom:8 }}>
+        <IconQR/> Escrow Address
+      </div>
+      <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+        <MiniQR/>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{
+            fontFamily:"monospace", fontSize:".72rem", color:"#2B1911",
+            wordBreak:"break-all", lineHeight:1.5, marginBottom:6,
+          }}>{address}</div>
+          <button
+            style={{
+              display:"flex", alignItems:"center", gap:5,
+              border:"1px solid #EAE3DF", background:"white", borderRadius:999,
+              fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
+              color: copied ? "#65A519" : "#7D675E",
+              padding:"3px 10px", cursor:"pointer", transition:"color .2s",
+            }}
+            onClick={copy}
+          >
+            {copied ? <><IconCheck/> Copied!</> : <><IconCopy/> Copy address</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DISPUTE FLOW ────────────────────────────────────────────────────────────
+const DISPUTE_REASONS = [
+  "BITCOIN NOT RECEIVED",
+  "SELLER UNRESPONSIVE",
+  "ABUSIVE BEHAVIOUR",
+  "SOMETHING ELSE",
+];
+
+function DisputeFlow({ tradeId, onClose }) {
+  const [step, setStep] = useState(1); // 1=warning, 2=reason, 3=details
+  const [reason, setReason] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const canConfirm = email.trim().length > 0 && message.trim().length > 0;
+
+  if (submitted) {
+    return (
+      <div style={{
+        position:"fixed", inset:0, zIndex:600,
+        background:"rgba(43,25,17,.6)", display:"flex",
+        alignItems:"center", justifyContent:"center", padding:20,
+      }}>
+        <div style={{
+          background:"white", borderRadius:16, padding:"32px 24px",
+          maxWidth:380, width:"100%", textAlign:"center",
+          boxShadow:"0 20px 60px rgba(0,0,0,.25)",
+          animation:"modalIn .18s ease",
+        }}>
+          <div style={{ fontSize:"2rem", marginBottom:12 }}>✓</div>
+          <div style={{ fontWeight:800, fontSize:"1rem", marginBottom:8 }}>Dispute opened</div>
+          <div style={{ fontSize:".88rem", color:"#7D675E", marginBottom:24, lineHeight:1.6 }}>
+            A Peach mediator has been assigned to your case and will be in touch soon.
+          </div>
+          <button
+            style={{
+              width:"100%", border:"none", background:"#DF321F", borderRadius:999,
+              fontFamily:"Baloo 2, cursive", fontWeight:800, fontSize:".9rem",
+              color:"white", padding:"11px", cursor:"pointer",
+            }}
+            onClick={onClose}
+          >Close</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      position:"fixed", inset:0, zIndex:600,
+      background:"rgba(43,25,17,.6)", display:"flex",
+      alignItems:"center", justifyContent:"center", padding:20,
+    }}>
+
+      {/* ── Step 1: Warning ── */}
+      {step === 1 && (
+        <div style={{
+          background:"white", borderRadius:20, maxWidth:400, width:"100%",
+          boxShadow:"0 20px 60px rgba(0,0,0,.3)",
+          animation:"modalIn .18s ease", overflow:"hidden",
+        }}>
+          <div style={{ padding:"24px 24px 20px" }}>
+            <div style={{ fontWeight:800, fontSize:"1.15rem", marginBottom:16 }}>open dispute</div>
+            <p style={{ fontSize:".9rem", color:"#2B1911", lineHeight:1.65, marginBottom:12 }}>
+              This will request the intervention of a Peach employee to mediate between you and your counterpart.
+            </p>
+            <p style={{ fontSize:".9rem", color:"#2B1911", lineHeight:1.65, marginBottom:12 }}>
+              Opening a dispute will reveal the chat and payment methods to Peach.
+            </p>
+            <p style={{ fontSize:".9rem", color:"#2B1911", lineHeight:1.65 }}>
+              Please only use this as a last resort.
+            </p>
+          </div>
+          <div style={{
+            display:"flex", alignItems:"center",
+            borderTop:"1px solid #EAE3DF",
+            background:"#DF321F",
+          }}>
+            <button
+              style={{
+                flex:1, border:"none", background:"transparent",
+                display:"flex", alignItems:"center", gap:8,
+                fontFamily:"Baloo 2, cursive", fontWeight:700, fontSize:".9rem",
+                color:"white", padding:"14px 20px", cursor:"pointer",
+              }}
+              onClick={() => setStep(2)}
+            >
+              <IconDispute/> open dispute
+            </button>
+            <div style={{ width:1, height:24, background:"rgba(255,255,255,.25)" }}/>
+            <button
+              style={{
+                border:"none", background:"transparent",
+                fontFamily:"Baloo 2, cursive", fontWeight:700, fontSize:".9rem",
+                color:"white", padding:"14px 20px", cursor:"pointer",
+                display:"flex", alignItems:"center", gap:6,
+              }}
+              onClick={onClose}
+            >
+              close <span style={{
+                display:"inline-flex", alignItems:"center", justifyContent:"center",
+                width:18, height:18, border:"1.5px solid rgba(255,255,255,.6)",
+                borderRadius:4, fontSize:".7rem",
+              }}>✕</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Step 2: Reason ── */}
+      {step === 2 && (
+        <div style={{
+          background:"#FFF9F6", borderRadius:20, maxWidth:400, width:"100%",
+          boxShadow:"0 20px 60px rgba(0,0,0,.3)",
+          animation:"modalIn .18s ease", padding:"40px 28px 32px",
+        }}>
+          <div style={{ fontWeight:800, fontSize:"1.2rem", marginBottom:24, textAlign:"center" }}>
+            what's up?
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {DISPUTE_REASONS.map(r => (
+              <button
+                key={r}
+                style={{
+                  border: reason === r ? "2px solid #DF321F" : "1.5px solid #C4B5AE",
+                  background: reason === r ? "#FFF0EE" : "white",
+                  borderRadius:999, fontFamily:"Baloo 2, cursive",
+                  fontWeight:700, fontSize:".82rem", letterSpacing:".04em",
+                  color: reason === r ? "#DF321F" : "#624D44",
+                  padding:"13px 20px", cursor:"pointer", transition:"all .15s",
+                  textAlign:"center",
+                }}
+                onClick={() => { setReason(r); setStep(3); }}
+              >{r}</button>
+            ))}
+          </div>
+          <button
+            style={{
+              marginTop:20, background:"none", border:"none",
+              fontFamily:"Baloo 2, cursive", fontSize:".82rem",
+              color:"#7D675E", cursor:"pointer", display:"block", margin:"20px auto 0",
+            }}
+            onClick={() => setStep(1)}
+          >← Back</button>
+        </div>
+      )}
+
+      {/* ── Step 3: Details ── */}
+      {step === 3 && (
+        <div style={{
+          background:"#FFF9F6", borderRadius:20, maxWidth:400, width:"100%",
+          boxShadow:"0 20px 60px rgba(0,0,0,.3)",
+          animation:"modalIn .18s ease", padding:"40px 28px 32px",
+        }}>
+          <div style={{ fontWeight:800, fontSize:"1.1rem", marginBottom:24, textAlign:"center" }}>
+            dispute for trade {tradeId}
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:24 }}>
+            <input
+              style={{
+                border:"1.5px solid #C4B5AE", borderRadius:12, background:"white",
+                fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"#2B1911",
+                padding:"12px 16px", outline:"none",
+              }}
+              placeholder="user@email.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              onFocus={e => e.target.style.borderColor="#DF321F"}
+              onBlur={e => e.target.style.borderColor="#C4B5AE"}
+            />
+            <input
+              style={{
+                border:"1.5px solid #C4B5AE", borderRadius:12, background:"white",
+                fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"#2B1911",
+                padding:"12px 16px", outline:"none",
+              }}
+              value={reason.toLowerCase()}
+              readOnly
+            />
+            <textarea
+              style={{
+                border:"1.5px solid #C4B5AE", borderRadius:12, background:"white",
+                fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"#2B1911",
+                padding:"12px 16px", outline:"none", resize:"none",
+                minHeight:100, lineHeight:1.5,
+              }}
+              placeholder="your message..."
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              onFocus={e => e.target.style.borderColor="#DF321F"}
+              onBlur={e => e.target.style.borderColor="#C4B5AE"}
+            />
+          </div>
+          <button
+            style={{
+              width:"100%", border:"none", borderRadius:999,
+              fontFamily:"Baloo 2, cursive", fontWeight:800, fontSize:".9rem",
+              color:"white", padding:"13px",
+              background: canConfirm ? "#DF321F" : "#F5C6BE",
+              cursor: canConfirm ? "pointer" : "not-allowed",
+              letterSpacing:".06em", transition:"background .2s",
+            }}
+            disabled={!canConfirm}
+            onClick={() => { if (canConfirm) setSubmitted(true); }}
+          >CONFIRM</button>
+          <button
+            style={{
+              marginTop:14, background:"none", border:"none",
+              fontFamily:"Baloo 2, cursive", fontSize:".82rem",
+              color:"#7D675E", cursor:"pointer", display:"block", margin:"14px auto 0",
+            }}
+            onClick={() => setStep(2)}
+          >← Back</button>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+// ─── TRADING RULES CARD ───────────────────────────────────────────────────────
+function TradingRulesCard() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div style={{
+      borderBottom:"1px solid #EAE3DF",
+      background:"#FEFCE5",
+      flexShrink:0,
+    }}>
+      <button
+        style={{
+          width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
+          border:"none", background:"transparent", fontFamily:"Baloo 2, cursive",
+          fontWeight:700, fontSize:".82rem", color:"#624D44",
+          padding:"10px 18px", cursor:"pointer",
+        }}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span>📋 Trading Rules</span>
+        {open ? <IconChevronUp/> : <IconChevronDown/>}
+      </button>
+      {open && (
+        <div style={{
+          padding:"0 18px 14px",
+          fontSize:".82rem", color:"#624D44", lineHeight:1.7,
+        }}>
+          <p style={{ marginBottom:10 }}>
+            <strong>For the Seller:</strong><br/>
+            – do not release the escrow before receiving the money in your account, no matter what the buyer says
+          </p>
+          <p style={{ marginBottom:10 }}>
+            <strong>For the Buyer:</strong><br/>
+            – confirm "I made the payment" only after having done so<br/>
+            – only pay the Seller to the details provided in the Contract Screen, after the escrow has been funded
+          </p>
+          <p>
+            <strong>For all:</strong><br/>
+            – the payment details used must match exactly<br/>
+            – communications between the two parties must be conducted in this chat only.<br/>
+            – if counterpart displays suspect behavior, start a dispute by pressing the top right icon on this screen
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ESCROW FUNDING CARD (Seller) ────────────────────────────────────────────
+function EscrowFundingCard({ address, sats, btcPrice }) {
+  const [withAmount, setWithAmount] = useState(true);
+  const [copiedAddr, setCopiedAddr] = useState(false);
+  const [copiedAmt, setCopiedAmt]   = useState(false);
+
+  const btcAmount = (sats / 100_000_000).toFixed(8);
+  // BIP21 URI: bitcoin:<address>?amount=<btc> when withAmount, else just address
+  const qrContent = withAmount
+    ? `bitcoin:${address}?amount=${btcAmount}`
+    : address;
+
+  function copy(val, setter) {
+    navigator.clipboard?.writeText(val).catch(()=>{});
+    setter(true);
+    setTimeout(() => setter(false), 1500);
+  }
+
+  // QR code rendered as SVG using a simple grid pattern
+  // In production this would use a QR library; here we show a convincing placeholder
+  function QRCode({ size = 160 }) {
+    const cells = 25;
+    const cell = size / cells;
+    // Deterministic pseudorandom fill based on content hash
+    function filled(r, c) {
+      // Protect the three finder patterns (7x7 corners)
+      if (r < 8 && c < 8) return (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4));
+      if (r < 8 && c > cells - 9) return (r === 0 || r === 6 || c === cells-1 || c === cells-7 || (r >= 2 && r <= 4 && c >= cells-5 && c <= cells-3));
+      if (r > cells - 9 && c < 8) return (r === cells-1 || r === cells-7 || c === 0 || c === 6 || (r >= cells-5 && r <= cells-3 && c >= 2 && c <= 4));
+      const seed = (r * 31 + c * 17 + qrContent.length * 7) % 100;
+      return seed < 48;
+    }
+    return (
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display:"block", borderRadius:6 }}>
+        <rect width={size} height={size} fill="white"/>
+        {Array.from({ length: cells }, (_, r) =>
+          Array.from({ length: cells }, (_, c) =>
+            filled(r, c)
+              ? <rect key={`${r}-${c}`} x={c * cell} y={r * cell} width={cell} height={cell} fill="#2B1911"/>
+              : null
+          )
+        )}
+      </svg>
+    );
+  }
+
+  return (
+    <div style={{
+      background:"white", border:"1.5px solid #EAE3DF", borderRadius:14,
+      overflow:"hidden", marginBottom:16,
+    }}>
+      {/* Header */}
+      <div style={{
+        background:"#FEEDE5", padding:"10px 16px",
+        fontSize:".72rem", fontWeight:700, color:"#C45104",
+        textTransform:"uppercase", letterSpacing:".05em",
+        display:"flex", alignItems:"center", gap:6,
+      }}>
+        <IconLock/> Fund the Escrow
+      </div>
+
+      {/* Amount highlight */}
+      <div style={{
+        padding:"14px 16px 12px",
+        borderBottom:"1px solid #F4EEEB",
+        display:"flex", justifyContent:"space-between", alignItems:"center",
+      }}>
+        <div>
+          <div style={{ fontSize:".68rem", fontWeight:700, color:"#7D675E", textTransform:"uppercase", letterSpacing:".05em", marginBottom:3 }}>Amount to send</div>
+          <div style={{ fontSize:"1.2rem", fontWeight:800, color:"#2B1911" }}>{(sats / 1000).toFixed(0)}k sats</div>
+          <div style={{ fontSize:".78rem", color:"#7D675E" }}>= {btcAmount} BTC</div>
+        </div>
+        <button
+          style={{
+            display:"flex", alignItems:"center", gap:5,
+            border:"1px solid #EAE3DF", background: copiedAmt ? "#F2F9E7" : "white",
+            borderRadius:999, fontFamily:"Baloo 2, cursive",
+            fontSize:".72rem", fontWeight:700,
+            color: copiedAmt ? "#65A519" : "#7D675E",
+            padding:"5px 12px", cursor:"pointer", transition:"all .2s",
+          }}
+          onClick={() => copy(btcAmount, setCopiedAmt)}
+        >
+          {copiedAmt ? <><IconCheck/> Copied!</> : <><IconCopy/> Copy BTC</>}
+        </button>
+      </div>
+
+      {/* QR code */}
+      <div style={{ padding:"16px", display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
+        <div style={{
+          padding:10, background:"white", border:"1px solid #EAE3DF",
+          borderRadius:10, display:"inline-block",
+        }}>
+          <QRCode size={160}/>
+        </div>
+
+        {/* Toggle */}
+        <div style={{
+          display:"flex", alignItems:"center", gap:0,
+          background:"#F4EEEB", borderRadius:999, padding:3,
+          fontSize:".72rem", fontWeight:700,
+        }}>
+          <button
+            style={{
+              border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
+              fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
+              background: !withAmount ? "white" : "transparent",
+              color: !withAmount ? "#2B1911" : "#7D675E",
+              boxShadow: !withAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
+              transition:"all .15s",
+            }}
+            onClick={() => setWithAmount(false)}
+          >Address only</button>
+          <button
+            style={{
+              border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
+              fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
+              background: withAmount ? "white" : "transparent",
+              color: withAmount ? "#2B1911" : "#7D675E",
+              boxShadow: withAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
+              transition:"all .15s",
+            }}
+            onClick={() => setWithAmount(true)}
+          >Address + amount</button>
+        </div>
+
+        <div style={{ fontSize:".68rem", color:"#7D675E", textAlign:"center", lineHeight:1.5 }}>
+          {withAmount
+            ? "QR includes amount — most wallets will fill it in automatically"
+            : "QR contains address only — enter the amount manually in your wallet"}
+        </div>
+      </div>
+
+      {/* Address */}
+      <div style={{
+        padding:"12px 16px 14px",
+        borderTop:"1px solid #F4EEEB",
+      }}>
+        <div style={{ fontSize:".68rem", fontWeight:700, color:"#7D675E", textTransform:"uppercase", letterSpacing:".05em", marginBottom:6 }}>Escrow address</div>
+        <div style={{
+          fontFamily:"monospace", fontSize:".72rem", color:"#2B1911",
+          wordBreak:"break-all", lineHeight:1.6, marginBottom:8,
+        }}>{address}</div>
+        <button
+          style={{
+            display:"flex", alignItems:"center", gap:5,
+            border:"1px solid #EAE3DF", background: copiedAddr ? "#F2F9E7" : "white",
+            borderRadius:999, fontFamily:"Baloo 2, cursive",
+            fontSize:".72rem", fontWeight:700,
+            color: copiedAddr ? "#65A519" : "#7D675E",
+            padding:"4px 12px", cursor:"pointer", transition:"all .2s",
+          }}
+          onClick={() => copy(address, setCopiedAddr)}
+        >
+          {copiedAddr ? <><IconCheck/> Copied!</> : <><IconCopy/> Copy address</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── CONFIRM MODAL ───────────────────────────────────────────────────────────
+function ConfirmModal({ title, body, confirmLabel, onConfirm, onCancel }) {
+  return (
+    <div style={{
+      position:"fixed", inset:0, zIndex:500,
+      background:"rgba(43,25,17,.55)", display:"flex",
+      alignItems:"center", justifyContent:"center", padding:20,
+    }}>
+      <div style={{
+        background:"white", borderRadius:16, padding:"28px 24px",
+        maxWidth:380, width:"100%",
+        boxShadow:"0 20px 60px rgba(0,0,0,.25)",
+        animation:"modalIn .18s ease",
+      }}>
+        <div style={{
+          width:44, height:44, borderRadius:"50%",
+          background:"#FFF0EE", display:"flex", alignItems:"center",
+          justifyContent:"center", marginBottom:14,
+        }}>
+          <IconAlert/>
+        </div>
+        <div style={{ fontWeight:800, fontSize:"1.05rem", marginBottom:8 }}>{title}</div>
+        <div style={{ fontSize:".88rem", color:"#7D675E", lineHeight:1.6, marginBottom:24 }}>{body}</div>
+        <div style={{ display:"flex", gap:10 }}>
+          <button
+            style={{
+              flex:1, border:"1.5px solid #EAE3DF", background:"white",
+              borderRadius:999, fontFamily:"Baloo 2, cursive",
+              fontWeight:700, fontSize:".87rem", color:"#2B1911",
+              padding:"10px", cursor:"pointer",
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor="#F56522"}
+            onMouseLeave={e => e.currentTarget.style.borderColor="#EAE3DF"}
+            onClick={onCancel}
+          >Cancel</button>
+          <button
+            style={{
+              flex:1, border:"none",
+              background:"#DF321F", borderRadius:999,
+              fontFamily:"Baloo 2, cursive", fontWeight:800,
+              fontSize:".87rem", color:"white",
+              padding:"10px", cursor:"pointer",
+              boxShadow:"0 2px 10px rgba(223,50,31,.3)",
+              transition:"filter .15s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.filter="brightness(0.9)"}
+            onMouseLeave={e => e.currentTarget.style.filter=""}
+            onClick={onConfirm}
+          >{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ACTION BUTTONS ───────────────────────────────────────────────────────────
+function ActionPanel({ scenario, onAction }) {
+  const { status, role } = scenario;
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const Btn = ({ label, bg, color, onClick }) => (
+    <button
+      className="action-btn"
+      style={{ background:bg, color:color }}
+      onClick={onClick}
+      onMouseEnter={e => { e.currentTarget.style.filter="brightness(0.92)"; e.currentTarget.style.transform="translateY(-1px)"; }}
+      onMouseLeave={e => { e.currentTarget.style.filter=""; e.currentTarget.style.transform=""; }}
+    >{label}</button>
+  );
+
+  const BtnGrad = ({ label, onClick }) => (
+    <button className="action-btn-grad" onClick={onClick}>{label}</button>
+  );
+
+  return (
+    <>
+      {showConfirm && (
+        <ConfirmModal
+          title="Confirm payment received?"
+          body="This will immediately release the Bitcoin from escrow to the buyer. Only confirm if you have actually received the fiat payment in your account."
+          confirmLabel="Yes, release Bitcoin"
+          onConfirm={() => { setShowConfirm(false); onAction("release_bitcoin"); }}
+          onCancel={() => setShowConfirm(false)}
+        />
+      )}
+
+      <div className="action-panel">
+        {status === "matched" && role === "buyer" && (
+          <div style={{
+            display:"flex", flexDirection:"column", alignItems:"center",
+            gap:12, padding:"20px 0", textAlign:"center",
+          }}>
+            <div style={{
+              width:48, height:48, borderRadius:"50%",
+              background:"#FEFCE5", border:"2px solid #F5CE22",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:"1.4rem",
+            }}>⏳</div>
+            <div style={{ fontWeight:700, fontSize:".95rem" }}>Waiting for escrow</div>
+            <div style={{ fontSize:".83rem", color:"#7D675E", lineHeight:1.6, maxWidth:280 }}>
+              The seller is funding the escrow. Once the Bitcoin is locked in, the trade will begin and you'll be able to send payment.
+            </div>
+            <div style={{ fontSize:".85rem", fontWeight:700, color:"#7D675E" }}>No actions required for the moment.</div>
+          </div>
+        )}
+
+        {status === "escrow_funded" && role === "buyer" && <>
+          <div className="action-hint">Send the exact fiat amount using the payment details above, then confirm below.</div>
+          <BtnGrad label="✓  I've Sent the Payment" onClick={() => onAction("payment_sent")}/>
+        </>}
+
+        {status === "awaiting_payment" && role === "seller" && (() => {
+          const deadline = scenario.contract.deadline;
+          const hoursLeft = deadline ? Math.floor((deadline - Date.now()) / 3600_000) : null;
+          const nearDeadline = hoursLeft !== null && hoursLeft < 3;
+          return <>
+            <div style={{
+              display:"flex", alignItems:"center", gap:8,
+              background:"#FEEDE5", border:"1px solid rgba(196,81,4,.15)",
+              borderRadius:8, padding:"10px 12px",
+              fontSize:".83rem", color:"#C45104", fontWeight:600, lineHeight:1.5,
+            }}>
+              <IconClock/>
+              <span>
+                Waiting for the buyer to send payment.
+                {hoursLeft !== null && <span style={{ color: nearDeadline ? "#DF321F" : "#C45104" }}> {hoursLeft}h remaining.</span>}
+              </span>
+            </div>
+            {nearDeadline && <Btn label="⏱  Extend Deadline (+12h)" bg="#D7F2FE" color="#037DB5" onClick={() => onAction("extend_time")}/>}
+            {/* Greyed-out — seller cannot confirm payment yet */}
+            <button disabled style={{
+              background:"#EAE3DF", color:"#C4B5AE", border:"none", borderRadius:999,
+              fontFamily:"Baloo 2, cursive", fontSize:".9rem", fontWeight:800,
+              padding:"12px 24px", cursor:"not-allowed", textAlign:"center",
+            }}>✓  I Received the Payment</button>
+          </>;
+        })()}
+
+        {/* Seller: confirm receipt → releases bitcoin */}
+        {(status === "payment_in_transit" || status === "payment_confirmed") && role === "seller" && <>
+          <div className="action-hint">The buyer has marked the payment as sent. Check your account and confirm once the funds have arrived.</div>
+          <BtnGrad label="✓  I Received the Payment" onClick={() => setShowConfirm(true)}/>
+          <Btn label="Open Dispute" bg="#FFF0EE" color="#DF321F" onClick={() => onAction("dispute")}/>
+        </>}
+
+        {status === "payment_in_transit" && role === "buyer" && <>
+          <div className="action-hint">You've sent payment. Waiting for the seller to confirm.</div>
+          <Btn label="Open Dispute" bg="#FFF0EE" color="#DF321F" onClick={() => onAction("dispute")}/>
+        </>}
+
+        {status === "payment_confirmed" && role === "buyer" && (
+          <div className="action-hint">Payment confirmed. Waiting for the seller to release the Bitcoin.</div>
+        )}
+
+        {status === "dispute" && (
+          <div style={{
+            background:"#FFF0EE", border:"1px solid rgba(223,50,31,.2)",
+            borderRadius:10, padding:"10px 14px", fontSize:".82rem",
+            color:"#DF321F", lineHeight:1.5,
+          }}>
+            <strong>Dispute open.</strong> A Peach mediator has been assigned. Provide evidence via the chat. Do not close this screen.
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── RATING PANEL ────────────────────────────────────────────────────────────
+function RatingPanel({ counterparty, onRate }) {
+  const [rating, setRating] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  if (submitted) {
+    return (
+      <div style={{
+        textAlign:"center", padding:"20px 0",
+        fontSize:".9rem", color:"#65A519", fontWeight:700,
+      }}>
+        <div style={{ fontSize:"1.5rem", marginBottom:8 }}>✓</div>
+        Rating submitted. Thanks!
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background:"linear-gradient(135deg,#FFF9F6,#FEEDE5)",
+      border:"1.5px solid rgba(245,101,34,.2)",
+      borderRadius:14, padding:"20px", marginTop:8,
+    }}>
+      <div style={{ fontWeight:800, fontSize:"1rem", marginBottom:4 }}>Trade Complete! 🎉</div>
+      <div style={{ fontSize:".85rem", color:"#7D675E", marginBottom:16 }}>
+        How was trading with <strong>{counterparty.name}</strong>?
+      </div>
+      <div style={{ display:"flex", gap:12, marginBottom:16 }}>
+        <button
+          className={`rating-btn${rating === 5 ? " rating-selected-good" : ""}`}
+          onClick={() => setRating(5)}
+        >
+          <IconThumbUp/>
+          <span>Positive</span>
+        </button>
+        <button
+          className={`rating-btn${rating === 1 ? " rating-selected-bad" : ""}`}
+          onClick={() => setRating(1)}
+        >
+          <IconThumbDown/>
+          <span>Negative</span>
+        </button>
+      </div>
+      <button
+        className="action-btn-grad"
+        disabled={!rating}
+        style={{ opacity: rating ? 1 : 0.5, cursor: rating ? "pointer" : "not-allowed" }}
+        onClick={() => { if (rating) { onRate(rating); setSubmitted(true); }}}
+      >
+        Submit Rating
+      </button>
+    </div>
+  );
+}
+
+// ─── CHAT PANEL ───────────────────────────────────────────────────────────────
+function ChatPanel({ messages, tradeId, disabled, status }) {
+  const disputeOpen = status === "dispute";
+  const [text, setText] = useState("");
+  const [localMsgs, setLocalMsgs] = useState(messages);
+  const [showDispute, setShowDispute] = useState(false);
+  const messagesRef = useRef(null);
+  const bottomRef = useRef(null);
+
+  useEffect(() => { setLocalMsgs(messages); }, [messages]);
+  useEffect(() => {
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    }
+  }, [localMsgs]);
+
+  function send() {
+    if (!text.trim() || disabled) return;
+    setLocalMsgs(prev => [...prev, { id:Date.now(), from:"me", text:text.trim(), ts:Date.now(), optimistic:true }]);
+    setText("");
+  }
+  function handleKey(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  }
+
+  return (
+    <div className="chat-panel" style={{ position:"relative" }}>
+      {showDispute && <DisputeFlow tradeId={tradeId} onClose={() => setShowDispute(false)}/>}
+
+      {/* Disabled overlay */}
+      {disabled && (
+        <div style={{
+          position:"absolute", inset:0, zIndex:10,
+          background:"rgba(244,238,235,0.82)",
+          backdropFilter:"blur(2px)",
+          display:"flex", flexDirection:"column",
+          alignItems:"center", justifyContent:"center", gap:10,
+          pointerEvents:"all",
+        }}>
+          <div style={{
+            width:40, height:40, borderRadius:"50%",
+            background:"#EAE3DF",
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}>
+            <IconLock/>
+          </div>
+          <div style={{
+            fontSize:".85rem", fontWeight:700, color:"#7D675E",
+            textAlign:"center", maxWidth:240, lineHeight:1.5,
+          }}>
+            Chat disabled while waiting for seller to fund escrow
+          </div>
+        </div>
+      )}
+
+      <TradingRulesCard/>
+
+      <div className="chat-enc-notice">
+        <IconLock/> End-to-end encrypted · <span style={{ opacity:.7 }}>// TODO: PGP decrypt</span>
+      </div>
+
+      {/* Dispute button — fixed top-right of chat area */}
+      <div style={{ position:"relative", flexShrink:0, height:0 }}>
+        <button
+          className={`chat-dispute-btn${disputeOpen ? " chat-dispute-btn-inactive" : ""}`}
+          onClick={() => !disabled && !disputeOpen && setShowDispute(true)}
+          onMouseEnter={e => { if (!disabled && !disputeOpen) e.currentTarget.style.background="#FFF0EE"; }}
+          onMouseLeave={e => { e.currentTarget.style.background="white"; }}
+          style={{
+            position:"absolute", top:10, right:14,
+            opacity: disabled ? 0.4 : 1,
+            pointerEvents: (disabled || disputeOpen) ? "none" : "auto",
+            background:"white",
+            boxShadow:"0 2px 8px rgba(0,0,0,.12)",
+            zIndex:5,
+          }}
+          title={disputeOpen ? "Dispute already open" : "Open dispute"}
+        >
+          <IconDispute/> <span>{disputeOpen ? "dispute open" : "open dispute"}</span>
+        </button>
+      </div>
+
+      <div className="chat-messages" ref={messagesRef}>
+        {localMsgs.map(msg => {
+          const isMe = msg.from === "me";
+          return (
+            <div key={msg.id} className={`chat-bubble-row${isMe ? " chat-bubble-row-me" : ""}`}>
+              <div className={`chat-bubble${isMe ? " chat-bubble-me" : " chat-bubble-them"}`}>
+                <div className="chat-text">{msg.text}</div>
+                <div className="chat-ts">
+                  {relTime(msg.ts)}
+                  {msg.optimistic && <span style={{ opacity:.6 }}> · sending…</span>}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="chat-input-row">
+        <textarea
+          className="chat-input"
+          placeholder="Send an encrypted message…"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={handleKey}
+          rows={1}
+          disabled={disabled}
+        />
+        <button className="chat-send-btn" onClick={send} disabled={!text.trim() || disabled}
+          style={{ opacity: (text.trim() && !disabled) ? 1 : 0.45 }}>
+          <IconSend/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── CSS ──────────────────────────────────────────────────────────────────────
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --primary:#F56522;--primary-dark:#C45104;--primary-mild:#FEEDE5;
+    --grad:linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C);
+    --success:#65A519;--success-bg:#F2F9E7;
+    --error:#DF321F;--error-bg:#FFF0EE;
+    --black:#2B1911;--black-75:#624D44;--black-65:#7D675E;
+    --black-25:#C4B5AE;--black-10:#EAE3DF;--black-5:#F4EEEB;
+    --surface:#FFFFFF;--bg:#FFF9F6;--font:'Baloo 2',cursive;--topbar:56px;--stepper-h:52px;
+  }
+  body{font-family:var(--font);background:var(--bg);color:var(--black)}
+
+  /* ── Topbar ── */
+  .topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar);background:var(--surface);
+    border-bottom:1px solid var(--black-10);display:flex;align-items:center;
+    padding:0 20px;gap:12px;z-index:200}
+  .logo-wordmark{font-size:1.22rem;font-weight:800;letter-spacing:-.02em;
+    background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .topbar-price{display:flex;align-items:center;gap:6px;background:var(--primary-mild);
+    border-radius:999px;padding:4px 14px;font-size:.78rem;font-weight:600;margin-left:4px}
+  .price-label{color:var(--black-65)}.price-val{color:var(--black)}.price-sep{color:var(--black-25)}
+  .topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .updated-pill{display:flex;align-items:center;gap:5px;font-size:.73rem;font-weight:600;color:var(--black-65);
+    background:var(--black-5);border-radius:999px;padding:3px 10px}
+  .updated-dot{width:6px;height:6px;border-radius:50%;background:#65A519;flex-shrink:0}
+  .avatar-peachid{display:flex;align-items:center;gap:8px}
+  .peach-id{font-size:.68rem;font-weight:600;color:var(--black-65);font-family:monospace;
+    background:var(--black-5);border-radius:999px;padding:3px 10px;display:none}
+  @media(min-width:900px){.peach-id{display:block}}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--grad);color:white;
+    font-size:.8rem;font-weight:700;display:flex;align-items:center;justify-content:center;
+    position:relative;cursor:pointer;flex-shrink:0}
+  .avatar-badge{position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;
+    background:var(--error);color:white;font-size:.6rem;font-weight:800;
+    display:flex;align-items:center;justify-content:center;border:2px solid white}
+  .burger-btn{display:none;align-items:center;justify-content:center;
+    width:34px;height:34px;border-radius:8px;border:none;
+    background:transparent;cursor:pointer;color:var(--black-65);flex-shrink:0}
+  .burger-btn:hover{background:var(--black-5)}
+  @media(max-width:480px){.burger-btn{display:flex}}
+
+  /* ── Sidenav ── */
+  .sidenav{position:fixed;top:var(--topbar);left:0;bottom:0;
+    width:68px;background:var(--surface);border-right:1px solid var(--black-10);
+    z-index:150;display:flex;flex-direction:column;align-items:center;
+    padding:8px 0;gap:2px;transition:width .2s cubic-bezier(.4,0,.2,1);overflow:hidden}
+  .sidenav-collapsed{width:44px}
+  .sidenav-toggle{width:100%;height:32px;display:flex;align-items:center;justify-content:flex-end;
+    padding-right:10px;border:none;background:transparent;cursor:pointer;
+    color:var(--black-25);flex-shrink:0;transition:color .14s;margin-bottom:4px}
+  .sidenav-toggle:hover{color:var(--black-65)}
+  .sidenav-item{width:calc(100% - 16px);display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:3px;padding:8px 4px;border-radius:10px;
+    border:none;background:transparent;cursor:pointer;color:var(--black-65);
+    font-family:var(--font);transition:all .14s;flex-shrink:0}
+  .sidenav-item:hover{background:var(--black-5);color:var(--black)}
+  .sidenav-active{background:var(--primary-mild)!important;color:var(--primary-dark)!important}
+  .sidenav-icon{display:flex;align-items:center;justify-content:center;height:22px;flex-shrink:0}
+  .sidenav-label{font-size:.57rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase;
+    white-space:nowrap;overflow:hidden;transition:opacity .15s,max-height .2s;max-height:20px;opacity:1}
+  .sidenav-collapsed .sidenav-label{opacity:0;max-height:0;pointer-events:none}
+  .sidenav-backdrop{display:none;position:fixed;inset:0;z-index:149;background:rgba(43,25,17,.4)}
+  .sidenav-backdrop.open{display:block}
+  @media(max-width:480px){
+    .sidenav{transform:translateX(-100%);width:220px;transition:transform .2s}
+    .sidenav-mobile-open{transform:translateX(0)}
+    .sidenav-label{opacity:1;max-height:20px}
+    .sidenav-item{flex-direction:row;justify-content:flex-start;padding:10px 16px;gap:12px}
+  }
+
+  /* ── Page layout ── */
+  .page-wrap{margin-top:var(--topbar);margin-left:68px;height:calc(100vh - var(--topbar));
+    display:flex;flex-direction:column;overflow:hidden}
+  @media(max-width:480px){.page-wrap{margin-left:0}}
+
+  /* ── Horizontal stepper (fixed bottom bar) ── */
+  .h-stepper-wrap{
+    position:fixed;bottom:0;left:68px;right:0;height:var(--stepper-h);
+    background:var(--surface);border-top:1px solid var(--black-10);
+    display:flex;align-items:center;justify-content:center;
+    padding:0 24px;z-index:190;gap:0;
+  }
+  @media(max-width:480px){.h-stepper-wrap{left:0}}
+  .h-stepper{display:flex;align-items:center;gap:0;width:100%;max-width:600px}
+  .h-step{
+    display:flex;flex-direction:column;align-items:center;
+    position:relative;flex:1;
+  }
+  .h-step-line{
+    position:absolute;top:8px;right:50%;
+    width:100%;height:2px;
+    transform:translateX(-50%);
+    z-index:0;
+  }
+  .h-step-dot{
+    width:16px;height:16px;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;z-index:1;transition:background .3s,box-shadow .3s;
+  }
+  .h-step-label{
+    font-size:.62rem;font-weight:500;text-align:center;
+    margin-top:5px;white-space:nowrap;transition:color .3s;
+  }
+  .h-stepper-alert{
+    display:flex;align-items:center;gap:6px;margin-left:16px;
+    font-size:.72rem;font-weight:700;color:var(--error);white-space:nowrap;
+    background:var(--error-bg);border-radius:999px;padding:3px 10px;flex-shrink:0;
+  }
+
+  /* ── Trade topbar (below main topbar) ── */
+  .trade-topbar{
+    display:flex;align-items:center;gap:12px;padding:0 24px;
+    height:52px;background:var(--surface);border-bottom:1px solid var(--black-10);
+    flex-shrink:0;
+  }
+  .trade-topbar-back{
+    display:flex;align-items:center;justify-content:center;
+    width:32px;height:32px;border-radius:8px;border:1.5px solid var(--black-10);
+    background:transparent;cursor:pointer;color:var(--black-65);flex-shrink:0;transition:all .15s}
+  .trade-topbar-back:hover{border-color:var(--primary);color:var(--primary-dark);background:var(--primary-mild)}
+  .trade-topbar-id{font-family:monospace;font-size:.82rem;font-weight:700;color:var(--black-65)}
+  .trade-topbar-sep{color:var(--black-10);font-size:1.2rem;flex-shrink:0}
+  .trade-topbar-name{font-size:.9rem;font-weight:700}
+  .trade-topbar-elapsed{font-size:.75rem;color:var(--black-65);display:flex;align-items:center;gap:4px}
+  .trade-topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+
+  /* ── Demo switcher ── */
+  .demo-bar{
+    background:linear-gradient(90deg,#2B1911,#624D44);
+    padding:7px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap}
+  .demo-label{font-size:.68rem;font-weight:700;color:rgba(255,255,255,.5);
+    text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+  .demo-btn{
+    border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);
+    border-radius:999px;font-family:var(--font);font-size:.72rem;font-weight:700;
+    color:rgba(255,255,255,.7);padding:3px 12px;cursor:pointer;transition:all .15s;white-space:nowrap}
+  .demo-btn:hover{background:rgba(255,255,255,.14);color:white}
+  .demo-btn.demo-active{background:var(--primary);border-color:var(--primary);color:white}
+
+  /* ── Split layout ── */
+  .split-layout{display:flex;flex:1;overflow:hidden}
+  .split-left{
+    width:42%;min-width:320px;flex-shrink:0;
+    overflow-y:auto;padding:24px 24px calc(24px + var(--stepper-h));
+    border-right:1px solid var(--black-10);
+  }
+  .split-left-full{width:100%;border-right:none;max-width:600px;margin:0 auto}
+  .split-right{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+  /* ── Mobile tabs ── */
+  .mobile-tabs{display:none}
+  @media(max-width:900px){
+    .split-left{width:100%}
+    .split-right{display:none}
+    .split-right.mobile-active{display:flex}
+    .split-left.mobile-hidden{display:none}
+    .mobile-tabs{
+      display:flex;gap:0;border-bottom:1px solid var(--black-10);
+      flex-shrink:0;background:var(--surface)}
+    .mobile-tab{
+      flex:1;border:none;background:transparent;font-family:var(--font);
+      font-size:.85rem;font-weight:600;color:var(--black-65);
+      padding:12px 0;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+    .mobile-tab.active{color:var(--primary-dark);border-bottom-color:var(--primary);font-weight:700}
+  }
+
+  /* ── Left panel sections ── */
+  .panel-section{margin-bottom:24px}
+  .panel-section-title{
+    font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--black-65);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .panel-section-title::before{content:'';display:inline-block;width:3px;height:12px;
+    background:var(--primary);border-radius:2px}
+
+  /* ── Counterparty card ── */
+  .counterparty-card{
+    display:flex;align-items:center;gap:12px;
+    background:var(--surface);border:1px solid var(--black-10);
+    border-radius:12px;padding:12px 14px;margin-bottom:20px;
+  }
+  .cp-name{font-size:.9rem;font-weight:700}
+  .cp-meta{font-size:.75rem;color:var(--black-65);display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px}
+
+  /* ── Trade summary ── */
+  .trade-summary{
+    background:var(--surface);border:1px solid var(--black-10);border-radius:12px;
+    padding:14px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .summary-item-label{font-size:.68rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.05em;color:var(--black-65);margin-bottom:2px}
+  .summary-item-val{font-size:.9rem;font-weight:700}
+  .summary-item-sub{font-size:.72rem;color:var(--black-65);margin-top:1px}
+
+  /* ── Action panel ── */
+  .action-panel{display:flex;flex-direction:column;gap:10px}
+  .action-hint{font-size:.82rem;color:var(--black-65);line-height:1.5;padding:10px 12px;
+    background:var(--black-5);border-radius:8px}
+  .action-btn{
+    border:none;border-radius:999px;font-family:var(--font);
+    font-size:.85rem;font-weight:700;padding:10px 20px;cursor:pointer;
+    transition:all .15s;text-align:center}
+  .action-btn-large{padding:12px 24px;font-size:.9rem}
+  .action-btn-danger:hover{background:var(--error)!important;color:white!important}
+  .action-btn-grad{
+    background:var(--grad);color:white;border:none;border-radius:999px;
+    font-family:var(--font);font-size:.9rem;font-weight:800;
+    padding:12px 24px;cursor:pointer;text-align:center;
+    box-shadow:0 2px 12px rgba(245,101,34,.3);transition:transform .15s,box-shadow .15s}
+  .action-btn-grad:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(245,101,34,.4)}
+  .action-btn-grad:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+  /* ── Rating ── */
+  .rating-btn{
+    flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+    border:2px solid var(--black-10);background:var(--surface);border-radius:12px;
+    font-family:var(--font);font-size:.9rem;font-weight:700;color:var(--black-75);
+    padding:12px;cursor:pointer;transition:all .2s}
+  .rating-btn:hover{border-color:var(--primary-mild)}
+  .rating-selected-good{background:var(--success-bg)!important;border-color:var(--success)!important;color:var(--success)!important}
+  .rating-selected-bad{background:var(--error-bg)!important;border-color:var(--error)!important;color:var(--error)!important}
+
+  /* ── Chat ── */
+  .chat-panel{display:flex;flex-direction:column;flex:1;overflow:hidden}
+  .chat-enc-notice{
+    display:flex;align-items:center;gap:6px;padding:7px 18px;
+    background:#F4EEEB;border-bottom:1px solid var(--black-10);
+    font-size:.7rem;font-weight:600;color:var(--black-65);flex-shrink:0;font-family:monospace}
+  .chat-messages{flex:1;overflow-y:auto;padding:20px 18px;display:flex;flex-direction:column;gap:10px}
+  .chat-bubble-row{display:flex}
+  .chat-bubble-row-me{justify-content:flex-end}
+  .chat-bubble{max-width:72%;border-radius:14px;padding:9px 13px;line-height:1.5}
+  .chat-bubble-me{background:linear-gradient(135deg,#FF7A50,#F56522);color:white;border-bottom-right-radius:4px}
+  .chat-bubble-them{background:var(--surface);border:1px solid var(--black-10);color:var(--black);border-bottom-left-radius:4px}
+  .chat-text{font-size:.85rem}
+  .chat-ts{font-size:.65rem;opacity:.65;margin-top:3px;text-align:right}
+  .chat-bubble-them .chat-ts{text-align:left}
+  .chat-input-row{
+    display:flex;align-items:flex-end;gap:10px;
+    padding:12px 18px;border-top:1px solid var(--black-10);
+    background:var(--surface);flex-shrink:0}
+  .chat-input{
+    flex:1;resize:none;font-family:var(--font);font-size:.87rem;color:var(--black);
+    background:var(--bg);border:1.5px solid var(--black-10);border-radius:12px;
+    padding:9px 14px;outline:none;transition:border-color .15s;max-height:100px;line-height:1.5}
+  .chat-input:focus{border-color:var(--primary)}
+  .chat-send-btn{
+    width:38px;height:38px;border-radius:50%;border:none;
+    background:var(--grad);color:white;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    transition:transform .15s,opacity .15s;box-shadow:0 2px 8px rgba(245,101,34,.3)}
+  .chat-send-btn:hover:not(:disabled){transform:scale(1.07)}
+
+  /* ── Direction badge ── */
+  .dir-buy{background:#F2F9E7;color:#65A519;border-radius:999px;padding:2px 10px;font-size:.7rem;font-weight:800}
+  .dir-sell{background:#FFF0EE;color:#DF321F;border-radius:999px;padding:2px 10px;font-size:.7rem;font-weight:800}
+
+  /* ── Badge ── */
+  .badge-supertrader{background:linear-gradient(90deg,#FF4D42,#FFA24C);color:white;border-radius:999px;padding:1px 7px;font-size:.68rem;font-weight:700}
+  .badge-fast{background:#FEEDE5;color:#C45104;border-radius:999px;padding:1px 7px;font-size:.68rem;font-weight:700}
+  .badge-role{background:#D7F2FE;color:#037DB5;border-radius:999px;padding:2px 10px;font-size:.7rem;font-weight:700}
+  .tag-method{background:var(--black-5);color:var(--black-75);border-radius:999px;padding:2px 8px;font-size:.72rem;font-weight:600}
+  .tag-currency{background:var(--primary-mild);color:var(--primary-dark);border-radius:999px;padding:2px 8px;font-size:.72rem;font-weight:600}
+
+  .chat-dispute-btn{
+    display:flex;align-items:center;gap:5px;flex-shrink:0;
+    border:1.5px solid #DF321F;background:white;border-radius:999px;
+    font-family:var(--font);font-size:.75rem;font-weight:700;color:#DF321F;
+    padding:0 12px;height:34px;cursor:pointer;white-space:nowrap;transition:all .15s}
+  .chat-dispute-btn-active:hover{background:#FFF0EE;border-color:#DF321F}
+  .chat-dispute-btn-inactive{opacity:.5;cursor:default;border-style:dashed}
+
+  /* scrollbar */
+  ::-webkit-scrollbar{width:5px}
+  ::-webkit-scrollbar-thumb{background:var(--black-10);border-radius:3px}
+  @keyframes modalIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+`;
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+export default function TradeExecution() {
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [scenarioId, setScenarioId]   = useState("buyer_awaiting");
+  const [collapsed, setCollapsed]     = useState(false);
+  const [mobileOpen, setMobileOpen]   = useState(false);
+  const [mobileTab, setMobileTab]     = useState("details");   // "details" | "chat"
+  const [btcPrice, setBtcPrice]       = useState(BTC_PRICE);
+  const [secondsAgo, setSecondsAgo]   = useState(0);
+
+  const scenario = DEMO_SCENARIOS.find(s => s.id === scenarioId) || DEMO_SCENARIOS[0];
+  const messages = MOCK_MESSAGES[scenarioId] || [];
+  const { contract, counterparty, status, role, paymentDetails } = scenario;
+
+  // BTC price tick
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setSecondsAgo(s => {
+        if (s >= 15) { setBtcPrice(p => p + Math.round((Math.random() - .5) * 90)); return 0; }
+        return s + 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const satsPerEur  = Math.round(SAT / btcPrice);
+  const updatedText = secondsAgo === 0 ? "Just now" : `${secondsAgo}s ago`;
+
+  // Elapsed time
+  const elapsedMs = Date.now() - contract.startedAt;
+  const elapsedH  = Math.floor(elapsedMs / 3600_000);
+  const elapsedM  = Math.floor((elapsedMs % 3600_000) / 60_000);
+  const elapsedStr = elapsedH > 0 ? `${elapsedH}h ${elapsedM}m` : `${elapsedM}m`;
+
+  // Deadline countdown
+  let deadlineStr = null;
+  if (contract.deadline) {
+    const left = contract.deadline - Date.now();
+    const h = Math.floor(left / 3600_000);
+    const m = Math.floor((left % 3600_000) / 60_000);
+    deadlineStr = `${h}h ${m}m`;
+  }
+
+  // Premium color (perspective-aware)
+  const premColor = role === "buyer"
+    ? (contract.premium < 0 ? "#65A519" : "#DF321F")
+    : (contract.premium > 0 ? "#65A519" : "#DF321F");
+
+  const unreadCount = messages.filter(m => m.from !== "me").length;
+
+  return (
+    <>
+      <style>{CSS}</style>
+
+      {/* ── TOPBAR ── */}
+      <header className="topbar">
+        <button className="burger-btn" onClick={() => setMobileOpen(o => !o)}><IconBurger/></button>
+        <PeachIcon size={28}/>
+        <span className="logo-wordmark">Peach</span>
+        <div className="topbar-price">
+          <span className="price-label">BTC/EUR</span>
+          <span className="price-val">€{btcPrice.toLocaleString()}</span>
+          <span className="price-sep">·</span>
+          <span className="price-label">sats/€</span>
+          <span className="price-val">{satsPerEur.toLocaleString()}</span>
+        </div>
+        <div className="topbar-right">
+          <div className="updated-pill"><span className="updated-dot"/>{updatedText}</div>
+          <div className="avatar-peachid">
+            <span className="peach-id">PEACH08476D23</span>
+            <div className="avatar">
+              N
+              <div className="avatar-badge">{unreadCount}</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <SideNav
+        active="trades"
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(c => !c)}
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      />
+
+      <div className="page-wrap">
+
+        {/* ── Demo scenario switcher ── */}
+        <div style={{ position:"relative", flexShrink:0 }}>
+          {/* Toggle bubble — always visible */}
+          <button
+            onClick={() => setDemoOpen(o => !o)}
+            style={{
+              position:"absolute", top:8, left:16, zIndex:10,
+              display:"flex", alignItems:"center", gap:5,
+              background:"#2B1911", border:"none", borderRadius:999,
+              color:"rgba(255,255,255,.65)", fontFamily:"Baloo 2, cursive",
+              fontSize:".68rem", fontWeight:700, padding:"4px 10px",
+              cursor:"pointer", transition:"color .15s",
+              boxShadow: demoOpen ? "none" : "0 2px 8px rgba(0,0,0,.25)",
+            }}
+            onMouseEnter={e => e.currentTarget.style.color="white"}
+            onMouseLeave={e => e.currentTarget.style.color="rgba(255,255,255,.65)"}
+          >
+            Preview
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+              style={{ transform: demoOpen ? "rotate(180deg)" : "rotate(0)", transition:"transform .2s" }}>
+              <polyline points="2,3 5,7 8,3"/>
+            </svg>
+          </button>
+
+          {/* Expandable panel */}
+          {demoOpen && (
+            <div className="demo-bar" style={{ paddingLeft:90 }}>
+              {DEMO_SCENARIOS.map(s => (
+                <button
+                  key={s.id}
+                  className={`demo-btn${scenarioId === s.id ? " demo-active" : ""}`}
+                  onClick={() => { setScenarioId(s.id); setMobileTab("details"); }}
+                >{s.label}</button>
+              ))}
+            </div>
+          )}
+
+          {/* Collapsed spacer — just enough height for the bubble */}
+          {!demoOpen && <div style={{ height:34 }}/>}
+        </div>
+
+        {/* ── Trade sub-topbar ── */}
+        <div className="trade-topbar">
+          <button className="trade-topbar-back" title="Back to Trades"><IconBack/></button>
+          <span className="trade-topbar-id">{contract.id}</span>
+          <span className="trade-topbar-sep">·</span>
+          <span className={role === "buyer" ? "dir-buy" : "dir-sell"}>{role === "buyer" ? "BUY" : "SELL"}</span>
+          <span className="trade-topbar-sep">·</span>
+          <span className="trade-topbar-name">{counterparty.name}</span>
+          <span className="trade-topbar-sep">·</span>
+          <StatusChip status={status} large/>
+          <div className="trade-topbar-right">
+            <div className="trade-topbar-elapsed"><IconClock/> {elapsedStr}</div>
+          </div>
+        </div>
+
+        {/* ── Mobile tabs ── */}
+        <div className="mobile-tabs">
+          <button className={`mobile-tab${mobileTab === "details" ? " active" : ""}`} onClick={() => setMobileTab("details")}>
+            Trade Details
+          </button>
+          <button className={`mobile-tab${mobileTab === "chat" ? " active" : ""}`} onClick={() => setMobileTab("chat")}>
+            Chat {unreadCount > 0 && <span style={{ background:"#DF321F", color:"white", borderRadius:999, padding:"0 6px", fontSize:".65rem", fontWeight:800, marginLeft:4 }}>{unreadCount}</span>}
+          </button>
+        </div>
+
+        {/* ── Split layout ── */}
+        <div className="split-layout">
+
+          {/* ── LEFT: Trade Details ── */}
+          <div className={`split-left${mobileTab === "chat" ? " mobile-hidden" : ""}`}>
+
+            {/* Counterparty */}
+            <div className="counterparty-card">
+              <Avatar initials={counterparty.initials} color={counterparty.color} size={44} online={counterparty.online}/>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div className="cp-name">{counterparty.name}</div>
+                <div className="cp-meta">
+                  <span>★ {counterparty.rep.toFixed(1)}</span>
+                  <span>·</span>
+                  <span>{counterparty.trades} trades</span>
+                  {counterparty.badges?.includes("supertrader") && <span className="badge-supertrader">🏆 Supertrader</span>}
+                  {counterparty.badges?.includes("fast") && <span className="badge-fast">⚡ Fast</span>}
+                </div>
+              </div>
+              <span className="badge-role">{role === "buyer" ? "You buy" : "You sell"}</span>
+            </div>
+
+            {/* Trade amounts — no deadline here anymore */}
+            <div className="trade-summary">
+              <div>
+                <div className="summary-item-label">Amount</div>
+                <div className="summary-item-val">{fmt(contract.sats)} sats</div>
+                <div className="summary-item-sub">≈ €{satsToFiat(contract.sats)}</div>
+              </div>
+              <div>
+                <div className="summary-item-label">You {role === "buyer" ? "pay" : "receive"}</div>
+                <div className="summary-item-val">{contract.currency === "CHF" ? "₣" : "€"}{contract.fiat}</div>
+                <div className="summary-item-sub">{contract.currency}</div>
+              </div>
+              <div>
+                <div className="summary-item-label">Premium</div>
+                <div className="summary-item-val" style={{ color:premColor }}>
+                  {contract.premium > 0 ? "+" : ""}{contract.premium.toFixed(1)}%
+                </div>
+              </div>
+              <div>
+                <div className="summary-item-label">Method</div>
+                <div className="summary-item-val" style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <span className="tag-method">{contract.method}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Actions (always first, includes deadline + escrow funding) ── */}
+            <div className="panel-section">
+              <div className="panel-section-title">Actions</div>
+
+              {/* Payment deadline — inside actions */}
+              {/* Payment deadline pill — not shown for seller awaiting payment (has its own merged bar) */}
+              {deadlineStr && !(status === "awaiting_payment" && role === "seller") && (
+                <div style={{
+                  display:"flex", alignItems:"center", gap:6,
+                  background:"#FEEDE5", borderRadius:8, padding:"8px 12px",
+                  marginBottom:10, fontSize:".83rem", color:"#C45104", fontWeight:600,
+                }}>
+                  <IconClock/> Payment deadline: {deadlineStr} remaining
+                </div>
+              )}
+
+              {/* Escrow funding card — inside actions for seller */}
+              {role === "seller" && status === "matched" && (
+                <EscrowFundingCard
+                  address={contract.escrowAddress}
+                  sats={contract.sats}
+                  btcPrice={btcPrice}
+                />
+              )}
+
+              {/* Buyer awaiting escrow */}
+              {status === "matched" && role === "buyer" && (
+                <>
+                  <div style={{
+                    display:"flex", flexDirection:"column", alignItems:"center",
+                    gap:12, padding:"20px 0", textAlign:"center",
+                  }}>
+                    <div style={{
+                      width:48, height:48, borderRadius:"50%",
+                      background:"#FEFCE5", border:"2px solid #F5CE22",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      fontSize:"1.4rem",
+                    }}>⏳</div>
+                    <div style={{ fontWeight:700, fontSize:".95rem" }}>Waiting for escrow</div>
+                    <div style={{ fontSize:".83rem", color:"#7D675E", lineHeight:1.6, maxWidth:280 }}>
+                      The seller is funding the escrow. Once the Bitcoin is locked in, the trade will begin and you'll be able to send payment.
+                    </div>
+                    <div style={{ fontSize:".85rem", fontWeight:700, color:"#7D675E" }}>No actions required for the moment.</div>
+                  </div>
+                </>
+              )}
+
+              {/* All other action states */}
+              {status !== "completed" && status !== "matched" && (
+                <ActionPanel scenario={scenario} onAction={(action) => console.log("action:", action)}/>
+              )}
+            </div>
+
+            {/* Payment details (buyer sees seller's payment info) */}
+            {paymentDetails && role === "buyer" && (
+              <div className="panel-section">
+                <div className="panel-section-title">Payment Details</div>
+                <p style={{ fontSize:".83rem", color:"#DF321F", fontWeight:600, marginBottom:10 }}>
+                  Make sure to include the reference with your payment
+                </p>
+                <PaymentDetailsCard details={paymentDetails}/>
+              </div>
+            )}
+
+            {/* Escrow address (seller, non-matched states — matched already shows full funding card above) */}
+            {role === "seller" && status !== "matched" && (
+              <div className="panel-section">
+                <div className="panel-section-title">Escrow</div>
+                <EscrowAddressCard address={contract.escrowAddress}/>
+              </div>
+            )}
+
+            {/* Rating panel (completed only) */}
+            {status === "completed" && (
+              <div className="panel-section">
+                <RatingPanel counterparty={counterparty} onRate={(r) => console.log("rated:", r)}/>
+              </div>
+            )}
+          </div>
+
+          {/* ── RIGHT: Chat ── */}
+          <div className={`split-right${mobileTab === "chat" ? " mobile-active" : ""}`}>
+            <ChatPanel messages={messages} tradeId={contract.id} disabled={status === "matched"} status={status}/>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ── HORIZONTAL STEPPER (fixed bottom) ── */}
+      <div className="h-stepper-wrap">
+        <HorizontalStepper status={status}/>
+      </div>
+    </>
+  );
+}
