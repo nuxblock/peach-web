@@ -398,21 +398,6 @@ const css = `
   .offer-table tbody tr.requested-row:hover td{background:rgba(101,165,25,.11)}
   .offer-card.requested-card{border-color:#B6DEC1;background:linear-gradient(135deg,rgba(101,165,25,.06),var(--surface))}
 
-  /* ── TRADE PROGRESS BAR ── */
-  .pgwrap{position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--surface);border-top:1px solid var(--black-10);padding:10px 24px 14px;box-shadow:0 -2px 16px rgba(43,25,17,.08)}
-  .pghdr{display:flex;align-items:center;margin-bottom:10px}
-  .pgtitle{font-size:.8rem;font-weight:700;color:var(--black-65)}
-  .pgsteps{display:flex;align-items:center;justify-content:center}
-  .pgswrap{display:flex;align-items:center}
-  .pgconn{width:40px;height:2px;background:var(--black-10);flex-shrink:0}
-  .pgconn.done{background:var(--primary)}
-  .pgs{display:flex;flex-direction:column;align-items:center;gap:5px}
-  .pgdot{width:28px;height:28px;border-radius:50%;border:2px solid var(--black-10);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;color:var(--black-25);flex-shrink:0}
-  .pgdot.done{background:var(--primary);border-color:var(--primary);color:white}
-  .pgdot.active{background:var(--grad);border-color:transparent;color:white;box-shadow:0 2px 10px rgba(245,101,34,.4)}
-  .pglbl{font-size:.65rem;font-weight:600;color:var(--black-25);white-space:nowrap;text-align:center;max-width:70px}
-  .pglbl.done{color:var(--black-65)}.pglbl.active{color:var(--primary-dark);font-weight:800}
-
   @media(max-width:768px){
     .subheader{padding:10px 14px;gap:8px}
     .table-wrap{display:none}
@@ -421,8 +406,6 @@ const css = `
     .cta-btn{padding:6px 14px;font-size:.78rem}
     .stat-pill.hide-mobile{display:none}
     .peach-id{display:none}
-    .pgconn{width:24px}
-    .pglbl{max-width:55px;font-size:.58rem}
   }
   @media(max-width:480px){
     .sidenav{
@@ -565,34 +548,6 @@ function AmountCell({ offer }) {
     <div className="amount-cell">
       <span className="amount-sats">{formatSats(lo)}–{formatSats(hi)} sats</span>
       <span className="amount-fiat">€{satsToFiat(lo)}–€{satsToFiat(hi)}</span>
-    </div>
-  );
-}
-
-// ─── TRADE PROGRESS BAR (static) ─────────────────────────────────────────────
-const TRADE_STEPS  = ["Choose offer","Check details","Confirm","Make payment","Waiting for seller"];
-const ACTIVE_STEP  = 3;
-
-function TradeProgressBar() {
-  return (
-    <div className="pgwrap">
-      <div className="pghdr">
-        <span className="pgtitle">Trade in progress</span>
-      </div>
-      <div className="pgsteps">
-        {TRADE_STEPS.map((lbl, i) => {
-          const step = i + 1, done = step < ACTIVE_STEP, active = step === ACTIVE_STEP;
-          return (
-            <div key={step} className="pgswrap">
-              {i > 0 && <div className={`pgconn${done ? " done" : ""}`}/>}
-              <div className="pgs">
-                <div className={`pgdot${done ? " done" : active ? " active" : ""}`}>{done ? "✓" : step}</div>
-                <span className={`pglbl${active ? " active" : done ? " done" : ""}`}>{lbl}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -911,7 +866,6 @@ export default function PeachMarket() {
 
         </div>
       </div>
-      <TradeProgressBar/>
     </>
   );
 }
