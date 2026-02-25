@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
 const PeachIcon = ({ size = 28 }) => (
@@ -104,7 +105,10 @@ const Step = ({ n, children }) => (
 );
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
+const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", settings:"/settings" };
+
 export default function PeachAuth() {
+  const navigate = useNavigate();
   const TOTAL = 180;
   const [phase,     setPhase]     = useState("waiting"); // waiting|scanning|success|expired
   const [secsLeft,  setSecsLeft]  = useState(TOTAL);
@@ -151,7 +155,7 @@ export default function PeachAuth() {
   // Demo: click QR cycles states
   function handleQRClick() {
     if (phase==="waiting")  { setPhase("scanning"); return; }
-    if (phase==="scanning") { setPhase("success");  return; }
+    if (phase==="scanning") { setPhase("success"); setTimeout(() => navigate("/home"), 1500); return; }
     if (phase==="success")  { resetQR();             return; }
     if (phase==="expired")  { resetQR();             return; }
   }
@@ -165,7 +169,7 @@ export default function PeachAuth() {
     setTimeout(() => {
       // Mock: codes starting with "ERR" fail
       if (pasteVal.trim().toUpperCase().startsWith("ERR")) setPastePhase("error");
-      else setPastePhase("success");
+      else { setPastePhase("success"); setTimeout(() => navigate("/home"), 1500); }
     }, 1200);
   }
   function handlePasteReset() { setPasteVal(""); setPastePhase("idle"); }
@@ -500,7 +504,8 @@ export default function PeachAuth() {
           {label:"Settings",icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="2.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/></svg>},
           {label:"News",    icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="16" height="13" rx="2"/><line x1="6" y1="8" x2="14" y2="8"/><line x1="6" y1="11" x2="14" y2="11"/><line x1="6" y1="14" x2="10" y2="14"/></svg>},
         ].map(({label,icon})=>(
-          <button key={label} className="sidenav-item">
+          <button key={label} className="sidenav-item"
+            onClick={() => { const route = NAV_ROUTES[label.toLowerCase()]; if (route) navigate(route); }}>
             <span className="sidenav-icon">{icon}</span>
             <span className="sidenav-label">{label}</span>
           </button>

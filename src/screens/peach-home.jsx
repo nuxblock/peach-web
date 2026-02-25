@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
 const PeachIcon = ({ size = 28 }) => (
@@ -36,7 +37,9 @@ const NAV_ITEMS = [
   { id:"news",     label:"News",     icon:()=><IconNews/> },
 ];
 
-function SideNav({ active, collapsed, onToggle, mobileOpen, onClose }) {
+const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", settings:"/settings" };
+
+function SideNav({ active, collapsed, onToggle, mobileOpen, onClose, onNavigate }) {
   return (
     <>
       <div className={`sidenav-backdrop${mobileOpen?" open":""}`} onClick={onClose}/>
@@ -45,7 +48,8 @@ function SideNav({ active, collapsed, onToggle, mobileOpen, onClose }) {
           {collapsed ? <IconChevronRight/> : <IconChevronLeft/>}
         </button>
         {NAV_ITEMS.map(({ id, label, icon }) => (
-          <button key={id} className={`sidenav-item${active===id?" sidenav-active":""}`}>
+          <button key={id} className={`sidenav-item${active===id?" sidenav-active":""}`}
+            onClick={() => { if (onNavigate && NAV_ROUTES[id]) onNavigate(NAV_ROUTES[id]); }}>
             <span className="sidenav-icon">{icon()}</span>
             <span className="sidenav-label">{label}</span>
           </button>
@@ -410,6 +414,7 @@ function OfferRow({ offer, side }) {
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function PeachHome() {
+  const navigate = useNavigate();
   const [btcPrice,          setBtcPrice]          = useState(BTC_PRICE);
   const [secondsAgo,        setSecondsAgo]        = useState(0);
   const [sidebarCollapsed,  setSidebarCollapsed]  = useState(false);
@@ -493,6 +498,7 @@ export default function PeachHome() {
           onToggle={() => setSidebarCollapsed(c => !c)}
           mobileOpen={sidebarMobileOpen}
           onClose={() => setSidebarMobileOpen(false)}
+          onNavigate={navigate}
         />
 
         <div className="page-wrap" style={{ marginTop:"var(--topbar)", marginLeft: navWidth, flex:1 }}>
@@ -506,8 +512,8 @@ export default function PeachHome() {
                 <p>{MOCK_USER.peachId} · {MOCK_USER.trades} trades completed</p>
               </div>
               <div className="welcome-actions">
-                <button className="btn-ghost">View Trades</button>
-                <button className="btn-grad">+ Create Offer</button>
+                <button className="btn-ghost" onClick={() => navigate("/trades")}>View Trades</button>
+                <button className="btn-grad" onClick={() => navigate("/offer/new")}>+ Create Offer</button>
               </div>
             </div>
 
@@ -518,7 +524,7 @@ export default function PeachHome() {
               <span style={{fontSize:".88rem",fontWeight:700,color:"#2B1911",flex:1}}>
                 3 trades need your attention
               </span>
-              <span style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",cursor:"pointer"}}>View →</span>
+              <span style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",cursor:"pointer"}} onClick={() => navigate("/trades")}>View →</span>
             </div>
 
             {/* ── STATS ROW ── */}
@@ -668,7 +674,7 @@ export default function PeachHome() {
                       <option value="all">All methods</option>
                       {ALL_OB_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
-                    <span className="card-link">Open market →</span>
+                    <span className="card-link" onClick={() => navigate("/market")}>Open market →</span>
                   </div>
                 </div>
                 <div className="offerbook-cols">

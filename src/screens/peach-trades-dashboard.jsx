@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
 const PeachIcon = ({ size = 28 }) => (
@@ -40,14 +41,17 @@ const NAV_ITEMS = [
   { id:"news",     label:"News",     icon:()=><IconNews/> },
 ];
 
-function SideNav({ active, collapsed, onToggle, mobileOpen, onClose }) {
+const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", settings:"/settings" };
+
+function SideNav({ active, collapsed, onToggle, mobileOpen, onClose, onNavigate }) {
   return (
     <>
       <div className={`sidenav-backdrop${mobileOpen ? " open" : ""}`} onClick={onClose}/>
       <nav className={`sidenav${collapsed ? " sidenav-collapsed" : ""}${mobileOpen ? " sidenav-mobile-open" : ""}`}>
         <button className="sidenav-toggle" onClick={onToggle}>{collapsed ? <IconChevRight/> : <IconChevLeft/>}</button>
         {NAV_ITEMS.map(({ id, label, icon }) => (
-          <button key={id} className={`sidenav-item${active === id ? " sidenav-active" : ""}`}>
+          <button key={id} className={`sidenav-item${active === id ? " sidenav-active" : ""}`}
+            onClick={() => { if (onNavigate && NAV_ROUTES[id]) onNavigate(NAV_ROUTES[id]); }}>
             <span className="sidenav-icon">{icon()}</span>
             <span className="sidenav-label">{label}</span>
           </button>
@@ -313,7 +317,7 @@ function Avatar({ initials, color, size = 36, online }) {
 }
 
 // ─── TRADE CARD (Active) ──────────────────────────────────────────────────────
-function TradeCard({ trade }) {
+function TradeCard({ trade, onSelect }) {
   const cfg = STATUS_CONFIG[trade.kind === "contract" ? trade.status : trade.kind] || {};
   const needsAction = cfg.action;
   const isBuy = trade.direction === "buy";
@@ -363,7 +367,8 @@ function TradeCard({ trade }) {
   }
 
   return (
-    <div className={`trade-card${needsAction ? " trade-card-urgent" : ""}`}>
+    <div className={`trade-card${needsAction ? " trade-card-urgent" : ""}`}
+      style={{cursor:"pointer"}} onClick={() => onSelect && onSelect(trade.id)}>
       {/* Card header */}
       <div className="card-header">
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -448,6 +453,7 @@ function TradeCard({ trade }) {
 
 // ─── HISTORY TABLE ────────────────────────────────────────────────────────────
 function HistoryTable({ rows }) {
+  const navigate = useNavigate();
   const [sortKey, setSortKey] = useState("completedAt");
   const [sortDir, setSortDir] = useState(-1);
   const [histSearch, setHistSearch] = useState("");
@@ -523,7 +529,7 @@ function HistoryTable({ rows }) {
           </thead>
           <tbody>
             {sorted.map(r => (
-              <tr key={r.id} className="hist-row">
+              <tr key={r.id} className="hist-row" style={{cursor:"pointer"}} onClick={() => navigate(`/trade/${r.id}`)}>
                 <td><span style={{ fontFamily:"monospace", fontSize:".78rem", color:"var(--black-65)" }}>{r.tradeId}</span></td>
                 <td>
                   <span className={`direction-badge direction-${r.direction}`}>{r.direction.toUpperCase()}</span>
@@ -803,6 +809,7 @@ const CSS = `
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function TradesDashboard() {
+  const navigate = useNavigate();
   const [mainTab, setMainTab]     = useState("active");   // "active" | "history"
   const [subTab, setSubTab]       = useState("buy");      // "buy" | "sell"
   const [filterMethods, setFilterMethods]     = useState([]);
@@ -909,6 +916,7 @@ export default function TradesDashboard() {
         onToggle={() => setCollapsed(c => !c)}
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
+        onNavigate={navigate}
       />
 
       {/* ── PAGE ── */}
@@ -1014,7 +1022,7 @@ export default function TradesDashboard() {
               </div>
             ) : (
               <div className="cards-grid">
-                {sortedFiltered.map(t => <TradeCard key={t.id} trade={t}/>)}
+                {sortedFiltered.map(t => <TradeCard key={t.id} trade={t} onSelect={(id) => navigate(`/trade/${id}`)}/>)}
               </div>
             )}
           </>

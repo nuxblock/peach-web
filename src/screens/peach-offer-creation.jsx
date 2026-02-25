@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const BTC_PRICE_INIT = 87432;
 const SAT = 100_000_000;
@@ -86,7 +87,9 @@ const NAV_ITEMS = [
   { id:"news",     label:"News",     icon:()=><IconNews/> },
 ];
 
-function SideNav({ active, collapsed, onToggle, mobileOpen, onClose }) {
+const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", settings:"/settings" };
+
+function SideNav({ active, collapsed, onToggle, mobileOpen, onClose, onNavigate }) {
   return (
     <>
       <div className={`sidenav-backdrop${mobileOpen?" open":""}`} onClick={onClose}/>
@@ -95,7 +98,8 @@ function SideNav({ active, collapsed, onToggle, mobileOpen, onClose }) {
           {collapsed ? <IconChevronRight/> : <IconChevronLeft/>}
         </button>
         {NAV_ITEMS.map(({ id, label, icon }) => (
-          <button key={id} className={`sidenav-item${active===id?" sidenav-active":""}`}>
+          <button key={id} className={`sidenav-item${active===id?" sidenav-active":""}`}
+            onClick={() => { if (onNavigate && NAV_ROUTES[id]) onNavigate(NAV_ROUTES[id]); }}>
             <span className="sidenav-icon">{icon()}</span>
             <span className="sidenav-label">{label}</span>
           </button>
@@ -987,6 +991,7 @@ function PMModal({ onSave, onClose, initialData }) {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function OfferCreation({ initialType="buy" }) {
+  const navigate = useNavigate();
   const [type,         setType]         = useState(initialType);
   const [step,         setStep]         = useState(0);
   const [btcPrice,     setBtcPrice]     = useState(BTC_PRICE_INIT);
@@ -1086,6 +1091,7 @@ export default function OfferCreation({ initialType="buy" }) {
         onToggle={() => setSidebarCollapsed(c => !c)}
         mobileOpen={sidebarMobileOpen}
         onClose={() => setSidebarMobileOpen(false)}
+        onNavigate={navigate}
       />
       <div style={{display:"flex",flexDirection:"column",alignItems:"center",
         justifyContent:"center",minHeight:"100vh",gap:22,padding:40,
@@ -1098,12 +1104,19 @@ export default function OfferCreation({ initialType="buy" }) {
             {fmt(form.amtFixed)} sats
           </strong> is live in the market. You'll be notified when a seller matches.
         </p>
-        <button onClick={reset} style={{padding:"10px 28px",borderRadius:999,
-          background:"var(--grad)",color:"white",border:"none",cursor:"pointer",
-          fontFamily:"var(--font)",fontSize:".88rem",fontWeight:800,
-          boxShadow:"0 2px 12px rgba(245,101,34,.3)"}}>
-          Create another offer
-        </button>
+        <div style={{display:"flex",gap:12}}>
+          <button onClick={() => navigate("/market")} style={{padding:"10px 28px",borderRadius:999,
+            border:"1.5px solid var(--black-10)",background:"transparent",color:"var(--black-65)",
+            cursor:"pointer",fontFamily:"var(--font)",fontSize:".88rem",fontWeight:700}}>
+            View in market
+          </button>
+          <button onClick={reset} style={{padding:"10px 28px",borderRadius:999,
+            background:"var(--grad)",color:"white",border:"none",cursor:"pointer",
+            fontFamily:"var(--font)",fontSize:".88rem",fontWeight:800,
+            boxShadow:"0 2px 12px rgba(245,101,34,.3)"}}>
+            Create another offer
+          </button>
+        </div>
       </div>
     </>
   );
@@ -1145,13 +1158,14 @@ export default function OfferCreation({ initialType="buy" }) {
         onToggle={() => setSidebarCollapsed(c => !c)}
         mobileOpen={sidebarMobileOpen}
         onClose={() => setSidebarMobileOpen(false)}
+        onNavigate={navigate}
       />
 
       <div className="layout" style={{marginLeft: sidebarCollapsed ? 44 : 68}}>
         {/* ── WIZARD ── */}
         <div className="wizard">
 
-          <button className="back-btn" style={{alignSelf:"flex-start",marginBottom:12}}>← Market</button>
+          <button className="back-btn" style={{alignSelf:"flex-start",marginBottom:12}} onClick={() => navigate("/market")}>← Market</button>
 
           {/* Header row: title + type toggle */}
           <div className="wizard-header">
@@ -1492,12 +1506,19 @@ export default function OfferCreation({ initialType="buy" }) {
                       {fmt(form.amtFixed)} sats
                     </strong> is now visible in the market. We'll notify you when a buyer matches.
                   </p>
-                  <button onClick={reset} style={{padding:"10px 28px",borderRadius:999,
-                    background:"var(--grad)",color:"white",border:"none",cursor:"pointer",
-                    fontFamily:"var(--font)",fontSize:".88rem",fontWeight:800,
-                    boxShadow:"0 2px 12px rgba(245,101,34,.3)"}}>
-                    Create another offer
-                  </button>
+                  <div style={{display:"flex",gap:12}}>
+                    <button onClick={() => navigate("/market")} style={{padding:"10px 28px",borderRadius:999,
+                      border:"1.5px solid var(--black-10)",background:"transparent",color:"var(--black-65)",
+                      cursor:"pointer",fontFamily:"var(--font)",fontSize:".88rem",fontWeight:700}}>
+                      View in market
+                    </button>
+                    <button onClick={reset} style={{padding:"10px 28px",borderRadius:999,
+                      background:"var(--grad)",color:"white",border:"none",cursor:"pointer",
+                      fontFamily:"var(--font)",fontSize:".88rem",fontWeight:800,
+                      boxShadow:"0 2px 12px rgba(245,101,34,.3)"}}>
+                      Create another offer
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

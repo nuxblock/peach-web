@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
 const PeachIcon = ({ size = 28 }) => (
@@ -37,7 +38,9 @@ const NAV_ITEMS = [
   { id:"news",     label:"News",     icon:()=><IconNews/> },
 ];
 
-function SideNav({ active, collapsed, onToggle, mobileOpen, onClose }) {
+const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", settings:"/settings" };
+
+function SideNav({ active, collapsed, onToggle, mobileOpen, onClose, onNavigate }) {
   return (
     <>
       <div className={`sidenav-backdrop${mobileOpen?" open":""}`} onClick={onClose}/>
@@ -46,7 +49,8 @@ function SideNav({ active, collapsed, onToggle, mobileOpen, onClose }) {
           {collapsed ? <IconChevronRight/> : <IconChevronLeft/>}
         </button>
         {NAV_ITEMS.map(({ id, label, icon }) => (
-          <button key={id} className={`sidenav-item${active===id?" sidenav-active":""}`}>
+          <button key={id} className={`sidenav-item${active===id?" sidenav-active":""}`}
+            onClick={() => { if (onNavigate && NAV_ROUTES[id]) onNavigate(NAV_ROUTES[id]); }}>
             <span className="sidenav-icon">{icon()}</span>
             <span className="sidenav-label">{label}</span>
           </button>
@@ -595,6 +599,7 @@ function TradeProgressBar() {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function PeachMarket() {
+  const navigate = useNavigate();
   const [tab,            setTab]            = useState("buy");
   const [sortKey,        setSortKey]        = useState("premium");
   const [sortDir,        setSortDir]        = useState(1);
@@ -721,6 +726,7 @@ export default function PeachMarket() {
           onToggle={() => setSidebarCollapsed(c => !c)}
           mobileOpen={sidebarMobileOpen}
           onClose={() => setSidebarMobileOpen(false)}
+          onNavigate={navigate}
         />
 
         <div className="page-wrap" style={{ marginTop:"var(--topbar)", marginLeft: sidebarCollapsed ? 44 : 68, display:"flex", flexDirection:"column", flex:1 }}>
@@ -793,7 +799,7 @@ export default function PeachMarket() {
               My Offers{myOffersOnly ? " ✕" : ""}
             </button>
             <div className="cta-wrap">
-              <button className="cta-btn">+ Create Offer</button>
+              <button className="cta-btn" onClick={() => navigate("/offer/new")}>+ Create Offer</button>
               <span className="how-to-start">How to start</span>
             </div>
           </div>
@@ -820,7 +826,8 @@ export default function PeachMarket() {
                 </thead>
                 <tbody>
                   {filtered.map(offer => (
-                    <tr key={offer.id} className={[offer.isOwn?"own-row":"", offer.requested&&!offer.auto?"requested-row":""].filter(Boolean).join(" ")}>
+                    <tr key={offer.id} className={[offer.isOwn?"own-row":"", offer.requested&&!offer.auto?"requested-row":""].filter(Boolean).join(" ")}
+                      style={{cursor:"pointer"}} onClick={() => navigate(`/trade/${offer.id}`)}>
                       <td><RepCell offer={offer}/></td>
                       <td><AmountCell offer={offer}/></td>
                       <td><PremiumCell p={offer.premium} isSellTab={isSellTab}/></td>
@@ -861,7 +868,8 @@ export default function PeachMarket() {
                 <div className="empty-sub">Adjust your filters</div>
               </div>
             ) : filtered.map(offer => (
-            <div key={offer.id} className={`offer-card${offer.isOwn?" own-card":""}${offer.requested&&!offer.auto?" requested-card":""}`}>
+            <div key={offer.id} className={`offer-card${offer.isOwn?" own-card":""}${offer.requested&&!offer.auto?" requested-card":""}`}
+              style={{cursor:"pointer"}} onClick={() => navigate(`/trade/${offer.id}`)}>
                 {/* Row 1: avatar · rep/badges (left) | action buttons (right) */}
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <div className="rep-avatar" style={{flexShrink:0}}>

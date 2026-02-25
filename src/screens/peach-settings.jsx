@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
 const PeachIcon = ({ size = 28 }) => (
@@ -36,7 +37,9 @@ const NAV_ITEMS = [
   { id:"news",     label:"News",     icon:()=><IconNews/> },
 ];
 
-function SideNav({ active, collapsed, onToggle, mobileOpen, onClose }) {
+const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", settings:"/settings" };
+
+function SideNav({ active, collapsed, onToggle, mobileOpen, onClose, onNavigate }) {
   return (
     <>
       <div className={`sidenav-backdrop${mobileOpen?" open":""}`} onClick={onClose}/>
@@ -45,7 +48,8 @@ function SideNav({ active, collapsed, onToggle, mobileOpen, onClose }) {
           {collapsed ? <IconChevronRight/> : <IconChevronLeft/>}
         </button>
         {NAV_ITEMS.map(({ id, label, icon }) => (
-          <button key={id} className={`sidenav-item${active===id?" sidenav-active":""}`}>
+          <button key={id} className={`sidenav-item${active===id?" sidenav-active":""}`}
+            onClick={() => { if (onNavigate && NAV_ROUTES[id]) onNavigate(NAV_ROUTES[id]); }}>
             <span className="sidenav-icon">{icon()}</span>
             <span className="sidenav-label">{label}</span>
           </button>
@@ -299,6 +303,7 @@ const css = `
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function SettingsScreen() {
+  const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [secondsAgo, setSecondsAgo] = useState(0);
@@ -355,6 +360,7 @@ export default function SettingsScreen() {
           onToggle={() => setSidebarCollapsed(c => !c)}
           mobileOpen={sidebarMobileOpen}
           onClose={() => setSidebarMobileOpen(false)}
+          onNavigate={navigate}
         />
 
         {/* ── SETTINGS CONTENT ── */}

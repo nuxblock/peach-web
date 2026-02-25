@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
 const PeachIcon = ({ size = 28 }) => (
@@ -48,14 +49,17 @@ const NAV_ITEMS = [
   { id:"news",     label:"News",     icon:()=><IconNews/> },
 ];
 
-function SideNav({ active, collapsed, onToggle, mobileOpen, onClose }) {
+const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", settings:"/settings" };
+
+function SideNav({ active, collapsed, onToggle, mobileOpen, onClose, onNavigate }) {
   return (
     <>
       <div className={`sidenav-backdrop${mobileOpen ? " open" : ""}`} onClick={onClose}/>
       <nav className={`sidenav${collapsed ? " sidenav-collapsed" : ""}${mobileOpen ? " sidenav-mobile-open" : ""}`}>
         <button className="sidenav-toggle" onClick={onToggle}>{collapsed ? <IconChevRight/> : <IconChevLeft/>}</button>
         {NAV_ITEMS.map(({ id, label, icon }) => (
-          <button key={id} className={`sidenav-item${active === id ? " sidenav-active" : ""}`}>
+          <button key={id} className={`sidenav-item${active === id ? " sidenav-active" : ""}`}
+            onClick={() => { if (onNavigate && NAV_ROUTES[id]) onNavigate(NAV_ROUTES[id]); }}>
             <span className="sidenav-icon">{icon()}</span>
             <span className="sidenav-label">{label}</span>
           </button>
@@ -1576,6 +1580,7 @@ const CSS = `
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function TradeExecution() {
+  const navigate = useNavigate();
   const [demoOpen, setDemoOpen] = useState(false);
   const [scenarioId, setScenarioId]   = useState("buyer_awaiting");
   const [collapsed, setCollapsed]     = useState(false);
@@ -1658,6 +1663,7 @@ export default function TradeExecution() {
         onToggle={() => setCollapsed(c => !c)}
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
+        onNavigate={navigate}
       />
 
       <div className="page-wrap">
@@ -1705,7 +1711,7 @@ export default function TradeExecution() {
 
         {/* ── Trade sub-topbar ── */}
         <div className="trade-topbar">
-          <button className="trade-topbar-back" title="Back to Trades"><IconBack/></button>
+          <button className="trade-topbar-back" title="Back to Trades" onClick={() => navigate("/trades")}><IconBack/></button>
           <span className="trade-topbar-id">{contract.id}</span>
           <span className="trade-topbar-sep">·</span>
           <span className={role === "buyer" ? "dir-buy" : "dir-sell"}>{role === "buyer" ? "BUY" : "SELL"}</span>
