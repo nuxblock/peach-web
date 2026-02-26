@@ -119,11 +119,13 @@ The `PeachIcon` component is defined in every file as an inline SVG (viewBox `0 
 ## Home Dashboard (`peach-home.jsx`)
 
 ### Layout
+- **News card:** Full-width "Latest from Peach" card above the dashboard grid. Static placeholder with 3 news item rows.
 - **Dashboard grid:** CSS `display: grid; grid-template-columns: auto auto; justify-content: start` — columns hug their content; cards do not stretch to fill screen width.
 - **Profile card** spans 2 rows (`grid-row: span 2`), top-left.
 - **Top Payment Methods card** sits top-right, next to profile.
-- **Peach Stats card** sits bottom-right, below Top Payment Methods.
-- **Offer Book Snapshot** is outside the dashboard grid in a plain `<div>`, so it fills the full content width.
+- **Top Currencies card** sits below Top Payment Methods, in the same column. Shows EUR/CHF/GBP with gradient percentage bars.
+- **Peach Stats card** sits below Top Currencies. 24h Volume shows value + "sats" unit label.
+- There is **no Offer Book Snapshot** — that section has been removed.
 - On mobile (≤700px): grid switches to single column, all cards go full width.
 
 ### Profile card fields
@@ -139,7 +141,7 @@ The `PeachIcon` component is defined in every file as an inline SVG (viewBox `0 
 
 ### Card sizing rules
 - Cards use `width: fit-content; max-width: 100%` — they hug their content.
-- Cards do **not** stretch to fill available space unless explicitly set (e.g. Offer Book uses `width: 100%`).
+- Cards do **not** stretch to fill available space unless explicitly set (e.g. News card uses `width: 100%`).
 
 ### Responsive — mobile (≤700px)
 - Sidebar slides off-screen; `navWidth` is set to `0` via an `isMobile` state (resize listener on 700px breakpoint).
@@ -375,25 +377,44 @@ All 63 endpoints are in `peach-api-reference.html`. Reference it before adding n
 
 ---
 
+## Sidenav — nav items (all screens)
+
+Every screen defines its own local `SideNav` + `NAV_ITEMS` + `NAV_ROUTES` (no shared component). Current nav items, in order:
+
+| id | Label | Route |
+|----|-------|-------|
+| `home` | Home | `/home` |
+| `market` | Market | `/market` |
+| `trades` | My Trades | `/trades` |
+| `offer` | New Offer | `/offer/new` |
+| `payment-methods` | Payment Methods | `/payment-methods` |
+| `settings` | Settings | `/settings` |
+
+- Each screen uses `IconCreditCard` for the Payment Methods item.
+- "News" item has been removed from all screens.
+- The Payment Methods screen (`/payment-methods`) is not yet built — the nav link is present but the route doesn't exist in `App.jsx` yet.
+
+---
+
+## Offer Creation (`peach-offer-creation.jsx`)
+
+### "No new users" option
+- Checkbox appears for **both buy and sell** offers, directly below the Instant Match toggle.
+- State: `noNewUsers: false` in initial form state.
+- On buy offers: disabled (`opacity: 0.4, pointerEvents: none`) when `form.instantMatch` is false.
+- On sell offers: always enabled.
+- Label: "No new users" · description: "Only match with traders who have completed at least 1 trade"
+- Included in the Review summary when `form.noNewUsers` is true.
+
+### Review step behaviour
+- The Buy BTC / Sell BTC type toggle in the wizard header is greyed out on the Review step (`opacity: 0.45, pointerEvents: none`).
+- The summary `.review-card` is centered (`margin-left: auto; margin-right: auto`).
+
+---
+
 ## Pending fixes & additions
 
-### Home (`peach-home.jsx`)
-- Remove the Orderbook Preview section entirely
-- Add a "Top Currencies" card next to the Top Payment Methods card
-- Add sats unit label to the 24h Volume figure in the Peach Stats card
-- Add a wide "News" card above the user profile card (full width, at the top)
-
-### Side nav
-- Remove the "News" button
-- Add a "Payment Methods" button (links to new PM management screen)
-
-### Offer Creation (`peach-offer-creation.jsx`)
-- Add a "No new users" checkbox under the Instant Trade option — only enabled when Instant Trade is on
-- At the Review stage: remove or grey-out the BUY BTC / SELL BTC toggle
-- At the Review stage: center the summary card
-
 ### Trade Execution (`peach-trade-execution.jsx`)
-- Add QR code to the escrow funding card with toggle (address only / address + amount) — verify against current implementation before building, as this is already specced above
 - Add a modal for when the seller funds the escrow with the wrong amount — options to continue (if amount is close enough) or request a refund
 
 ---
