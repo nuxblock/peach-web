@@ -23,7 +23,7 @@ const IconMarket   = () => <svg width="20" height="20" viewBox="0 0 20 20" fill=
 const IconTrades   = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 7h10M13 4l3 3-3 3"/><path d="M15 13H5M7 10l-3 3 3 3"/></svg>;
 const IconCreate   = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6.5" x2="10" y2="13.5"/><line x1="6.5" y1="10" x2="13.5" y2="10"/></svg>;
 const IconSettings = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="2.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/></svg>;
-const IconNews     = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="16" height="13" rx="2"/><line x1="6" y1="8" x2="14" y2="8"/><line x1="6" y1="11" x2="14" y2="11"/><line x1="6" y1="14" x2="10" y2="14"/></svg>;
+const IconCreditCard = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="18" height="13" rx="2"/><line x1="1" y1="9" x2="19" y2="9"/><line x1="5" y1="14" x2="8" y2="14"/></svg>;
 const IconChevronLeft  = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9,2 4,7 9,12"/></svg>;
 const IconChevronRight = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="5,2 10,7 5,12"/></svg>;
 const IconBurger       = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="2" y1="4.5" x2="16" y2="4.5"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="13.5" x2="16" y2="13.5"/></svg>;
@@ -34,10 +34,10 @@ const NAV_ITEMS = [
   { id:"trades",   label:"Trades",   icon:()=><IconTrades/> },
   { id:"create",   label:"Create",   icon:()=><IconCreate/> },
   { id:"settings", label:"Settings", icon:()=><IconSettings/> },
-  { id:"news",     label:"News",     icon:()=><IconNews/> },
+  { id:"payment-methods", label:"Payments", icon:()=><IconCreditCard/> },
 ];
 
-const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", settings:"/settings" };
+const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", settings:"/settings", "payment-methods":"/payment-methods" };
 
 function SideNav({ active, collapsed, onToggle, mobileOpen, onClose, onNavigate }) {
   return (
@@ -62,18 +62,6 @@ function SideNav({ active, collapsed, onToggle, mobileOpen, onClose, onNavigate 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const BTC_PRICE = 87432;
 
-const MOCK_OFFERS = [
-  { id:"a1", type:"ask", amount:85000,          premium:-1.2, methods:["SEPA","Revolut"], currencies:["EUR","CHF"], rep:4.9, trades:312, badges:["supertrader","fast"], auto:true,  online:true  },
-  { id:"a2", type:"ask", amount:42000,          premium:0.5,  methods:["SEPA"],           currencies:["EUR"],      rep:4.7, trades:88,  badges:["fast"],              auto:false, online:true  },
-  { id:"a3", type:"ask", amount:250000,         premium:1.0,  methods:["SEPA","PayPal"],  currencies:["EUR","GBP"],rep:5.0, trades:541, badges:["supertrader"],       auto:false, online:false },
-  { id:"a4", type:"ask", amount:18000,          premium:2.1,  methods:["Revolut"],        currencies:["EUR"],      rep:4.3, trades:21,  badges:[],                    auto:false, online:true  },
-  { id:"a5", type:"ask", amount:55000,          premium:-0.5, methods:["SEPA","Wise"],    currencies:["EUR","CHF"],rep:4.8, trades:156, badges:["fast"],              auto:true,  online:true  },
-  { id:"b1", type:"bid", amount:[30000,80000],  premium:-2.0, methods:["SEPA"],           currencies:["EUR"],      rep:4.5, trades:44,  badges:["fast"],              auto:true,  online:true  },
-  { id:"b2", type:"bid", amount:[10000,30000],  premium:-0.8, methods:["SEPA","Revolut"], currencies:["EUR","CHF"],rep:4.9, trades:201, badges:["supertrader"],       auto:false, online:true  },
-  { id:"b3", type:"bid", amount:[50000,150000], premium:0.3,  methods:["PayPal"],         currencies:["EUR"],      rep:4.2, trades:33,  badges:[],                    auto:false, online:true  },
-  { id:"b4", type:"bid", amount:[20000,60000],  premium:-1.5, methods:["Wise","SEPA"],    currencies:["EUR","GBP"],rep:4.7, trades:119, badges:["fast"],              auto:false, online:false },
-  { id:"b5", type:"bid", amount:[100000,300000],premium:1.2,  methods:["SEPA"],           currencies:["EUR","CHF"],rep:5.0, trades:489, badges:["supertrader","fast"],auto:true,  online:true  },
-];
 
 const MOCK_STATS = {
   dailyVolume:    { sats: 4_280_000, eur: 3741 },
@@ -86,6 +74,11 @@ const MOCK_STATS = {
     { name:"Revolut", volume:21, count:4  },
     { name:"Wise",    volume:11, count:3  },
     { name:"PayPal",  volume:6,  count:2  },
+  ],
+  topCurrencies:  [
+    { name:"EUR", volume:68, count:12 },
+    { name:"CHF", volume:18, count:4  },
+    { name:"GBP", volume:14, count:2  },
   ],
 };
 
@@ -113,9 +106,6 @@ function fmtPct(v, showPlus = true) {
   const n = parseFloat(v);
   const plus = showPlus && n > 0 ? "+" : "";
   return `${plus}${n.toFixed(2)}%`;
-}
-function satsToFiat(sats, price = BTC_PRICE) {
-  return Math.round((sats / 100_000_000) * price).toLocaleString();
 }
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
@@ -373,45 +363,6 @@ const css = `
 `;
 
 // ─── OFFER BOOK ROWS ──────────────────────────────────────────────────────────
-function OfferRow({ offer, side }) {
-  const isBuy = side === "buy"; // buy = we're viewing sell offers (asks)
-  const prem = offer.premium;
-  const premClass = isBuy
-    ? (prem < 0 ? "ob-prem neg" : prem > 0 ? "ob-prem pos" : "ob-prem")
-    : (prem > 0 ? "ob-prem-sell pos" : prem < 0 ? "ob-prem-sell neg" : "ob-prem");
-
-  const amountNode = offer.type === "ask"
-    ? <>{formatSats(offer.amount)} sats</>
-    : <>{formatSats(offer.amount[0])}–{formatSats(offer.amount[1])} sats</>;
-
-  const fiatNode = offer.type === "ask"
-    ? `≈ €${satsToFiat(offer.amount)}`
-    : `€${satsToFiat(offer.amount[0])}–€${satsToFiat(offer.amount[1])}`;
-
-  const initials = offer.id.slice(0,2).toUpperCase();
-
-  return (
-    <div className="ob-row">
-      <div className="ob-avatar">
-        {initials}
-        {offer.online && <span className="online-dot"/>}
-      </div>
-      <div className="ob-info">
-        <div className="ob-amount">{amountNode}</div>
-        <div className="ob-fiat">{fiatNode}</div>
-        <div className="ob-methods">
-          {offer.methods.slice(0,2).map(m => <span key={m} className="ob-method">{m}</span>)}
-          {offer.methods.length > 2 && <span className="ob-method">+{offer.methods.length-2}</span>}
-        </div>
-      </div>
-      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
-        <span className={premClass}>{fmtPct(prem)}</span>
-        {offer.auto && <span className="ob-auto">⚡ Instant</span>}
-      </div>
-    </div>
-  );
-}
-
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function PeachHome() {
   const navigate = useNavigate();
@@ -439,27 +390,6 @@ export default function PeachHome() {
 
   const satsPerEur  = Math.round(100_000_000 / btcPrice);
   const updatedText = secondsAgo === 0 ? "Just now" : `${secondsAgo}s ago`;
-
-  const [obCurrency, setObCurrency] = useState("all");
-  const [obMethod,   setObMethod]   = useState("all");
-
-  const ALL_OB_CURRENCIES = [...new Set(MOCK_OFFERS.flatMap(o => o.currencies))].sort();
-  const ALL_OB_METHODS    = [...new Set(MOCK_OFFERS.flatMap(o => o.methods))].sort();
-
-  // For buy col (asks): sort ascending by premium (cheapest first for buyer)
-  // For sell col (bids): sort descending by premium (highest premium first for seller)
-  const topAsks = MOCK_OFFERS
-    .filter(o => o.type === "ask")
-    .filter(o => obCurrency === "all" || o.currencies.includes(obCurrency))
-    .filter(o => obMethod   === "all" || o.methods.includes(obMethod))
-    .sort((a, b) => a.premium - b.premium)
-    .slice(0, 5);
-  const topBids = MOCK_OFFERS
-    .filter(o => o.type === "bid")
-    .filter(o => obCurrency === "all" || o.currencies.includes(obCurrency))
-    .filter(o => obMethod   === "all" || o.methods.includes(obMethod))
-    .sort((a, b) => b.premium - a.premium)
-    .slice(0, 5);
 
   const navWidth = isMobile ? 0 : (sidebarCollapsed ? 44 : 68);
 
@@ -527,7 +457,31 @@ export default function PeachHome() {
               <span style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",cursor:"pointer"}} onClick={() => navigate("/trades")}>View →</span>
             </div>
 
-            {/* ── STATS ROW ── */}
+            {/* ── NEWS CARD ── */}
+            <div className="card" style={{width:"100%",marginBottom:4}}>
+              <div className="card-header">
+                <span className="card-title">Latest from Peach</span>
+                <span className="card-link">See all →</span>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:0}}>
+                {[
+                  { date:"26 Feb 2026", headline:"Peach now supports Strike payments across all EU markets" },
+                  { date:"18 Feb 2026", headline:"New trading limits: anonymous trades up to €1 000/month" },
+                  { date:"05 Feb 2026", headline:"Web app beta is live — trade from any browser, no install needed" },
+                ].map((item, i, arr) => (
+                  <div key={i} style={{
+                    display:"flex",alignItems:"center",gap:16,
+                    padding:"11px 0",
+                    borderBottom: i < arr.length-1 ? "1px solid #F4EEEB" : "none",
+                  }}>
+                    <span style={{fontSize:".7rem",fontWeight:600,color:"#C4B5AE",whiteSpace:"nowrap",minWidth:80}}>{item.date}</span>
+                    <span style={{fontSize:".85rem",fontWeight:600,color:"#2B1911",flex:1}}>{item.headline}</span>
+                    <span style={{fontSize:".78rem",fontWeight:700,color:"#F56522",cursor:"pointer",whiteSpace:"nowrap"}}>Read →</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* ── PROFILE + PEACH STATS ROW ── */}
             <div className="dashboard-grid">
 
@@ -614,6 +568,24 @@ export default function PeachHome() {
                 </div>
               </div>
 
+              {/* Top Currencies — separate card */}
+              <div className="card" style={{minWidth:"280px"}}>
+                <div className="card-header">
+                  <span className="card-title">Top Currencies</span>
+                </div>
+                <div className="methods-list">
+                  {MOCK_STATS.topCurrencies.map(c => (
+                    <div key={c.name} className="method-row">
+                      <span className="method-name">{c.name}</span>
+                      <div className="method-bar-wrap">
+                        <div className="method-bar" style={{width:`${c.volume}%`,background:"linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)"}}/>
+                      </div>
+                      <span className="method-pct">{c.volume}%</span>
+                      <span className="method-count">{c.count} offers</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Peach Stats — 24h Volume, Trades Today, Active Offers */}
               <div className="card">
@@ -625,7 +597,7 @@ export default function PeachHome() {
                   {/* 24h Volume */}
                   <div style={{display:"flex",flexDirection:"column",gap:4}}>
                     <span className="card-title">24h Volume</span>
-                    <div className="stat-big">{formatSats(MOCK_STATS.dailyVolume.sats)}</div>
+                    <div className="stat-big">{formatSats(MOCK_STATS.dailyVolume.sats)} <span style={{fontSize:".6em",fontWeight:600,color:"#C4B5AE"}}>sats</span></div>
                     <div className="stat-sub">≈ €{MOCK_STATS.dailyVolume.eur.toLocaleString()} · today</div>
                     <span className="stat-change pos">↑ +12% vs yesterday</span>
                   </div>
@@ -653,47 +625,6 @@ export default function PeachHome() {
                     </div>
                   </div>
 
-                </div>
-              </div>
-
-            </div>
-
-            {/* ── OFFER BOOK ROW ── */}
-            <div>
-
-              {/* Offer Book Snapshot — full width */}
-              <div className="card" style={{width:"100%"}}>
-                <div className="card-header">
-                  <span className="card-title">Offer Book Snapshot</span>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <select className="ob-filter-sel" value={obCurrency} onChange={e=>setObCurrency(e.target.value)}>
-                      <option value="all">All currencies</option>
-                      {ALL_OB_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    <select className="ob-filter-sel" value={obMethod} onChange={e=>setObMethod(e.target.value)}>
-                      <option value="all">All methods</option>
-                      {ALL_OB_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <span className="card-link" onClick={() => navigate("/market")}>Open market →</span>
-                  </div>
-                </div>
-                <div className="offerbook-cols">
-                  <div>
-                    <div className="ob-col-title ob-buy-title">
-                      <span className="ob-dot-buy"/>
-                      Buy BTC
-                      <span className="ob-count">Top {topAsks.length} sell offers</span>
-                    </div>
-                    {topAsks.map(o => <OfferRow key={o.id} offer={o} side="buy"/>)}
-                  </div>
-                  <div>
-                    <div className="ob-col-title ob-sell-title">
-                      <span className="ob-dot-sell"/>
-                      Sell BTC
-                      <span className="ob-count">Top {topBids.length} buy offers</span>
-                    </div>
-                    {topBids.map(o => <OfferRow key={o.id} offer={o} side="sell"/>)}
-                  </div>
                 </div>
               </div>
 
