@@ -31,6 +31,28 @@ const IconMsg       = () => <svg width="14" height="14" viewBox="0 0 14 14" fill
 const IconClock     = () => <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="6.5" cy="6.5" r="5"/><path d="M6.5 3.5v3l2 1.5"/></svg>;
 const IconAlert     = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M7 2L1 12h12L7 2z"/><line x1="7" y1="6" x2="7" y2="9"/><circle cx="7" cy="11" r=".5" fill="currentColor"/></svg>;
 const IconEmpty     = () => <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#C4B5AE" strokeWidth="1.5" strokeLinecap="round"><rect x="8" y="12" width="32" height="28" rx="4"/><path d="M16 12V9a8 8 0 0 1 16 0v3"/><line x1="19" y1="24" x2="29" y2="24"/><line x1="19" y1="30" x2="25" y2="30"/></svg>;
+const IcoBtc        = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}>
+    <circle cx="16" cy="16" r="16" fill="#F7931A"/>
+    <path d="M22.2 13.8c.3-2-1.2-3.1-3.3-3.8l.7-2.7-1.6-.4-.7 2.6c-.4-.1-.9-.2-1.3-.3l.7-2.6-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.3l-2.1-.5-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8.9l-.8 3.3c.1 0 .2 0 .3.1-.1 0-.2-.1-.3-.1L11.4 20c-.1.3-.4.7-1 .5 0 0-1.2-.3-1.2-.3l-.8 1.8 2 .5c.4.1.7.2 1.1.3l-.7 2.7 1.6.4.7-2.7c.4.1.9.2 1.4.3l-.7 2.7 1.6.4.7-2.7c2.8.5 4.9.3 5.8-2.2.7-2-.03-3.2-1.5-3.9 1.1-.25 1.9-1 2.1-2.5zm-3.8 5.3c-.5 2-3.9.9-5 .6l.9-3.5c1.1.3 4.6.8 4.1 2.9zm.5-5.3c-.45 1.8-3.3.9-4.2.7l.8-3.2c.9.2 3.8.6 3.4 2.5z" fill="white"/>
+  </svg>
+);
+
+// Standardized sats display: ₿ icon · "0.00" grey · "36 074 Sats" black, same font size
+function SatsAmount({ sats, size = "md" }) {
+  const btcInt  = Math.floor(sats / 100_000_000);
+  const btcGrey = btcInt === 0 ? "0.00" : btcInt.toFixed(2);
+  const satsStr = sats.toLocaleString("fr-FR");
+  const fs = size === "sm" ? ".82rem" : size === "lg" ? "1.05rem" : ".95rem";
+  const ico = size === "sm" ? 13 : size === "lg" ? 17 : 15;
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:5 }}>
+      <IcoBtc size={ico}/>
+      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:fs }}>{btcGrey}</span>
+      <span style={{ color:"var(--black-100,#2B1911)", fontWeight:800, fontSize:fs }}>{satsStr} Sats</span>
+    </span>
+  );
+}
 
 const NAV_ITEMS = [
   { id:"home",     label:"Home",     icon:()=><PeachIcon size={20}/> },
@@ -93,68 +115,91 @@ const STATUS_CONFIG = {
 const AVATARS = ["KL","MR","ST","DV","NB","FR","PW","JC","EH","OT"];
 const AVATAR_COLORS = ["#FF7A50","#037DB5","#65A519","#F56522","#9B5CFF","#DF321F","#F5CE22","#05A85A"];
 
-// Active trades mock
+// Active trades mock — 6 buy, 6 sell
 const MOCK_ACTIVE = [
-  // Open offers (user's own, unmatched)
+  // ── BUY ──
   {
-    id:"oo1", kind:"open_offer", direction:"sell",
-    amount:73000, premium:0.8, methods:["SEPA","Wise"], currencies:["EUR","CHF"],
-    createdAt: Date.now() - 2 * 3600_000, expiresIn: "22h",
-    counterparty: null, unread: 0,
-  },
-  {
-    id:"oo2", kind:"open_offer", direction:"buy",
+    id:"b1", kind:"open_offer", direction:"buy",
     amount:[40000,120000], premium:-0.5, methods:["SEPA"], currencies:["EUR"],
-    createdAt: Date.now() - 45 * 60_000, expiresIn: "23h 15m",
-    counterparty: null, unread: 0,
+    createdAt: Date.now() - 45*60_000, expiresIn:"23h 15m",
+    counterparty:null, unread:0,
   },
-  // Pending matches (user matched, waiting on seller)
   {
-    id:"pm1", kind:"pending_match", direction:"buy",
+    id:"b2", kind:"pending_match", direction:"buy",
     amount:85000, premium:-1.2, methods:["SEPA","Revolut"], currencies:["EUR"],
-    matchedAt: Date.now() - 12 * 60_000,
-    counterparty: { initials:"KL", color:"#FF7A50", name:"Peer #4E2A", rep:4.9, trades:312, badges:["supertrader"] },
-    unread: 0,
+    matchedAt: Date.now() - 12*60_000,
+    counterparty:{ initials:"KL", color:"#FF7A50", name:"Peer #4E2A", rep:4.9, trades:312, badges:["supertrader"] },
+    unread:0,
   },
   {
-    id:"pm2", kind:"pending_match", direction:"buy",
-    amount:42000, premium:0.5, methods:["SEPA"], currencies:["EUR"],
-    matchedAt: Date.now() - 3 * 60_000,
-    counterparty: { initials:"MR", color:"#037DB5", name:"Peer #7F1C", rep:4.7, trades:88, badges:["fast"] },
-    unread: 0,
-  },
-  // Active contracts
-  {
-    id:"ct1", kind:"contract", status:"awaiting_payment", direction:"buy",
+    id:"b3", kind:"contract", status:"awaiting_payment", direction:"buy",
     amount:85000, premium:-1.2, methods:["SEPA"], currencies:["EUR"],
-    startedAt: Date.now() - 4 * 3600_000, deadline: Date.now() + 8 * 3600_000,
-    counterparty: { initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"] },
-    unread: 3,
-    fiatAmount: "74.32",
+    startedAt: Date.now() - 4*3600_000, deadline: Date.now() + 8*3600_000,
+    counterparty:{ initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"] },
+    unread:3, fiatAmount:"74.32",
   },
   {
-    id:"ct2", kind:"contract", status:"payment_in_transit", direction:"sell",
-    amount:120000, premium:1.8, methods:["PayPal"], currencies:["EUR"],
-    startedAt: Date.now() - 1.5 * 3600_000,
-    counterparty: { initials:"DV", color:"#F56522", name:"Peer #A1F3", rep:4.6, trades:67, badges:[] },
-    unread: 1,
-    fiatAmount: "102.18",
+    id:"b4", kind:"contract", status:"not_paid_in_time", direction:"buy",
+    amount:42000, premium:0.5, methods:["Wise"], currencies:["CHF"],
+    startedAt: Date.now() - 26*3600_000,
+    counterparty:{ initials:"MR", color:"#037DB5", name:"Peer #7F1C", rep:4.7, trades:88, badges:["fast"] },
+    unread:2, fiatAmount:"38.14",
   },
   {
-    id:"ct3", kind:"contract", status:"payment_confirmed", direction:"sell",
-    amount:55000, premium:-0.5, methods:["SEPA"], currencies:["EUR"],
-    startedAt: Date.now() - 6 * 3600_000,
-    counterparty: { initials:"NB", color:"#9B5CFF", name:"Peer #C73E", rep:4.8, trades:156, badges:["fast"] },
-    unread: 0,
-    fiatAmount: "47.88",
+    id:"b5", kind:"contract", status:"payment_confirmed", direction:"buy",
+    amount:55000, premium:-0.8, methods:["SEPA"], currencies:["EUR"],
+    startedAt: Date.now() - 6*3600_000,
+    counterparty:{ initials:"NB", color:"#9B5CFF", name:"Peer #C73E", rep:4.8, trades:156, badges:[] },
+    unread:0, fiatAmount:"47.88",
   },
   {
-    id:"ct4", kind:"contract", status:"dispute", direction:"buy",
+    id:"b6", kind:"contract", status:"dispute", direction:"buy",
     amount:30000, premium:-2.0, methods:["Revolut"], currencies:["EUR"],
-    startedAt: Date.now() - 28 * 3600_000,
-    counterparty: { initials:"FR", color:"#DF321F", name:"Peer #D8B1", rep:3.9, trades:9, badges:[] },
-    unread: 5,
-    fiatAmount: "26.23",
+    startedAt: Date.now() - 28*3600_000,
+    counterparty:{ initials:"FR", color:"#DF321F", name:"Peer #D8B1", rep:3.9, trades:9, badges:[] },
+    unread:5, fiatAmount:"26.23",
+  },
+  // ── SELL ──
+  {
+    id:"s1", kind:"open_offer", direction:"sell",
+    amount:73000, premium:0.8, methods:["SEPA","Wise"], currencies:["EUR","CHF"],
+    createdAt: Date.now() - 2*3600_000, expiresIn:"22h",
+    counterparty:null, unread:0,
+  },
+  {
+    id:"s2", kind:"contract", status:"matched", direction:"sell",
+    amount:95000, premium:1.5, methods:["SEPA"], currencies:["EUR"],
+    startedAt: Date.now() - 30*60_000,
+    counterparty:{ initials:"DV", color:"#F56522", name:"Peer #A1F3", rep:4.6, trades:67, badges:[] },
+    unread:1, fiatAmount:"82.79",
+  },
+  {
+    id:"s3", kind:"contract", status:"payment_in_transit", direction:"sell",
+    amount:120000, premium:1.8, methods:["PayPal"], currencies:["EUR"],
+    startedAt: Date.now() - 1.5*3600_000,
+    counterparty:{ initials:"PW", color:"#05A85A", name:"Peer #F9C2", rep:4.3, trades:22, badges:[] },
+    unread:1, fiatAmount:"102.18",
+  },
+  {
+    id:"s4", kind:"contract", status:"confirm_payment", direction:"sell",
+    amount:50000, premium:0.3, methods:["Revolut"], currencies:["EUR"],
+    startedAt: Date.now() - 10*60_000,
+    counterparty:{ initials:"JC", color:"#9B5CFF", name:"Peer #B8D0", rep:5.0, trades:289, badges:["supertrader","fast"] },
+    unread:0, fiatAmount:"43.25",
+  },
+  {
+    id:"s5", kind:"contract", status:"payment_confirmed", direction:"sell",
+    amount:200000, premium:2.1, methods:["SEPA"], currencies:["EUR"],
+    startedAt: Date.now() - 8*3600_000,
+    counterparty:{ initials:"EH", color:"#037DB5", name:"Peer #3A7E", rep:4.5, trades:44, badges:["fast"] },
+    unread:0, fiatAmount:"174.86",
+  },
+  {
+    id:"s6", kind:"contract", status:"dispute", direction:"sell",
+    amount:65000, premium:1.0, methods:["Strike"], currencies:["EUR"],
+    startedAt: Date.now() - 36*3600_000,
+    counterparty:{ initials:"OT", color:"#F56522", name:"Peer #E52C", rep:2.1, trades:3, badges:[] },
+    unread:4, fiatAmount:"56.73",
   },
 ];
 
@@ -316,142 +361,207 @@ function Avatar({ initials, color, size = 36, online }) {
   );
 }
 
-// ─── TRADE CARD (Active) ──────────────────────────────────────────────────────
-function TradeCard({ trade, onSelect }) {
-  const cfg = STATUS_CONFIG[trade.kind === "contract" ? trade.status : trade.kind] || {};
-  const needsAction = cfg.action;
-  const isBuy = trade.direction === "buy";
+// ─── PILL CONFIG — maps every status to pill appearance + label ──────────────
+const PILL_CONFIG = {
+  open_offer:          { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Waiting for a match",   passive:true  },
+  pending_match:       { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Waiting for seller",    passive:true  },
+  payment_in_transit:  { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Payment sent · awaiting confirmation", passive:true },
+  completed:           { bg:"#F2F9E7", color:"#65A519", label:"Completed",             passive:true  },
+  cancelled:           { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Cancelled",             passive:true  },
+  matched:             { bg:"var(--primary)", color:"white", label:"Fund Escrow",       passive:false },
+  not_paid_in_time:    { bg:"#FEFCE5",        color:"#7A5C00", label:"Not paid in time!", passive:false },
+  awaiting_payment:    { bg:"var(--primary)", color:"white", label:"Make Payment",     passive:false },
+  payment_confirmed:   { bg:"#65A519",        color:"white", label:"Release Bitcoin",  passive:false },
+  confirm_payment:     { bg:"var(--primary)", color:"white", label:"Confirm Payment",  passive:false },
+  dispute:             { bg:"#DF321F",        color:"white", label:"View Dispute",     passive:false },
+};
 
-  function renderAmount() {
-    if (Array.isArray(trade.amount)) {
-      return `${fmt(trade.amount[0])}–${fmt(trade.amount[1])} sats`;
-    }
-    return `${fmt(trade.amount)} sats`;
-  }
-  function renderFiat() {
-    if (Array.isArray(trade.amount)) {
-      return `≈ €${satsToFiat(trade.amount[0])}–€${satsToFiat(trade.amount[1])}`;
-    }
+// ─── PEACH RATING — fills proportionally like a cup ──────────────────────────
+function PeachRating({ rep, size = 16 }) {
+  const pct = Math.max(0, Math.min(1, rep / 5));
+  const id = `pr-${Math.round(rep * 10)}`;
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
+      {/* Peach icon with fill */}
+      <svg width={size} height={size} viewBox="0 0 32 32" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}>
+        <defs>
+          <clipPath id={`${id}-clip`}>
+            {/* Fill from bottom: fill starts at (1-pct)*32 from top */}
+            <rect x="0" y={32 * (1 - pct)} width="32" height={32 * pct}/>
+          </clipPath>
+        </defs>
+        {/* Outline / empty peach in muted color */}
+        <g opacity="0.25">
+          <circle cx="16" cy="17" r="11" fill="#F56522"/>
+          <path d="M14 8c1-3 5-4 6-1" stroke="#05A85A" strokeWidth="2" fill="none" strokeLinecap="round"/>
+        </g>
+        {/* Filled peach clipped to rating level */}
+        <g clipPath={`url(#${id}-clip)`}>
+          <circle cx="16" cy="17" r="11" fill="#F56522"/>
+          <path d="M14 8c1-3 5-4 6-1" stroke="#05A85A" strokeWidth="2" fill="none" strokeLinecap="round"/>
+          {/* Bowl highlight */}
+          <path d="M11 17 Q16 13 21 17" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/>
+        </g>
+      </svg>
+      <span style={{ fontSize:".78rem", fontWeight:700, color:"var(--black-75)" }}>{rep.toFixed(1)}</span>
+    </span>
+  );
+}
+
+// ─── BADGE — sober outlined style ─────────────────────────────────────────────
+function Badge({ label, icon }) {
+  return (
+    <span style={{
+      display:"inline-flex", alignItems:"center", gap:5,
+      border:"1.5px solid var(--primary)", borderRadius:999,
+      padding:"1px 8px", fontSize:".65rem", fontWeight:700,
+      color:"var(--primary)", background:"transparent", whiteSpace:"nowrap",
+    }}>
+      {label} {icon && <span style={{ fontSize:".7rem" }}>{icon}</span>}
+    </span>
+  );
+}
+
+// ─── TRADE CARD — Variant C ───────────────────────────────────────────────────
+function TradeCard({ trade, onSelect }) {
+  const statusKey = trade.kind === "contract" ? trade.status : trade.kind;
+  const pill = PILL_CONFIG[statusKey] || PILL_CONFIG.open_offer;
+  const isBuy = trade.direction === "buy";
+  const hasSatsRange = Array.isArray(trade.amount);
+
+  function fiatStr() {
+    if (hasSatsRange) return `≈ €${satsToFiat(trade.amount[0])}–€${satsToFiat(trade.amount[1])}`;
+    if (trade.fiatAmount) return `€${trade.fiatAmount}`;
     return `≈ €${satsToFiat(trade.amount)}`;
   }
 
-  function renderActions() {
-    const s = trade.status;
-    const b = (label, color, bg, hc) => (
-      <button className="card-action-btn" style={{ background:bg, color:color }}
-        onMouseEnter={e => { e.target.style.background = hc; e.target.style.color = "white"; }}
-        onMouseLeave={e => { e.target.style.background = bg; e.target.style.color = color; }}
-      >{label}</button>
-    );
-    if (trade.kind === "open_offer")    return <>{b("Edit Offer","#C45104","#FEEDE5","#F56522")}{b("Withdraw","#DF321F","#FFF0EE","#DF321F")}</>;
-    if (trade.kind === "pending_match") return <>{b("View Offer","#037DB5","#D7F2FE","#037DB5")}{b("Unmatch","#7D675E","#F4EEEB","#7D675E")}</>;
-    if (s === "awaiting_payment")       return b("I've Paid","#65A519","#F2F9E7","#65A519");
-    if (s === "payment_in_transit")     return b("Confirm Payment","#65A519","#F2F9E7","#65A519");
-    if (s === "payment_confirmed")      return b("Release Bitcoin","#F56522","#FEEDE5","#F56522");
-    if (s === "dispute")                return b("View Dispute","#DF321F","#FFF0EE","#DF321F");
-    if (s === "cancellation_pending")   return <>{b("Accept","#65A519","#F2F9E7","#65A519")}{b("Reject","#DF321F","#FFF0EE","#DF321F")}</>;
-    return b("View Trade","#C45104","#FEEDE5","#F56522");
-  }
-
-  function renderTimeInfo() {
-    if (trade.kind === "open_offer")    return <span><IconClock/> Expires in {trade.expiresIn}</span>;
-    if (trade.kind === "pending_match") return <span><IconClock/> Matched {relativeTime(trade.matchedAt)}</span>;
+  function timeStr() {
+    if (trade.kind === "open_offer")    return `Expires in ${trade.expiresIn}`;
+    if (trade.kind === "pending_match") return `Matched ${relativeTime(trade.matchedAt)}`;
     if (trade.deadline) {
       const left = trade.deadline - Date.now();
       const h = Math.floor(left / 3600_000);
       const m = Math.floor((left % 3600_000) / 60_000);
-      const urgent = h < 2;
-      return <span style={{ color: urgent ? "#DF321F" : undefined }}><IconClock/> {h}h {m}m remaining</span>;
+      return `${h}h ${m}m remaining`;
     }
-    return <span><IconClock/> {relativeTime(trade.startedAt)}</span>;
+    return relativeTime(trade.startedAt);
   }
+  const isUrgentTime = trade.deadline && (trade.deadline - Date.now()) < 2 * 3600_000;
 
   return (
-    <div className={`trade-card${needsAction ? " trade-card-urgent" : ""}`}
-      style={{cursor:"pointer"}} onClick={() => onSelect && onSelect(trade.id)}>
-      {/* Card header */}
-      <div className="card-header">
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <span className={`direction-badge direction-${isBuy ? "buy" : "sell"}`}>
-            {isBuy ? "BUY" : "SELL"}
-          </span>
-          <StatusChip status={trade.kind === "contract" ? trade.status : trade.kind}/>
+    <div className="trade-card-v3" onClick={() => onSelect && onSelect(trade.id)}>
+
+      {/* ── ROW 1: direction badge · trade ID · date ··· unread ── */}
+      <div className="v3c-top">
+        <span className={`direction-badge direction-${isBuy ? "buy" : "sell"}`}>
+          {isBuy ? "BUY" : "SELL"}
+        </span>
+        <span style={{ fontSize:".72rem", fontWeight:700, color:"var(--black-65)", fontFamily:"monospace" }}>
+          {trade.id.toUpperCase()}
+        </span>
+        <span style={{ fontSize:".68rem", color:"var(--black-65)" }}>
+          · {new Date(trade.startedAt || trade.createdAt || trade.matchedAt || Date.now()).toLocaleDateString("en-GB")}
+        </span>
+        <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:5 }}>
+          {trade.unread > 0 && (
+            <div className="unread-badge">
+              <span style={{ lineHeight:1 }}>{trade.unread}</span>
+              <IconMsg/>
+            </div>
+          )}
         </div>
-        {trade.unread > 0 && (
-          <div className="unread-badge">
-            <IconMsg/>
-            <span>{trade.unread}</span>
-          </div>
-        )}
       </div>
 
-      {/* Counterparty or offer info */}
-      <div className="card-body">
-        {trade.counterparty ? (
-          <div className="card-counterparty">
-            <Avatar initials={trade.counterparty.initials} color={trade.counterparty.color} size={38} online/>
-            <div>
-              <div style={{ fontWeight:700, fontSize:".88rem" }}>{trade.counterparty.name}</div>
-              <div style={{ fontSize:".75rem", color:"var(--black-65)", display:"flex", gap:6, alignItems:"center" }}>
-                <span>{"★".repeat(Math.round(trade.counterparty.rep))}{"☆".repeat(5-Math.round(trade.counterparty.rep))}</span>
-                <span>{trade.counterparty.rep.toFixed(1)}</span>
-                <span>·</span>
-                <span>{trade.counterparty.trades} trades</span>
-                {trade.counterparty.badges?.includes("supertrader") && <span style={{ background:"linear-gradient(90deg,#FF4D42,#FFA24C)", color:"white", borderRadius:999, padding:"1px 7px", fontSize:".68rem", fontWeight:700 }}>🏆 Supertrader</span>}
-                {trade.counterparty.badges?.includes("fast") && <span style={{ background:"#FEEDE5", color:"#C45104", borderRadius:999, padding:"1px 7px", fontSize:".68rem", fontWeight:700 }}>⚡ Fast</span>}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ fontSize:".8rem", color:"var(--black-65)", fontStyle:"italic" }}>
-            Waiting for a match…
-          </div>
-        )}
+      {/* ── ROW 2: counterparty (left) + sats/fiat/premium/time (right) ── */}
+      <div className="v3c-peer-row">
 
-        {/* Amount */}
-        <div className="card-amount">
-          <span className="amount-sats">{renderAmount()}</span>
-          <span className="amount-fiat">{renderFiat()}</span>
-          {trade.premium !== undefined && (
-            <span style={{
-              fontSize:".72rem", fontWeight:700,
-              color: isBuy
-                ? (trade.premium < 0 ? "var(--success)" : "var(--error)")
-                : (trade.premium > 0 ? "var(--success)" : "var(--error)"),
-            }}>
-              {trade.premium > 0 ? "+" : ""}{trade.premium.toFixed(2)}%
+        {/* Left: avatar + peer info */}
+        <div style={{ display:"flex", alignItems:"flex-start", gap:9, flex:1, minWidth:0 }}>
+          {trade.counterparty ? (
+            <>
+              <Avatar initials={trade.counterparty.initials} color={trade.counterparty.color} size={32} online/>
+              <div style={{ display:"flex", flexDirection:"column", gap:3, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                  <span style={{ fontSize:".85rem", fontWeight:700 }}>{trade.counterparty.name}</span>
+                  <PeachRating rep={trade.counterparty.rep}/>
+                </div>
+                <span style={{ fontSize:".72rem", color:"var(--black-65)" }}>
+                  {trade.counterparty.trades} trades
+                </span>
+                {(trade.counterparty.badges?.length > 0) && (
+                  <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginTop:2 }}>
+                    {trade.counterparty.badges.includes("supertrader") && <Badge label="supertrader" icon="☆"/>}
+                    {trade.counterparty.badges.includes("fast") && <Badge label="fast" icon="⚡"/>}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <span style={{ fontSize:".8rem", color:"var(--black-65)", fontStyle:"italic", paddingTop:4 }}>
+              No counterparty yet
             </span>
           )}
         </div>
 
-        {/* Methods + currencies */}
-        <div className="card-tags">
-          {(trade.methods || []).map(m => (
-            <span key={m} className="tag tag-method">{m}</span>
-          ))}
-          {(trade.currencies || []).map(c => (
-            <span key={c} className="tag tag-currency">{c}</span>
-          ))}
+        {/* Right: sats + fiat + premium + time */}
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2, flexShrink:0 }}>
+          {hasSatsRange ? (
+            <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
+              <IcoBtc size={14}/>
+              <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:".88rem" }}>0.00</span>
+              <span style={{ color:"var(--black)", fontWeight:800, fontSize:".88rem" }}>
+                {trade.amount[0].toLocaleString("fr-FR")}–{trade.amount[1].toLocaleString("fr-FR")} Sats
+              </span>
+            </span>
+          ) : (
+            <SatsAmount sats={trade.amount}/>
+          )}
+          <span style={{ fontSize:".82rem", fontWeight:600, color:"var(--black-75)" }}>{fiatStr()}</span>
+          {trade.premium !== undefined && (
+            <span style={{ fontSize:".72rem", fontWeight:700,
+              color: isBuy
+                ? (trade.premium < 0 ? "#65A519" : "#DF321F")
+                : (trade.premium > 0 ? "#65A519" : "#DF321F"),
+            }}>
+              {trade.premium > 0 ? "+" : ""}{trade.premium.toFixed(2)}%
+            </span>
+          )}
+          <span style={{ fontSize:".68rem", color: isUrgentTime ? "#DF321F" : "var(--black-65)",
+            display:"flex", alignItems:"center", gap:3, marginTop:1 }}>
+            <IconClock/> {timeStr()}
+          </span>
         </div>
-
-        {/* Fiat amount if contract */}
-        {trade.fiatAmount && (
-          <div style={{ fontSize:".78rem", color:"var(--black-65)", marginTop:2 }}>
-            Fiat: <strong style={{ color:"var(--black)" }}>€{trade.fiatAmount}</strong>
-          </div>
-        )}
       </div>
 
-      {/* Card footer */}
-      <div className="card-footer">
-        <div className="card-time">{renderTimeInfo()}</div>
-        <div className="card-actions">{renderActions()}</div>
+      {/* ── ROW 3: payment methods + currencies ── */}
+      <div className="v3c-tags">
+        {(trade.methods || []).map(m => <span key={m} className="tag tag-method">{m}</span>)}
+        {(trade.currencies || []).map(c => <span key={c} className="tag tag-currency">{c}</span>)}
       </div>
+
+      {/* ── ROW 4: status pill ── */}
+      <button className={`v3c-pill${pill.passive ? " v3c-pill-passive" : ""}`}
+        style={{ background: pill.bg, color: pill.color }}>
+        {pill.label}
+      </button>
+
     </div>
   );
 }
 
 // ─── HISTORY TABLE ────────────────────────────────────────────────────────────
+function HistorySatsAmount({ sats }) {
+  const grey = Math.floor(sats / 100_000_000) === 0 ? "0.00" : (sats/100_000_000).toFixed(2);
+  const satsStr = sats.toLocaleString("fr-FR");
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
+      <IcoBtc size={13}/>
+      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:".78rem" }}>{grey}</span>
+      <span style={{ color:"var(--black)", fontWeight:800, fontSize:".78rem" }}>{satsStr} Sats</span>
+    </span>
+  );
+}
+
 function HistoryTable({ rows }) {
   const navigate = useNavigate();
   const [sortKey, setSortKey] = useState("completedAt");
@@ -480,6 +590,22 @@ function HistoryTable({ rows }) {
       return 0;
     });
 
+  function exportCSV() {
+    const headers = ["Trade ID","Type","Counterparty","Amount (sats)","Fiat","Currency","Premium (%)","Method","Status","Rating","Date"];
+    const rowsCSV = sorted.map(r => [
+      r.tradeId, r.direction.toUpperCase(), r.counterparty.name,
+      r.amount, r.fiatAmount, r.currency,
+      r.premium.toFixed(2), r.method, r.status,
+      r.ratingGiven !== null ? (r.ratingGiven === 5 ? "positive" : "negative") : "",
+      formatDate(r.completedAt),
+    ]);
+    const csv = [headers, ...rowsCSV].map(row => row.join(",")).join("\n");
+    const blob = new Blob([csv], { type:"text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "peach-trade-history.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function Th({ col, label, align = "left" }) {
     const active = sortKey === col;
     const dir = active ? (sortDir === 1 ? "asc" : "desc") : null;
@@ -501,24 +627,32 @@ function HistoryTable({ rows }) {
     );
   }
 
+  const statusColor = { completed:"#65A519", cancelled:"#7D675E" };
+
   return (
     <div>
-      <div style={{ marginBottom:16 }}>
+      {/* Search + Export row */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:16, flexWrap:"wrap" }}>
         <input
           className="hist-search"
           placeholder="Search by ID, counterparty, method…"
           value={histSearch}
           onChange={e => setHistSearch(e.target.value)}
         />
+        <button onClick={exportCSV} className="hist-export-btn">
+          ↓ Export CSV
+        </button>
       </div>
-      <div className="hist-table-wrap">
+
+      {/* ── Desktop table ── */}
+      <div className="hist-table-wrap hist-desktop">
         <table className="hist-table">
           <thead>
             <tr>
               <th>Trade ID</th>
               <th>Type</th>
               <th>Counterparty</th>
-              <Th col="amount" label="Amount (sats)"/>
+              <Th col="amount" label="Amount"/>
               <Th col="fiatAmount" label="Fiat"/>
               <Th col="premium" label="Premium" align="right"/>
               <th>Method</th>
@@ -540,7 +674,7 @@ function HistoryTable({ rows }) {
                     <span style={{ fontSize:".83rem" }}>{r.counterparty.name}</span>
                   </div>
                 </td>
-                <td style={{ fontWeight:600 }}>{fmt(r.amount)} <span style={{ fontWeight:400, color:"var(--black-65)", fontSize:".75rem" }}>sats</span></td>
+                <td><HistorySatsAmount sats={r.amount}/></td>
                 <td style={{ fontWeight:600 }}>{r.currency === "CHF" ? "₣" : "€"}{r.fiatAmount}</td>
                 <td style={{ textAlign:"right" }}>
                   <span style={{
@@ -566,6 +700,28 @@ function HistoryTable({ rows }) {
           </tbody>
         </table>
       </div>
+
+      {/* ── Mobile list ── */}
+      <div className="hist-mobile">
+        {sorted.map(r => (
+          <div key={r.id} className="hist-mob-row" onClick={() => navigate(`/trade/${r.id}`)}>
+            <div className="hist-mob-left">
+              <span className="hist-mob-id">{r.tradeId}</span>
+              <span className="hist-mob-date">{formatDate(r.completedAt)}</span>
+              <span className="hist-mob-status" style={{
+                color: r.direction === "buy" ? "#65A519" : "#DF321F"
+              }}>
+                {r.direction === "buy" ? "↓ bought" : "↑ sold"}
+              </span>
+            </div>
+            <div className="hist-mob-right">
+              <HistorySatsAmount sats={r.amount}/>
+              <span className="hist-mob-fiat">{r.currency === "CHF" ? "₣" : "€"}{r.fiatAmount}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div style={{ marginTop:12, fontSize:".78rem", color:"var(--black-65)" }}>
         {sorted.length} trade{sorted.length !== 1 ? "s" : ""}
         {histSearch && ` matching "${histSearch}"`}
@@ -668,14 +824,19 @@ const CSS = `
   .page-subtitle{font-size:.85rem;color:var(--black-65);margin-top:2px}
   .header-right{margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 
-  /* Daily limit bar */
+  /* Limit bars widget */
   .limit-bar-wrap{background:var(--surface);border:1px solid var(--black-10);border-radius:12px;
-    padding:12px 16px;min-width:220px}
-  .limit-bar-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-  .limit-bar-label{font-size:.72rem;font-weight:700;color:var(--black-65);text-transform:uppercase;letter-spacing:.05em}
-  .limit-bar-val{font-size:.78rem;font-weight:700}
-  .limit-bar-track{height:6px;background:var(--black-10);border-radius:3px;overflow:hidden}
+    padding:12px 16px;min-width:260px}
+  .limit-bar-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+  .limit-bar-label{font-size:.68rem;font-weight:700;color:var(--black-65);text-transform:uppercase;
+    letter-spacing:.05em;display:inline-flex;align-items:center;gap:5px}
+  .limit-bar-val{font-size:.75rem;font-weight:700}
+  .limit-bar-track{height:5px;background:var(--black-10);border-radius:3px;overflow:hidden}
   .limit-bar-fill{height:100%;background:var(--grad);border-radius:3px;transition:width .3s}
+  .limit-bar-fill-anon{background:linear-gradient(90deg,#4A9ECC,#037DB5)}
+  .limit-bar-fill-annual{background:linear-gradient(90deg,#9B5CFF,#7C3AED)}
+  .limit-anon-dot{width:6px;height:6px;border-radius:50%;background:#037DB5;
+    display:inline-block;flex-shrink:0}
 
   /* CTA button */
   .btn-cta{background:var(--grad);color:white;border:none;border-radius:999px;
@@ -702,8 +863,11 @@ const CSS = `
   .sub-tab:hover{border-color:var(--primary);color:var(--primary-dark)}
   .sub-tab.active.buy{background:#F2F9E7;border-color:#65A519;color:#65A519}
   .sub-tab.active.sell{background:#FFF0EE;border-color:#DF321F;color:#DF321F}
-  .sub-tab-count{background:currentColor;color:white;border-radius:999px;
-    padding:0 6px;font-size:.65rem;font-weight:800;margin-left:4px;opacity:.85}
+  .sub-tab-count{border-radius:999px;
+    padding:1px 7px;font-size:.65rem;font-weight:800;margin-left:4px;
+    background:var(--black-10);color:var(--black-65)}
+  .sub-tab.active.buy .sub-tab-count{background:#65A519;color:white}
+  .sub-tab.active.sell .sub-tab-count{background:#DF321F;color:white}
 
   /* Filter row */
   .filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center}
@@ -734,38 +898,96 @@ const CSS = `
   .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
   @media(max-width:640px){.cards-grid{grid-template-columns:1fr}}
 
-  /* Trade card */
-  .trade-card{
-    background:var(--surface);border:1px solid var(--black-10);border-radius:16px;
-    overflow:hidden;transition:box-shadow .15s,transform .1s;display:flex;flex-direction:column;
-    cursor:pointer;
+  /* Trade card — Variant C */
+  .trade-card-v3{
+    background:var(--surface);border:1.5px solid var(--black-10);border-radius:16px;
+    overflow:hidden;cursor:pointer;
+    transition:box-shadow .18s,transform .12s;
+    display:flex;flex-direction:column;
   }
-  .trade-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.09);transform:translateY(-1px)}
-  .trade-card-urgent{border-left:3px solid var(--primary)}
-  .card-header{display:flex;align-items:center;justify-content:space-between;
-    padding:12px 16px 0;gap:8px}
-  .card-body{padding:12px 16px;flex:1;display:flex;flex-direction:column;gap:10px}
-  .card-footer{padding:10px 16px 14px;display:flex;align-items:center;
-    justify-content:space-between;gap:8px;border-top:1px solid var(--black-5);flex-wrap:wrap}
-  .card-time{display:flex;align-items:center;gap:5px;font-size:.75rem;color:var(--black-65);font-weight:500}
-  .card-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .trade-card-v3:hover{box-shadow:0 6px 24px rgba(0,0,0,.1);transform:translateY(-2px)}
+
+  /* Row 1 — top bar */
+  .v3c-top{
+    padding:12px 15px 10px;
+    display:flex;align-items:center;gap:7px;
+  }
+
+  /* Row 2 — peer + amounts side by side */
+  .v3c-peer-row{
+    padding:0 15px 10px;
+    display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  }
+
+  /* Row 3 — tags */
+  .v3c-tags{
+    padding:0 15px 10px;display:flex;gap:5px;flex-wrap:wrap;
+  }
+
+  /* Row 4 — status pill */
+  .v3c-pill{
+    margin:0 10px 10px;border-radius:12px;
+    padding:11px 14px;
+    display:flex;align-items:center;justify-content:center;
+    border:none;font-family:var(--font);font-size:.85rem;font-weight:800;
+    cursor:pointer;width:calc(100% - 20px);transition:filter .15s;
+  }
+  .v3c-pill:hover{filter:brightness(1.05)}
+  /* Passive pill: more padding + orange border */
+  .v3c-pill-passive{
+    border:1.5px solid var(--primary-mild);
+    padding:13px 14px;
+    font-weight:600;font-size:.82rem;
+  }
+
+  /* History export button */
+  .hist-export-btn{
+    background:var(--surface);border:1.5px solid var(--black-10);border-radius:999px;
+    font-family:var(--font);font-size:.8rem;font-weight:700;color:var(--black-65);
+    padding:6px 16px;cursor:pointer;white-space:nowrap;transition:border-color .15s,color .15s;
+  }
+  .hist-export-btn:hover{border-color:var(--primary);color:var(--primary-dark)}
+
+  /* Desktop table shown, mobile list hidden by default */
+  .hist-desktop{display:block}
+  .hist-mobile{display:none}
+
+  /* Mobile history list */
+  .hist-mob-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 4px;border-bottom:1px solid var(--black-10);cursor:pointer;
+    transition:background .1s;
+  }
+  .hist-mob-row:last-child{border-bottom:none}
+  .hist-mob-row:active{background:var(--black-5)}
+  .hist-mob-left{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .hist-mob-id{font-family:monospace;font-size:.78rem;font-weight:700;color:var(--black);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hist-mob-date{font-size:.68rem;color:var(--black-65)}
+  .hist-mob-status{font-size:.68rem;font-weight:700;text-transform:capitalize}
+  .hist-mob-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+  .hist-mob-fiat{font-size:.78rem;font-weight:600;color:var(--black-65)}
+
+  @media(max-width:640px){
+    .hist-desktop{display:none}
+    .hist-mobile{display:block}
+  }
+
+  /* Direction badge — 40% bigger than before */
+  .direction-badge{display:inline-flex;align-items:center;border-radius:999px;
+    padding:3px 13px;font-size:.82rem;font-weight:800;letter-spacing:.04em;flex-shrink:0}
+  .direction-buy{background:#F2F9E7;color:#65A519}
+  .direction-sell{background:#FFF0EE;color:#DF321F}
+
+  /* Unread badge — number + icon inline */
+  .unread-badge{display:inline-flex;align-items:center;gap:4px;
+    background:var(--error-bg);color:var(--error);
+    border-radius:999px;padding:3px 9px;font-size:.75rem;font-weight:700;line-height:1}
+
+  /* keep shared pieces */
+  .card-counterparty{display:flex;align-items:center;gap:10px}
   .card-action-btn{
     border:none;border-radius:999px;font-family:var(--font);
     font-size:.75rem;font-weight:700;padding:5px 12px;cursor:pointer;transition:all .15s}
-  .card-counterparty{display:flex;align-items:center;gap:10px}
-  .card-amount{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
-  .amount-sats{font-size:.95rem;font-weight:800;color:var(--black)}
-  .amount-fiat{font-size:.78rem;color:var(--black-65);font-weight:500}
-  .card-tags{display:flex;gap:5px;flex-wrap:wrap}
-  .unread-badge{display:flex;align-items:center;gap:4px;
-    background:var(--error-bg);color:var(--error);
-    border-radius:999px;padding:3px 8px;font-size:.72rem;font-weight:700}
-
-  /* Direction badge */
-  .direction-badge{display:inline-flex;align-items:center;border-radius:999px;
-    padding:2px 10px;font-size:.7rem;font-weight:800;letter-spacing:.04em}
-  .direction-buy{background:#F2F9E7;color:#65A519}
-  .direction-sell{background:#FFF0EE;color:#DF321F}
 
   /* Tags */
   .tag{display:inline-flex;align-items:center;border-radius:999px;
@@ -839,6 +1061,16 @@ export default function TradesDashboard() {
   const LIMIT_TOTAL = 1000;
   const LIMIT_USED  = 340;
   const limitPct = Math.min(100, (LIMIT_USED / LIMIT_TOTAL) * 100);
+
+  // Anonymous methods (cash, gift cards) — monthly limit in CHF
+  const ANON_TOTAL = 1000;
+  const ANON_USED  = 620;
+  const anonPct = Math.min(100, (ANON_USED / ANON_TOTAL) * 100);
+
+  // Annual limit
+  const ANNUAL_TOTAL = 100000;
+  const ANNUAL_USED  = 8740;
+  const annualPct = Math.min(100, (ANNUAL_USED / ANNUAL_TOTAL) * 100);
 
   // Filter active trades
   const filtered = MOCK_ACTIVE.filter(t => {
@@ -929,12 +1161,31 @@ export default function TradesDashboard() {
           </div>
           <div className="header-right">
             <div className="limit-bar-wrap">
+              {/* Daily */}
               <div className="limit-bar-top">
                 <span className="limit-bar-label">Daily Limit</span>
                 <span className="limit-bar-val">€{LIMIT_USED} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{LIMIT_TOTAL}</span></span>
               </div>
               <div className="limit-bar-track">
                 <div className="limit-bar-fill" style={{ width:`${limitPct}%` }}/>
+              </div>
+              {/* Anonymous methods — monthly */}
+              <div className="limit-bar-top" style={{ marginTop:10 }}>
+                <span className="limit-bar-label">
+                  <span className="limit-anon-dot"/>Anonymous · Monthly
+                </span>
+                <span className="limit-bar-val">€{ANON_USED} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{ANON_TOTAL}</span></span>
+              </div>
+              <div className="limit-bar-track">
+                <div className="limit-bar-fill limit-bar-fill-anon" style={{ width:`${anonPct}%` }}/>
+              </div>
+              {/* Annual */}
+              <div className="limit-bar-top" style={{ marginTop:10 }}>
+                <span className="limit-bar-label">Annual Limit</span>
+                <span className="limit-bar-val">€{ANNUAL_USED.toLocaleString()} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{ANNUAL_TOTAL.toLocaleString()}</span></span>
+              </div>
+              <div className="limit-bar-track">
+                <div className="limit-bar-fill limit-bar-fill-annual" style={{ width:`${annualPct}%` }}/>
               </div>
             </div>
             <button className="btn-cta">+ New Offer</button>
