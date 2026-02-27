@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+// ⚠️ react-router-dom removed for Claude.ai preview. Restore import for local dev.
 import { useNavigate } from "react-router-dom";
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
@@ -23,7 +24,7 @@ const IconMarket   = () => <svg width="20" height="20" viewBox="0 0 20 20" fill=
 const IconTrades   = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 7h10M13 4l3 3-3 3"/><path d="M15 13H5M7 10l-3 3 3 3"/></svg>;
 const IconCreate   = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6.5" x2="10" y2="13.5"/><line x1="6.5" y1="10" x2="13.5" y2="10"/></svg>;
 const IconSettings = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="2.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/></svg>;
-const IconCreditCard = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="18" height="13" rx="2"/><line x1="1" y1="9" x2="19" y2="9"/><line x1="5" y1="14" x2="8" y2="14"/></svg>;
+const IconNews     = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="16" height="13" rx="2"/><line x1="6" y1="8" x2="14" y2="8"/><line x1="6" y1="11" x2="14" y2="11"/><line x1="6" y1="14" x2="10" y2="14"/></svg>;
 
 const IconChevronLeft  = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9,2 4,7 9,12"/></svg>;
 const IconChevronRight = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="5,2 10,7 5,12"/></svg>;
@@ -35,10 +36,10 @@ const NAV_ITEMS = [
   { id:"trades",   label:"Trades",   icon:()=><IconTrades/> },
   { id:"create",   label:"Create",   icon:()=><IconCreate/> },
   { id:"settings", label:"Settings", icon:()=><IconSettings/> },
-  { id:"payment-methods", label:"Payments", icon:()=><IconCreditCard/> },
+  { id:"news",     label:"News",     icon:()=><IconNews/> },
 ];
 
-const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", settings:"/settings", "payment-methods":"/payment-methods" };
+const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", settings:"/settings" };
 
 function SideNav({ active, collapsed, onToggle, mobileOpen, onClose, onNavigate }) {
   return (
@@ -63,32 +64,44 @@ function SideNav({ active, collapsed, onToggle, mobileOpen, onClose, onNavigate 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const MOCK_OFFERS = [
   { id:"a_me", type:"ask", amount:73000, premium:0.8, methods:["SEPA","Wise"], currencies:["EUR","CHF"], rep:4.7, trades:23, badges:["fast"], auto:false, online:true, isOwn:true },
-  { id:"b_me", type:"bid", amount:[40000,120000], premium:-0.5, methods:["SEPA"], currencies:["EUR"], rep:4.7, trades:23, badges:["fast"], auto:false, online:true, isOwn:true },
-  { id:"a1", type:"ask", amount:85000,          premium:-1.2, methods:["SEPA","Revolut"], currencies:["EUR","CHF"],       rep:4.9, trades:312, badges:["supertrader","fast"], auto:true,  online:true  },
-  { id:"a2", type:"ask", amount:42000,          premium:0.5,  methods:["SEPA"],           currencies:["EUR"],             rep:4.7, trades:88,  badges:["fast"],              auto:false, online:true,  requested:true },
-  { id:"a3", type:"ask", amount:250000,         premium:1.0,  methods:["SEPA","PayPal"],  currencies:["EUR","GBP"],       rep:5.0, trades:541, badges:["supertrader"],       auto:false, online:false },
-  { id:"a4", type:"ask", amount:18000,          premium:2.1,  methods:["Revolut"],        currencies:["EUR"],             rep:4.3, trades:21,  badges:[],                    auto:false, online:true  },
-  { id:"a5", type:"ask", amount:55000,          premium:-0.5, methods:["SEPA","Wise"],    currencies:["EUR","CHF"],       rep:4.8, trades:156, badges:["fast"],              auto:true,  online:true  },
-  { id:"a6", type:"ask", amount:120000,         premium:1.8,  methods:["PayPal"],         currencies:["EUR"],             rep:4.6, trades:67,  badges:[],                    auto:false, online:true  },
-  { id:"a7", type:"ask", amount:9000,           premium:3.2,  methods:["Revolut","SEPA"], currencies:["EUR","CHF","GBP"], rep:3.9, trades:9,   badges:[],                    auto:false, online:false },
-  { id:"b1", type:"bid", amount:[30000,80000],  premium:-2.0, methods:["SEPA"],           currencies:["EUR"],             rep:4.5, trades:44,  badges:["fast"],              auto:true,  online:true  },
-  { id:"b2", type:"bid", amount:[10000,30000],  premium:-0.8, methods:["SEPA","Revolut"], currencies:["EUR","CHF"],       rep:4.9, trades:201, badges:["supertrader"],       auto:false, online:true  },
-  { id:"b3", type:"bid", amount:[50000,150000], premium:0.3,  methods:["PayPal"],         currencies:["EUR"],             rep:4.2, trades:33,  badges:[],                    auto:false, online:true  },
-  { id:"b4", type:"bid", amount:[20000,60000],  premium:-1.5, methods:["Wise","SEPA"],    currencies:["EUR","GBP"],       rep:4.7, trades:119, badges:["fast"],              auto:false, online:false, requested:true },
-  { id:"b5", type:"bid", amount:[100000,300000],premium:1.2,  methods:["SEPA"],           currencies:["EUR","CHF"],       rep:5.0, trades:489, badges:["supertrader","fast"],auto:true,  online:true  },
+  { id:"b_me", type:"bid", amount:120000,  premium:-0.5, methods:["SEPA"],           currencies:["EUR"],       rep:4.7, trades:23,  badges:["fast"],               auto:false, online:true, isOwn:true },
+  { id:"a1", type:"ask", amount:85000,   premium:-1.2, methods:["SEPA","Revolut"], currencies:["EUR","CHF"], rep:4.9, trades:312, badges:["supertrader","fast"], auto:true,  online:true  },
+  { id:"a2", type:"ask", amount:42000,   premium:0.5,  methods:["SEPA"],           currencies:["EUR"],       rep:4.7, trades:88,  badges:["fast"],              auto:false, online:true,  requested:true },
+  { id:"a3", type:"ask", amount:250000,  premium:1.0,  methods:["SEPA","PayPal"],  currencies:["EUR","GBP"], rep:5.0, trades:541, badges:["supertrader"],       auto:false, online:false },
+  { id:"a4", type:"ask", amount:18000,   premium:2.1,  methods:["Revolut"],        currencies:["EUR"],       rep:4.3, trades:21,  badges:[],                    auto:false, online:true  },
+  { id:"a5", type:"ask", amount:55000,   premium:-0.5, methods:["SEPA","Wise"],    currencies:["EUR","CHF"], rep:4.8, trades:156, badges:["fast"],              auto:true,  online:true  },
+  { id:"a6", type:"ask", amount:120000,  premium:1.8,  methods:["PayPal"],         currencies:["EUR"],       rep:4.6, trades:67,  badges:[],                    auto:false, online:true  },
+  { id:"a7", type:"ask", amount:9000,    premium:3.2,  methods:["Revolut","SEPA"], currencies:["EUR","CHF","GBP"], rep:3.9, trades:9, badges:[],               auto:false, online:false },
+  { id:"b1", type:"bid", amount:80000,   premium:-2.0, methods:["SEPA"],           currencies:["EUR"],       rep:4.5, trades:44,  badges:["fast"],              auto:true,  online:true  },
+  { id:"b2", type:"bid", amount:30000,   premium:-0.8, methods:["SEPA","Revolut"], currencies:["EUR","CHF"], rep:4.9, trades:201, badges:["supertrader"],       auto:false, online:true  },
+  { id:"b3", type:"bid", amount:150000,  premium:0.3,  methods:["PayPal"],         currencies:["EUR"],       rep:4.2, trades:33,  badges:[],                    auto:false, online:true  },
+  { id:"b4", type:"bid", amount:60000,   premium:-1.5, methods:["Wise","SEPA"],    currencies:["EUR","GBP"], rep:4.7, trades:119, badges:["fast"],              auto:false, online:false, requested:true },
+  { id:"b5", type:"bid", amount:300000,  premium:1.2,  methods:["SEPA"],           currencies:["EUR","CHF"], rep:5.0, trades:489, badges:["supertrader","fast"],auto:true,  online:true  },
 ];
 
 const BTC_PRICE      = 87432;
 const ALL_CURRENCIES = ["EUR","CHF","GBP"];
 const ALL_METHODS    = [...new Set(MOCK_OFFERS.flatMap(o => o.methods))].sort();
 
-function satsToFiat(sats, price = BTC_PRICE) {
-  return Math.round((sats / 100_000_000) * price).toLocaleString();
-}
-function formatSats(n) {
-  if (n >= 1_000_000) return (n/1_000_000).toFixed(2)+"M";
-  if (n >= 1_000)     return (n/1_000).toFixed(0)+"k";
-  return n.toString();
+// ─── BTC AMOUNT DISPLAY ──────────────────────────────────────────────────────
+const IcoBtc = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}>
+    <circle cx="16" cy="16" r="16" fill="#F7931A"/>
+    <path d="M22.2 13.8c.3-2-1.2-3.1-3.3-3.8l.7-2.7-1.6-.4-.7 2.6c-.4-.1-.9-.2-1.3-.3l.7-2.6-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.3l-2.1-.5-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8.9l-.8 3.3c.1 0 .2 0 .3.1-.1 0-.2-.1-.3-.1L11.4 20c-.1.3-.4.7-1 .5 0 0-1.2-.3-1.2-.3l-.8 1.8 2 .5c.4.1.7.2 1.1.3l-.7 2.7 1.6.4.7-2.7c.4.1.9.2 1.4.3l-.7 2.7 1.6.4.7-2.7c2.8.5 4.9.3 5.8-2.2.7-2-.03-3.2-1.5-3.9 1.1-.25 1.9-1 2.1-2.5zm-3.8 5.3c-.5 2-3.9.9-5 .6l.9-3.5c1.1.3 4.6.8 4.1 2.9zm.5-5.3c-.45 1.8-3.3.9-4.2.7l.8-3.2c.9.2 3.8.6 3.4 2.5z" fill="white"/>
+  </svg>
+);
+
+function SatsAmount({ sats }) {
+  const btcInt  = Math.floor(sats / 100_000_000);
+  const btcGrey = btcInt === 0 ? "0.00" : btcInt.toFixed(2);
+  const satsStr = sats.toLocaleString("fr-FR");
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:5 }}>
+      <IcoBtc size={15}/>
+      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:".9rem" }}>{btcGrey}</span>
+      <span style={{ color:"var(--black)", fontWeight:800, fontSize:".9rem" }}>{satsStr} Sats</span>
+    </span>
+  );
 }
 function premiumStats(offers) {
   if (!offers.length) return { avg: null, best: null };
@@ -285,9 +298,23 @@ const css = `
   .my-offers-btn:hover{border-color:var(--primary);color:var(--primary-dark)}
 
   /* ── AMOUNT ── */
-  .amount-cell{display:flex;flex-direction:column;gap:2px}
+  .amount-cell{display:flex;flex-direction:column;gap:4px}
   .amount-sats{font-size:1rem;font-weight:800;color:var(--black)}
   .amount-fiat{font-size:.78rem;font-weight:500;color:var(--black-65)}
+
+  /* ── PRICE CELL ── */
+  .price-cell{display:flex;flex-direction:column;gap:2px}
+  .price-eur{font-size:.9rem;font-weight:700;color:var(--black)}
+  .price-rate{font-size:.9rem;font-weight:700;color:var(--black);white-space:nowrap}
+
+  /* ── INFO SENTENCE ── */
+  .info-sentence{
+    display:inline-block;
+    font-size:.8rem;font-weight:500;color:var(--black-65);
+    background:var(--primary-mild);border:1px solid rgba(245,101,34,.18);
+    border-radius:8px;padding:7px 14px;
+    margin:0 20px 4px;
+  }
 
   /* ── PREMIUM — colors depend on perspective ── */
   /* buy tab: negative = good (green), positive = bad (red) */
@@ -534,20 +561,26 @@ function RepCell({ offer }) {
   );
 }
 
-function AmountCell({ offer }) {
-  if (offer.type === "ask") {
-    return (
-      <div className="amount-cell">
-        <span className="amount-sats">{formatSats(offer.amount)} sats</span>
-        <span className="amount-fiat">≈ €{satsToFiat(offer.amount)}</span>
-      </div>
-    );
-  }
-  const [lo, hi] = offer.amount;
+function AmountCell({ offer, btcPrice }) {
+  const rate = btcPrice * (1 + offer.premium / 100);
+  const eur = (offer.amount / 100_000_000) * rate;
   return (
     <div className="amount-cell">
-      <span className="amount-sats">{formatSats(lo)}–{formatSats(hi)} sats</span>
-      <span className="amount-fiat">€{satsToFiat(lo)}–€{satsToFiat(hi)}</span>
+      <SatsAmount sats={offer.amount} />
+      <span className="amount-fiat">€{fmtEur(eur)}</span>
+    </div>
+  );
+}
+
+function fmtEur(n) {
+  return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function PriceCell({ offer, btcPrice }) {
+  const rate = Math.round(btcPrice * (1 + offer.premium / 100));
+  return (
+    <div className="price-cell">
+      <span className="price-rate">{rate.toLocaleString("fr-FR")} €</span>
     </div>
   );
 }
@@ -761,6 +794,9 @@ export default function PeachMarket() {
 
           {/* ── DESKTOP TABLE ── */}
           <div className="table-wrap">
+            <div className="info-sentence">
+              Request as many trades as you want. You'll enter a trade with the first {isSellTab ? "buyer" : "seller"} who accepts your request.
+            </div>
             {filtered.length === 0 ? (
               <div className="empty">
                 <div className="empty-icon">🍑</div>
@@ -773,6 +809,7 @@ export default function PeachMarket() {
                   <tr>
                     <SortTh col="rep"     label="Reputation" />
                     <SortTh col="amount"  label="Amount" />
+                    <th>Price (€ / BTC)</th>
                     <SortTh col="premium" label="Premium" />
                     <th>Payment</th>
                     <th>Currencies</th>
@@ -784,7 +821,8 @@ export default function PeachMarket() {
                     <tr key={offer.id} className={[offer.isOwn?"own-row":"", offer.requested&&!offer.auto?"requested-row":""].filter(Boolean).join(" ")}
                       style={{cursor:"pointer"}} onClick={() => navigate(`/trade/${offer.id}`)}>
                       <td><RepCell offer={offer}/></td>
-                      <td><AmountCell offer={offer}/></td>
+                      <td><AmountCell offer={offer} btcPrice={btcPrice}/></td>
+                      <td><PriceCell offer={offer} btcPrice={btcPrice}/></td>
                       <td><PremiumCell p={offer.premium} isSellTab={isSellTab}/></td>
                       <td>
                         <div className="methods">
@@ -816,6 +854,9 @@ export default function PeachMarket() {
 
           {/* ── MOBILE CARDS ── */}
           <div className="cards">
+            <div className="info-sentence" style={{margin:"0 0 4px"}}>
+              Request as many trades as you want. You'll enter a trade with the first {isSellTab ? "buyer" : "seller"} who accepts your request.
+            </div>
             {filtered.length === 0 ? (
               <div className="empty">
                 <div className="empty-icon">🍑</div>
@@ -848,17 +889,31 @@ export default function PeachMarket() {
                     }
                   </div>
                 </div>
-                {/* Row 2: amount right-aligned */}
-                <div style={{textAlign:"right"}}>
-                  <AmountCell offer={offer}/>
-                </div>
-                {/* Row 3: tags (left) · premium (right) */}
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:6}}>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                    {offer.methods.map(m=><span key={m} className="method-chip">{m}</span>)}
-                    {offer.currencies.map(c=><span key={c} className="currency-chip">{c}</span>)}
-                  </div>
-                  <PremiumCell p={offer.premium} isSellTab={isSellTab}/>
+                {/* Row 2: price (left) · sats amount (right) */}
+                {/* Row 3: premium (left) · EUR fiat (right) */}
+                {(() => {
+                  const rate = Math.round(btcPrice * (1 + offer.premium / 100));
+                  const rateStr = rate.toLocaleString("fr-FR") + " €";
+                  const eur = (offer.amount / 100_000_000) * btcPrice * (1 + offer.premium / 100);
+                  const eurVal = "€" + fmtEur(eur);
+                  const premCls = offer.premium === 0 ? "prem-zero" : isSellTab ? (offer.premium > 0 ? "prem-good" : "prem-bad") : (offer.premium < 0 ? "prem-good" : "prem-bad");
+                  return (
+                    <>
+                      <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between"}}>
+                        <span style={{fontSize:".9rem",fontWeight:800,color:"var(--black)"}}>{rateStr}</span>
+                        <SatsAmount sats={offer.amount}/>
+                      </div>
+                      <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between"}}>
+                        <span className={premCls} style={{fontSize:".9rem"}}>{offer.premium > 0 ? "+" : ""}{offer.premium.toFixed(2)}%</span>
+                        <span style={{fontSize:".9rem",fontWeight:700,color:"var(--black)"}}>{eurVal}</span>
+                      </div>
+                    </>
+                  );
+                })()}
+                {/* Row 4: tags */}
+                <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                  {offer.methods.map(m=><span key={m} className="method-chip">{m}</span>)}
+                  {offer.currencies.map(c=><span key={c} className="currency-chip">{c}</span>)}
                 </div>
               </div>
             ))}

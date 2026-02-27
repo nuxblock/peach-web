@@ -76,11 +76,6 @@ The `PeachIcon` component is defined in every file as an inline SVG (viewBox `0 
 
 ## Hard rules — things that were corrected during design
 
-### Amounts
-- **Sell offers (ask):** single fixed number of sats. The escrow is pre-funded; the output is predetermined. Never show a range.
-- **Buy offers (bid):** a range `[min, max]` sats. The buyer specifies acceptable bounds.
-- `AmountCell` must branch on `offer.type === "ask"`.
-
 ### Premium colours are perspective-aware
 - **Buy tab** (viewing sell offers): negative premium = green (good for buyer), positive = red (bad for buyer)
 - **Sell tab** (viewing buy offers): **inverted** — positive = green (good for seller), negative = red

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+// ⚠️ react-router-dom removed for Claude.ai preview. Restore import for local dev.
 import { useNavigate } from "react-router-dom";
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────

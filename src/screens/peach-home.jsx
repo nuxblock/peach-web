@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+// ⚠️ react-router-dom removed for Claude.ai preview. Restore import for local dev.
 import { useNavigate } from "react-router-dom";
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
@@ -197,7 +198,7 @@ const css = `
 
   /* ── PAGE LAYOUT ── */
   .page-wrap{display:flex;flex-direction:column;flex:1}
-  .content{padding:28px 28px 60px;display:flex;flex-direction:column;gap:28px}
+  .content{padding:28px 28px 60px;display:flex;flex-direction:column;gap:28px;max-width:1200px;margin:0 auto;width:100%}
 
   /* ── WELCOME HEADER ── */
   .welcome-row{display:flex;align-items:center;gap:14px}
@@ -217,7 +218,7 @@ const css = `
   .card{background:var(--surface);border-radius:16px;border:1px solid var(--black-10);
     padding:20px;display:inline-flex;flex-direction:column;gap:14px;width:fit-content;max-width:100%}
   .card-header{display:flex;align-items:center;justify-content:space-between}
-  .card-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--black-65)}
+  .card-title{font-size:1.15rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--black-65)}
   .card-link{font-size:.75rem;font-weight:700;color:var(--primary);cursor:pointer;text-decoration:none}
   .card-link:hover{color:var(--primary-dark)}
 
@@ -357,8 +358,10 @@ const css = `
     .offerbook-cols{grid-template-columns:1fr}
     .action-cards{grid-template-columns:1fr}
     .welcome-actions{display:none}
-    .content{padding:18px 14px 48px}
+    .content{padding:18px 14px 48px;max-width:100%}
     .profile-stats{grid-template-columns:repeat(3,1fr)}
+    .card{width:100%!important;max-width:100%!important;min-width:0!important}
+    .cards-row{flex-direction:column!important}
   }
 `;
 
@@ -449,12 +452,12 @@ export default function PeachHome() {
 
             {/* ── ATTENTION ALERT ── */}
             <div style={{background:"#FEFCE5",border:"1.5px solid #F5CE22",borderRadius:12,
-              padding:"12px 18px",display:"flex",alignItems:"center",gap:12}}>
+              padding:"12px 18px",display:"inline-flex",alignItems:"center",gap:12,width:"fit-content"}}>
               <span style={{fontSize:"1.1rem"}}>⚠️</span>
-              <span style={{fontSize:".88rem",fontWeight:700,color:"#2B1911",flex:1}}>
+              <span style={{fontSize:".88rem",fontWeight:700,color:"#2B1911"}}>
                 3 trades need your attention
               </span>
-              <span style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",cursor:"pointer"}} onClick={() => navigate("/trades")}>View →</span>
+              <span style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",cursor:"pointer",paddingLeft:42}} onClick={() => navigate("/trades")}>View →</span>
             </div>
 
             {/* ── NEWS CARD ── */}
@@ -476,22 +479,23 @@ export default function PeachHome() {
                   }}>
                     <span style={{fontSize:".7rem",fontWeight:600,color:"#C4B5AE",whiteSpace:"nowrap",minWidth:80}}>{item.date}</span>
                     <span style={{fontSize:".85rem",fontWeight:600,color:"#2B1911",flex:1}}>{item.headline}</span>
-                    <span style={{fontSize:".78rem",fontWeight:700,color:"#F56522",cursor:"pointer",whiteSpace:"nowrap"}}>Read →</span>
+                    <span style={{fontSize:".78rem",fontWeight:700,color:"#F56522",cursor:"pointer",whiteSpace:"nowrap",paddingLeft:42}}>Read →</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* ── PROFILE + PEACH STATS ROW ── */}
-            <div className="dashboard-grid">
+            <div className="cards-row" style={{display:"flex",gap:18,alignItems:"flex-start",flexWrap:"wrap"}}>
 
-              {/* Profile Card — first, top left, spans 2 rows */}
-              <div className="card" style={{gridRow:"span 2"}}>
+              {/* Profile Card — left */}
+              <div className="card" style={{flexShrink:0,minWidth:260}}>
                 <div className="card-header">
                   <span className="card-title">My Profile</span>
                   <span className="card-link">Edit →</span>
                 </div>
 
+                {/* Avatar + name */}
                 <div className="profile-top">
                   <div className="profile-avatar">PW</div>
                   <div>
@@ -500,11 +504,18 @@ export default function PeachHome() {
                   </div>
                 </div>
 
-                <div className="profile-stats">
-                  <div className="profile-stat">
-                    <div className="profile-stat-val">{MOCK_USER.trades}</div>
-                    <div className="profile-stat-lbl">Trades</div>
+                {/* Badges */}
+                <div className="profile-row">
+                  <span className="profile-row-label">Badges</span>
+                  <div className="profile-badges">
+                    {MOCK_USER.badges.includes("supertrader") && <span className="badge badge-super">🏆 Supertrader</span>}
+                    {MOCK_USER.badges.includes("fast") && <span className="badge badge-fast">⚡ Fast</span>}
+                    {MOCK_USER.badges.length === 0 && <span style={{fontSize:".78rem",color:"var(--black-65)"}}>No badges yet</span>}
                   </div>
+                </div>
+
+                {/* Row 1: Rating · Disputes · Blocked by */}
+                <div className="profile-stats">
                   <div className="profile-stat">
                     <div className="profile-stat-val">⭐ {MOCK_USER.rating}</div>
                     <div className="profile-stat-lbl">Rating</div>
@@ -515,22 +526,20 @@ export default function PeachHome() {
                     </div>
                     <div className="profile-stat-lbl">Disputes</div>
                   </div>
-                </div>
-
-                <div className="divider"/>
-
-                <div className="profile-row">
-                  <span className="profile-row-label">Badges</span>
-                  <div className="profile-badges">
-                    {MOCK_USER.badges.includes("supertrader") && <span className="badge badge-super">🏆 Supertrader</span>}
-                    {MOCK_USER.badges.includes("fast") && <span className="badge badge-fast">⚡ Fast</span>}
-                    {MOCK_USER.badges.length === 0 && <span style={{fontSize:".78rem",color:"var(--black-65)"}}>No badges yet</span>}
+                  <div className="profile-stat">
+                    <div className="profile-stat-val" style={{color: MOCK_USER.blockedByCount > 0 ? "var(--error)" : "var(--black-65)"}}>
+                      {MOCK_USER.blockedByCount}
+                    </div>
+                    <div className="profile-stat-lbl">Blocked by</div>
                   </div>
                 </div>
 
-                <div className="divider"/>
-
+                {/* Row 2: Trades · Total Volume · Last Trade */}
                 <div className="profile-stats">
+                  <div className="profile-stat">
+                    <div className="profile-stat-val">{MOCK_USER.trades}</div>
+                    <div className="profile-stat-lbl">Trades</div>
+                  </div>
                   <div className="profile-stat">
                     <div className="profile-stat-val">{MOCK_USER.totalVolumeBtc} BTC</div>
                     <div className="profile-stat-lbl">Total Volume</div>
@@ -539,56 +548,52 @@ export default function PeachHome() {
                     <div className="profile-stat-val">{MOCK_USER.lastTradeDaysAgo}d ago</div>
                     <div className="profile-stat-lbl">Last Trade</div>
                   </div>
-                  <div className="profile-stat">
-                    <div className="profile-stat-val" style={{color: MOCK_USER.blockedByCount > 0 ? "var(--error)" : "var(--black-65)"}}>
-                      {MOCK_USER.blockedByCount}
-                    </div>
-                    <div className="profile-stat-lbl">Blocked by</div>
+                </div>
+              </div>
+
+              {/* Right column: PM+Currencies side by side, then Peach Stats */}
+              <div style={{display:"flex",flexDirection:"column",gap:18,flex:"1 1 0",minWidth:0}}>
+              <div className="cards-row" style={{display:"flex",gap:18,flexWrap:"wrap"}}>
+                <div className="card" style={{flex:"1 1 280px",minWidth:260,width:"auto"}}>
+                  <div className="card-header">
+                    <span className="card-title">Top Payment Methods</span>
+                    <span className="card-link">See all →</span>
+                  </div>
+                  <div className="methods-list">
+                    {MOCK_STATS.topMethods.map(m => (
+                      <div key={m.name} className="method-row">
+                        <span className="method-name">{m.name}</span>
+                        <div className="method-bar-wrap">
+                          <div className="method-bar" style={{width:`${m.volume}%`}}/>
+                        </div>
+                        <span className="method-pct">{m.volume}%</span>
+                        <span className="method-count">{m.count} offers</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="card" style={{flex:"1 1 220px",minWidth:200,width:"auto"}}>
+                  <div className="card-header">
+                    <span className="card-title">Top Currencies</span>
+                  </div>
+                  <div className="methods-list">
+                    {MOCK_STATS.topCurrencies.map(c => (
+                      <div key={c.name} className="method-row">
+                        <span className="method-name">{c.name}</span>
+                        <div className="method-bar-wrap">
+                          <div className="method-bar" style={{width:`${c.volume}%`,background:"linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)"}}/>
+                        </div>
+                        <span className="method-pct">{c.volume}%</span>
+                        <span className="method-count">{c.count} offers</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
 
-              {/* Top Payment Methods — separate card */}
-              <div className="card" style={{minWidth:"360px"}}>
-                <div className="card-header">
-                  <span className="card-title">Top Payment Methods</span>
-                  <span className="card-link">See all →</span>
-                </div>
-                <div className="methods-list">
-                  {MOCK_STATS.topMethods.map(m => (
-                    <div key={m.name} className="method-row">
-                      <span className="method-name">{m.name}</span>
-                      <div className="method-bar-wrap">
-                        <div className="method-bar" style={{width:`${m.volume}%`}}/>
-                      </div>
-                      <span className="method-pct">{m.volume}%</span>
-                      <span className="method-count">{m.count} offers</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Top Currencies — separate card */}
-              <div className="card" style={{minWidth:"280px"}}>
-                <div className="card-header">
-                  <span className="card-title">Top Currencies</span>
-                </div>
-                <div className="methods-list">
-                  {MOCK_STATS.topCurrencies.map(c => (
-                    <div key={c.name} className="method-row">
-                      <span className="method-name">{c.name}</span>
-                      <div className="method-bar-wrap">
-                        <div className="method-bar" style={{width:`${c.volume}%`,background:"linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)"}}/>
-                      </div>
-                      <span className="method-pct">{c.volume}%</span>
-                      <span className="method-count">{c.count} offers</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* Peach Stats — 24h Volume, Trades Today, Active Offers */}
-              <div className="card">
+              <div className="card" style={{width:"100%"}}>
                 <div className="card-header">
                   <span className="card-title">Peach Stats</span>
                 </div>
@@ -596,7 +601,7 @@ export default function PeachHome() {
 
                   {/* 24h Volume */}
                   <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    <span className="card-title">24h Volume</span>
+                    <span style={{fontSize:".72rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"var(--black-65)"}}>24h Volume</span>
                     <div className="stat-big">{formatSats(MOCK_STATS.dailyVolume.sats)} <span style={{fontSize:".6em",fontWeight:600,color:"#C4B5AE"}}>sats</span></div>
                     <div className="stat-sub">≈ €{MOCK_STATS.dailyVolume.eur.toLocaleString()} · today</div>
                     <span className="stat-change pos">↑ +12% vs yesterday</span>
@@ -604,7 +609,7 @@ export default function PeachHome() {
 
                   {/* Trades Today */}
                   <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    <span className="card-title">Trades Today</span>
+                    <span style={{fontSize:".72rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"var(--black-65)"}}>Trades Today</span>
                     <div className="stat-big">{MOCK_STATS.dailyTrades}</div>
                     <div className="stat-sub">completed trades · today</div>
                     <span className="stat-change neu">→ Same as yesterday</span>
@@ -612,7 +617,7 @@ export default function PeachHome() {
 
                   {/* Active Offers */}
                   <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    <span className="card-title">Active Offers</span>
+                    <span style={{fontSize:".72rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"var(--black-65)"}}>Active Offers</span>
                     <div className="stat-big">{MOCK_STATS.activeOffers.buy + MOCK_STATS.activeOffers.sell}</div>
                     <div className="stat-sub">
                       <span style={{color:"var(--success)",fontWeight:700}}>{MOCK_STATS.activeOffers.buy} buy</span>
@@ -628,9 +633,9 @@ export default function PeachHome() {
                 </div>
               </div>
 
-            </div>
+              </div>{/* end right column */}
 
-
+            </div>{/* end outer flex */}
           </div>
         </div>
       </div>
