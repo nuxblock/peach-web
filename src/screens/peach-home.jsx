@@ -293,10 +293,10 @@ const css = `
   .ob-method{font-size:.6rem;font-weight:600;padding:1px 5px;border-radius:999px;
     background:var(--black-5);color:var(--black-65);border:1px solid var(--black-10)}
   .ob-prem{font-size:.82rem;font-weight:800;white-space:nowrap}
-  .ob-prem.pos{color:var(--error)}   /* buy perspective: positive = bad */
-  .ob-prem.neg{color:var(--success)} /* buy perspective: negative = good */
-  .ob-prem-sell.pos{color:var(--success)} /* sell perspective: positive = good */
-  .ob-prem-sell.neg{color:var(--error)}   /* sell perspective: negative = bad */
+  .ob-prem.pos{color:var(--error)}
+  .ob-prem.neg{color:var(--success)}
+  .ob-prem-sell.pos{color:var(--success)}
+  .ob-prem-sell.neg{color:var(--error)}
   .ob-prem-sell{font-size:.82rem;font-weight:800;white-space:nowrap}
   .ob-filter-sel{
     appearance:none;border:1.5px solid var(--black-10);border-radius:8px;
@@ -371,6 +371,47 @@ const css = `
   /* ── DIVIDER ── */
   .divider{height:1px;background:var(--black-5)}
 
+  /* ── AVATAR DROPDOWN ── */
+  .avatar-menu-wrap{position:relative}
+  .avatar-menu{
+    position:absolute;top:calc(100% + 6px);right:0;
+    background:var(--surface);border:1px solid var(--black-10);border-radius:12px;
+    box-shadow:0 8px 28px rgba(43,25,17,.12);
+    min-width:160px;padding:6px;z-index:300;
+    animation:fadeIn .12s ease;
+  }
+  .avatar-menu-item{
+    width:100%;display:flex;align-items:center;gap:8px;padding:9px 12px;
+    border-radius:8px;border:none;background:transparent;cursor:pointer;
+    font-family:var(--font);font-size:.82rem;font-weight:600;color:var(--black);
+    transition:background .1s;
+  }
+  .avatar-menu-item:hover{background:var(--black-5)}
+  .avatar-menu-item.danger{color:var(--error)}
+  .avatar-menu-item.danger:hover{background:var(--error-bg)}
+  .avatar-login-btn{
+    display:flex;align-items:center;gap:8px;cursor:pointer;
+    padding:4px 10px;border-radius:999px;transition:background .14s;
+  }
+  .avatar-login-btn:hover{background:var(--black-5)}
+  .avatar-login-label{font-size:.78rem;font-weight:700;color:var(--primary);white-space:nowrap}
+
+  /* ── AUTH OVERLAY (profile card) ── */
+  .auth-blur-wrap{position:relative;overflow:hidden;border-radius:16px}
+  .auth-blur-content{filter:blur(6px);pointer-events:none;user-select:none}
+  .auth-overlay{
+    position:absolute;inset:0;z-index:10;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+    background:rgba(255,249,246,.55);border-radius:16px;
+  }
+  .auth-overlay-text{font-size:.88rem;font-weight:600;color:var(--black-75);text-align:center}
+  .auth-overlay-btn{
+    padding:8px 22px;border-radius:999px;background:var(--grad);color:white;
+    font-family:var(--font);font-size:.82rem;font-weight:800;border:none;cursor:pointer;
+    box-shadow:0 2px 12px rgba(245,101,34,.3);transition:transform .1s,box-shadow .1s;
+  }
+  .auth-overlay-btn:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(245,101,34,.42)}
+
   /* ── ANIMATIONS ── */
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -410,7 +451,6 @@ const css = `
   }
 `;
 
-// ─── OFFER BOOK ROWS ──────────────────────────────────────────────────────────
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function PeachHome() {
   const navigate = useNavigate();
@@ -421,6 +461,33 @@ export default function PeachHome() {
   const [sidebarCollapsed,  setSidebarCollapsed]  = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+
+  // ── AUTH STATE (persisted via localStorage) ──
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    try { return localStorage.getItem("peach_logged_in") !== "false"; } catch { return true; }
+  });
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setShowAvatarMenu(false);
+    try { localStorage.setItem("peach_logged_in", "false"); } catch {}
+  };
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+    try { localStorage.setItem("peach_logged_in", "true"); } catch {}
+    // In production: navigate("/auth")
+  };
+
+  // Close avatar menu on outside click
+  useEffect(() => {
+    if (!showAvatarMenu) return;
+    const close = (e) => {
+      if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [showAvatarMenu]);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -445,7 +512,6 @@ export default function PeachHome() {
   }, []);
 
   const satsPerCur  = Math.round(100_000_000 / btcPrice);
-
   const navWidth = isMobile ? 0 : (sidebarCollapsed ? 44 : 68);
 
   return (
@@ -470,11 +536,32 @@ export default function PeachHome() {
               </select>
             </div>
           </div>
+
+          {/* ── AVATAR / AUTH AREA ── */}
           <div className="topbar-right">
-            <div className="avatar-peachid">
-              <span className="peach-id">{MOCK_USER.peachId}</span>
-              <div className="avatar">PW<div className="avatar-badge">2</div></div>
-            </div>
+            {isLoggedIn ? (
+              <div className="avatar-menu-wrap">
+                <div className="avatar-peachid" onClick={(e) => { e.stopPropagation(); setShowAvatarMenu(v => !v); }}>
+                  <span className="peach-id">{MOCK_USER.peachId}</span>
+                  <div className="avatar">PW<div className="avatar-badge">2</div></div>
+                </div>
+                {showAvatarMenu && (
+                  <div className="avatar-menu">
+                    <button className="avatar-menu-item danger" onClick={handleLogout}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 2H3.5A1.5 1.5 0 002 3.5v9A1.5 1.5 0 003.5 14H6"/><path d="M10.5 11.5L14 8l-3.5-3.5"/><path d="M14 8H6"/></svg>
+                      Log out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="avatar-login-btn" onClick={handleLogin}>
+                <div className="avatar" style={{background:"var(--black-10)",color:"var(--black-25)"}}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
+                </div>
+                <span className="avatar-login-label">Log in</span>
+              </div>
+            )}
           </div>
         </header>
 
@@ -508,26 +595,45 @@ export default function PeachHome() {
 
             {/* ── WELCOME ROW ── */}
             <div className="welcome-row">
-              <div className="welcome-avatar">PW</div>
-              <div className="welcome-text">
-                <h1>Welcome back 👋</h1>
-                <p>{MOCK_USER.peachId} · {MOCK_USER.trades} trades completed</p>
-              </div>
-              <div className="welcome-actions">
-                <button className="btn-ghost" onClick={() => navigate("/trades")}>View Trades</button>
-                <button className="btn-grad" onClick={() => navigate("/offer/new")}>+ Create Offer</button>
-              </div>
+              {isLoggedIn ? (
+                <>
+                  <div className="welcome-avatar">PW</div>
+                  <div className="welcome-text">
+                    <h1>Welcome back 👋</h1>
+                    <p>{MOCK_USER.peachId} · {MOCK_USER.trades} trades completed</p>
+                  </div>
+                  <div className="welcome-actions">
+                    <button className="btn-ghost" onClick={() => navigate("/trades")}>View Trades</button>
+                    <button className="btn-grad" onClick={() => navigate("/offer/new")}>+ Create Offer</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="welcome-avatar" style={{background:"var(--black-10)",color:"var(--black-25)"}}>
+                    <svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
+                  </div>
+                  <div className="welcome-text">
+                    <h1>Welcome to Peach 🍑</h1>
+                    <p>Buy and sell Bitcoin peer-to-peer, without KYC</p>
+                  </div>
+                  <div className="welcome-actions">
+                    <button className="btn-grad" onClick={() => navigate("/auth")}>Log in</button>
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* ── ATTENTION ALERT ── */}
-            <div style={{background:"#FEFCE5",border:"1.5px solid #F5CE22",borderRadius:12,
-              padding:"12px 18px",display:"inline-flex",alignItems:"center",gap:12,width:"fit-content"}}>
-              <span style={{fontSize:"1.1rem"}}>⚠️</span>
-              <span style={{fontSize:".88rem",fontWeight:700,color:"#2B1911"}}>
-                3 trades need your attention
-              </span>
-              <span style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",cursor:"pointer",paddingLeft:42}} onClick={() => navigate("/trades")}>View →</span>
-            </div>
+            {/* ── ATTENTION ALERT (only when logged in) ── */}
+            {isLoggedIn && (
+              <div style={{background:"#FEFCE5",border:"1.5px solid #F5CE22",borderRadius:12,
+                padding:"12px 18px",display:"inline-flex",alignItems:"center",gap:12,width:"fit-content"}}>
+                <span style={{fontSize:"1.1rem"}}>⚠️</span>
+                <span style={{fontSize:".88rem",fontWeight:700,color:"#2B1911"}}>
+                  3 trades need your attention
+                </span>
+                <span style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",cursor:"pointer",paddingLeft:42}} onClick={() => navigate("/trades")}>View →</span>
+              </div>
+            )}
 
             {/* ── NEWS CARD ── */}
             <div className="card" style={{width:"100%",marginBottom:4}}>
@@ -557,68 +663,114 @@ export default function PeachHome() {
             {/* ── PROFILE + PEACH STATS ROW ── */}
             <div className="cards-row" style={{display:"flex",gap:18,alignItems:"flex-start",flexWrap:"wrap"}}>
 
-              {/* Profile Card — left */}
-              <div className="card" style={{flexShrink:0,minWidth:260}}>
-                <div className="card-header">
-                  <span className="card-title">My Profile</span>
-                  <span className="card-link" onClick={() => navigate("/settings")}>Edit →</span>
-                </div>
-
-                {/* Avatar + name */}
-                <div className="profile-top">
-                  <div className="profile-avatar">PW</div>
-                  <div>
-                    <div className="profile-name">{MOCK_USER.peachId}</div>
-                    <div className="profile-since">Member since {MOCK_USER.memberSince}</div>
+              {/* Profile Card — left (blurred when logged out) */}
+              {isLoggedIn ? (
+                <div className="card" style={{flexShrink:0,minWidth:260}}>
+                  <div className="card-header">
+                    <span className="card-title">My Profile</span>
+                    <span className="card-link" onClick={() => navigate("/settings")}>Edit →</span>
                   </div>
-                </div>
-
-                {/* Badges */}
-                <div className="profile-row">
-                  <span className="profile-row-label">Badges</span>
-                  <div className="profile-badges">
-                    {MOCK_USER.badges.includes("supertrader") && <span className="badge badge-super">🏆 Supertrader</span>}
-                    {MOCK_USER.badges.includes("fast") && <span className="badge badge-fast">⚡ Fast</span>}
-                    {MOCK_USER.badges.length === 0 && <span style={{fontSize:".78rem",color:"var(--black-65)"}}>No badges yet</span>}
-                  </div>
-                </div>
-
-                {/* Row 1: Rating · Disputes · Blocked by */}
-                <div className="profile-stats">
-                  <div className="profile-stat">
-                    <div className="profile-stat-val">⭐ {MOCK_USER.rating}</div>
-                    <div className="profile-stat-lbl">Rating</div>
-                  </div>
-                  <div className="profile-stat">
-                    <div className="profile-stat-val" style={{color: MOCK_USER.disputesTotal > 0 ? "var(--error)" : "var(--success)"}}>
-                      {MOCK_USER.disputesTotal}
+                  <div className="profile-top">
+                    <div className="profile-avatar">PW</div>
+                    <div>
+                      <div className="profile-name">{MOCK_USER.peachId}</div>
+                      <div className="profile-since">Member since {MOCK_USER.memberSince}</div>
                     </div>
-                    <div className="profile-stat-lbl">Disputes</div>
                   </div>
-                  <div className="profile-stat">
-                    <div className="profile-stat-val" style={{color: MOCK_USER.blockedByCount > 0 ? "var(--error)" : "var(--black-65)"}}>
-                      {MOCK_USER.blockedByCount}
+                  <div className="profile-row">
+                    <span className="profile-row-label">Preferred methods</span>
+                    <div className="profile-methods">
+                      {MOCK_USER.preferredMethods.map(m => <span key={m} className="pref-chip">{m}</span>)}
                     </div>
-                    <div className="profile-stat-lbl">Blocked by</div>
                   </div>
-                </div>
+                  <div className="profile-row">
+                    <span className="profile-row-label">Preferred currencies</span>
+                    <div className="profile-methods">
+                      {MOCK_USER.preferredCurrencies.map(c => <span key={c} className="pref-chip">{c}</span>)}
+                    </div>
+                  </div>
+                  <div className="profile-row">
+                    <span className="profile-row-label">Badges</span>
+                    <div className="profile-badges">
+                      {MOCK_USER.badges.includes("supertrader") && <span className="badge badge-super">🏆 Supertrader</span>}
+                      {MOCK_USER.badges.includes("fast") && <span className="badge badge-fast">⚡ Fast</span>}
+                      {MOCK_USER.badges.length === 0 && <span style={{fontSize:".78rem",color:"var(--black-65)"}}>No badges yet</span>}
+                    </div>
+                  </div>
 
-                {/* Row 2: Trades · Total Volume · Last Trade */}
-                <div className="profile-stats">
-                  <div className="profile-stat">
-                    <div className="profile-stat-val">{MOCK_USER.trades}</div>
-                    <div className="profile-stat-lbl">Trades</div>
+                  {/* Row 1: Rating · Disputes · Blocked by */}
+                  <div className="profile-stats">
+                    <div className="profile-stat">
+                      <div className="profile-stat-val">⭐ {MOCK_USER.rating}</div>
+                      <div className="profile-stat-lbl">Rating</div>
+                    </div>
+                    <div className="profile-stat">
+                      <div className="profile-stat-val" style={{color: MOCK_USER.disputesTotal > 0 ? "var(--error)" : "var(--success)"}}>
+                        {MOCK_USER.disputesTotal}
+                      </div>
+                      <div className="profile-stat-lbl">Disputes</div>
+                    </div>
+                    <div className="profile-stat">
+                      <div className="profile-stat-val" style={{color: MOCK_USER.blockedByCount > 0 ? "var(--error)" : "var(--black-65)"}}>
+                        {MOCK_USER.blockedByCount}
+                      </div>
+                      <div className="profile-stat-lbl">Blocked by</div>
+                    </div>
                   </div>
-                  <div className="profile-stat">
-                    <div className="profile-stat-val">{MOCK_USER.totalVolumeBtc} BTC</div>
-                    <div className="profile-stat-lbl">Total Volume</div>
-                  </div>
-                  <div className="profile-stat">
-                    <div className="profile-stat-val">{MOCK_USER.lastTradeDaysAgo}d ago</div>
-                    <div className="profile-stat-lbl">Last Trade</div>
+
+                  {/* Row 2: Trades · Total Volume · Last Trade */}
+                  <div className="profile-stats">
+                    <div className="profile-stat">
+                      <div className="profile-stat-val">{MOCK_USER.trades}</div>
+                      <div className="profile-stat-lbl">Trades</div>
+                    </div>
+                    <div className="profile-stat">
+                      <div className="profile-stat-val">{MOCK_USER.totalVolumeBtc} BTC</div>
+                      <div className="profile-stat-lbl">Total Volume</div>
+                    </div>
+                    <div className="profile-stat">
+                      <div className="profile-stat-val">{MOCK_USER.lastTradeDaysAgo}d ago</div>
+                      <div className="profile-stat-lbl">Last Trade</div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                /* ── BLURRED PROFILE CARD (logged out) ── */
+                <div className="auth-blur-wrap" style={{flexShrink:0,minWidth:260}}>
+                  <div className="card auth-blur-content" style={{minWidth:260}}>
+                    <div className="card-header">
+                      <span className="card-title">My Profile</span>
+                      <span className="card-link">Edit →</span>
+                    </div>
+                    <div className="profile-top">
+                      <div className="profile-avatar">PW</div>
+                      <div>
+                        <div className="profile-name">PEACH08476D23</div>
+                        <div className="profile-since">Member since March 2023</div>
+                      </div>
+                    </div>
+                    <div className="profile-stats">
+                      <div className="profile-stat">
+                        <div className="profile-stat-val">⭐ 4.7</div>
+                        <div className="profile-stat-lbl">Rating</div>
+                      </div>
+                      <div className="profile-stat">
+                        <div className="profile-stat-val">0</div>
+                        <div className="profile-stat-lbl">Disputes</div>
+                      </div>
+                      <div className="profile-stat">
+                        <div className="profile-stat-val">23</div>
+                        <div className="profile-stat-lbl">Trades</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="auth-overlay">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round"><circle cx="16" cy="12" r="5"/><path d="M6 28c0-5.5 4.5-10 10-10s10 4.5 10 10"/></svg>
+                    <span className="auth-overlay-text">Please authenticate<br/>to view your profile</span>
+                    <button className="auth-overlay-btn" onClick={() => navigate("/auth")}>Log in</button>
+                  </div>
+                </div>
+              )}
 
               {/* Right column: PM+Currencies side by side, then Peach Stats */}
               <div style={{display:"flex",flexDirection:"column",gap:18,flex:"1 1 0",minWidth:0}}>

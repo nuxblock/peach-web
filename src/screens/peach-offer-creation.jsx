@@ -229,6 +229,47 @@ const CSS = `
     font-size:.55rem;font-weight:800;width:14px;height:14px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;border:2px solid var(--surface)}
 
+  /* ── AVATAR DROPDOWN ── */
+  .avatar-menu-wrap{position:relative}
+  .avatar-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--black-10);border-radius:12px;box-shadow:0 8px 28px rgba(43,25,17,.12);min-width:160px;padding:6px;z-index:300;animation:fadeIn .12s ease}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .avatar-menu-item{width:100%;display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;border:none;background:transparent;cursor:pointer;font-family:var(--font);font-size:.82rem;font-weight:600;color:var(--black);transition:background .1s}
+  .avatar-menu-item:hover{background:var(--black-5)}
+  .avatar-menu-item.danger{color:var(--error)}
+  .avatar-menu-item.danger:hover{background:var(--error-bg)}
+  .avatar-login-btn{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 10px;border-radius:999px;transition:background .14s}
+  .avatar-login-btn:hover{background:var(--black-5)}
+  .avatar-login-label{font-size:.78rem;font-weight:700;color:var(--primary);white-space:nowrap}
+  .peach-id{font-size:.72rem;font-weight:800;letter-spacing:.06em;color:var(--black-75);font-family:var(--font);white-space:nowrap}
+  .avatar-peachid{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 10px;border-radius:999px;transition:background .14s}
+  .avatar-peachid:hover{background:var(--black-5)}
+
+  /* ── AUTH POPUP (protected screen — scoped to content area) ── */
+  .auth-screen-overlay{
+    position:fixed;top:var(--topbar);left:68px;right:0;bottom:0;z-index:100;
+    display:flex;align-items:flex-start;justify-content:center;
+    padding-top:20vh;
+    background:rgba(255,249,246,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  }
+  @media(max-width:767px){.auth-screen-overlay{left:0}}
+  .auth-popup{
+    background:var(--surface);border:1px solid var(--black-10);border-radius:20px;
+    box-shadow:0 12px 40px rgba(43,25,17,.15);
+    padding:36px 40px;display:flex;flex-direction:column;align-items:center;gap:16px;
+    max-width:360px;width:90%;animation:popIn .2s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn{from{opacity:0;transform:scale(.92) translateY(8px)}to{opacity:1;transform:none}}
+  .auth-popup-icon{width:56px;height:56px;border-radius:50%;background:var(--primary-mild);
+    display:flex;align-items:center;justify-content:center}
+  .auth-popup-title{font-size:1.1rem;font-weight:800;color:var(--black);text-align:center}
+  .auth-popup-sub{font-size:.85rem;font-weight:500;color:var(--black-65);text-align:center;line-height:1.5}
+  .auth-popup-btn{
+    padding:10px 28px;border-radius:999px;background:var(--grad);color:white;
+    font-family:var(--font);font-size:.88rem;font-weight:800;border:none;cursor:pointer;
+    box-shadow:0 2px 12px rgba(245,101,34,.3);transition:transform .1s,box-shadow .1s;margin-top:4px;
+  }
+  .auth-popup-btn:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(245,101,34,.42)}
+
   /* Layout */
   .layout{display:grid;grid-template-columns:1fr 340px;
     min-height:calc(100vh - var(--topbar));margin-top:var(--topbar)}
@@ -1033,6 +1074,20 @@ export default function OfferCreation({ initialType="buy" }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
+  // ── AUTH STATE (persisted via localStorage) ──
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    try { return localStorage.getItem("peach_logged_in") !== "false"; } catch { return true; }
+  });
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const handleLogout = () => { setIsLoggedIn(false); setShowAvatarMenu(false); try { localStorage.setItem("peach_logged_in", "false"); } catch {} };
+  const handleLogin = () => { setIsLoggedIn(true); try { localStorage.setItem("peach_logged_in", "true"); } catch {} };
+  useEffect(() => {
+    if (!showAvatarMenu) return;
+    const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [showAvatarMenu]);
+
   const initForm = ()=>({amtFixed:MIN_SATS,
     selectedMethodIds:[],premium:"0",instantMatch:false,noNewUsers:false});
   const [form, setForm] = useState(initForm());
@@ -1122,7 +1177,29 @@ export default function OfferCreation({ initialType="buy" }) {
         <PeachIcon size={28}/>
         <span className="logo-text">Peach</span>
         <div className="topbar-right">
-          <div className="avatar">PW<div className="avatar-badge">2</div></div>
+          {isLoggedIn ? (
+            <div className="avatar-menu-wrap">
+              <div className="avatar-peachid" onClick={(e) => { e.stopPropagation(); setShowAvatarMenu(v => !v); }}>
+                <span className="peach-id">PEACH08476D23</span>
+                <div className="avatar">PW<div className="avatar-badge">2</div></div>
+              </div>
+              {showAvatarMenu && (
+                <div className="avatar-menu">
+                  <button className="avatar-menu-item danger" onClick={handleLogout}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 2H3.5A1.5 1.5 0 002 3.5v9A1.5 1.5 0 003.5 14H6"/><path d="M10.5 11.5L14 8l-3.5-3.5"/><path d="M14 8H6"/></svg>
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="avatar-login-btn" onClick={handleLogin}>
+              <div className="avatar" style={{background:"var(--black-10)",color:"var(--black-25)"}}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
+              </div>
+              <span className="avatar-login-label">Log in</span>
+            </div>
+          )}
         </div>
       </header>
       <SideNav
@@ -1209,7 +1286,29 @@ export default function OfferCreation({ initialType="buy" }) {
           Creating {isSell?"sell":"buy"} offer
         </div>
         <div className="topbar-right">
-          <div className="avatar">PW<div className="avatar-badge">2</div></div>
+          {isLoggedIn ? (
+            <div className="avatar-menu-wrap">
+              <div className="avatar-peachid" onClick={(e) => { e.stopPropagation(); setShowAvatarMenu(v => !v); }}>
+                <span className="peach-id">PEACH08476D23</span>
+                <div className="avatar">PW<div className="avatar-badge">2</div></div>
+              </div>
+              {showAvatarMenu && (
+                <div className="avatar-menu">
+                  <button className="avatar-menu-item danger" onClick={handleLogout}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 2H3.5A1.5 1.5 0 002 3.5v9A1.5 1.5 0 003.5 14H6"/><path d="M10.5 11.5L14 8l-3.5-3.5"/><path d="M14 8H6"/></svg>
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="avatar-login-btn" onClick={handleLogin}>
+              <div className="avatar" style={{background:"var(--black-10)",color:"var(--black-25)"}}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
+              </div>
+              <span className="avatar-login-label">Log in</span>
+            </div>
+          )}
         </div>
       </header>
 
@@ -1690,6 +1789,20 @@ export default function OfferCreation({ initialType="buy" }) {
           </div>
         </div>
       </div>
+
+      {/* ── AUTH POPUP (when logged out) ── */}
+      {!isLoggedIn && (
+        <div className="auth-screen-overlay">
+          <div className="auth-popup">
+            <div className="auth-popup-icon">
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round"><rect x="5" y="12" width="18" height="13" rx="3"/><path d="M9 12V9a5 5 0 0 1 10 0v3"/><circle cx="14" cy="19" r="1.5" fill="var(--primary)"/></svg>
+            </div>
+            <div className="auth-popup-title">Authentication required</div>
+            <div className="auth-popup-sub">Please authenticate to create offers and start trading</div>
+            <button className="auth-popup-btn" onClick={() => navigate("/auth")}>Log in</button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

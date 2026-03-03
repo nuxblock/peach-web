@@ -209,6 +209,24 @@ const css = `
     font-size:.55rem;font-weight:800;width:14px;height:14px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;border:2px solid var(--surface)}
   .peach-id{font-size:.72rem;font-weight:800;letter-spacing:.06em;color:var(--black-75);font-family:var(--font);white-space:nowrap}
+  /* ── AVATAR DROPDOWN ── */
+  .avatar-menu-wrap{position:relative}
+  .avatar-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--black-10);border-radius:12px;box-shadow:0 8px 28px rgba(43,25,17,.12);min-width:160px;padding:6px;z-index:300;animation:fadeIn .12s ease}
+  .avatar-menu-item{width:100%;display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;border:none;background:transparent;cursor:pointer;font-family:var(--font);font-size:.82rem;font-weight:600;color:var(--black);transition:background .1s}
+  .avatar-menu-item:hover{background:var(--black-5)}
+  .avatar-menu-item.danger{color:var(--error)}
+  .avatar-menu-item.danger:hover{background:var(--error-bg)}
+  .avatar-login-btn{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 10px;border-radius:999px;transition:background .14s}
+  .avatar-login-btn:hover{background:var(--black-5)}
+  .avatar-login-label{font-size:.78rem;font-weight:700;color:var(--primary);white-space:nowrap}
+  /* ── LOGGED-OUT DISABLED STATES ── */
+  .cta-btn-disabled{margin-left:auto;padding:7px 20px;border-radius:999px;background:var(--black-10);
+    color:var(--black-25);font-family:var(--font);font-size:.85rem;font-weight:800;border:none;
+    cursor:not-allowed;letter-spacing:.02em;white-space:nowrap;box-shadow:none}
+  .action-btn-disabled{padding:5px 14px;border-radius:999px;font-size:.78rem;font-weight:800;
+    font-family:var(--font);border:1.5px solid var(--black-10);background:var(--black-5);
+    color:var(--black-25);cursor:not-allowed;white-space:nowrap}
+  .my-offers-btn-disabled{opacity:.4;cursor:not-allowed;pointer-events:none}
 
   /* ── SUBHEADER ── */
   .subheader{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
@@ -852,6 +870,20 @@ export default function PeachMarket() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
+  // ── AUTH STATE (persisted via localStorage) ──
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    try { return localStorage.getItem("peach_logged_in") !== "false"; } catch { return true; }
+  });
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const handleLogout = () => { setIsLoggedIn(false); setShowAvatarMenu(false); try { localStorage.setItem("peach_logged_in", "false"); } catch {} };
+  const handleLogin = () => { setIsLoggedIn(true); try { localStorage.setItem("peach_logged_in", "true"); } catch {} };
+  useEffect(() => {
+    if (!showAvatarMenu) return;
+    const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [showAvatarMenu]);
+
   // ── Popup state ──
   const [popupOffer,     setPopupOffer]     = useState(null);   // offer object or null
   const [selectedPM,     setSelectedPM]     = useState(null);   // PM id for trade popup
@@ -966,6 +998,10 @@ export default function PeachMarket() {
     else { setSortKey(key); setSortDir(1); }
   }
 
+  // When logged out, mask isOwn and clear requested status — browser has no session data
+  const displayOffers = isLoggedIn ? filtered : filtered.map(o => ({ ...o, isOwn: false }));
+  const effectiveRequested = isLoggedIn ? localRequested : new Set();
+
   function SortTh({ col, label }) {
     const active = sortKey === col;
     return (
@@ -997,7 +1033,7 @@ export default function PeachMarket() {
     if (!popupOffer) return null;
     const offer = popupOffer;
     const isOwn = offer.isOwn;
-    const isReq = localRequested.has(offer.id) && !isOwn;
+    const isReq = effectiveRequested.has(offer.id) && !isOwn;
     const isInstant = offer.auto;
     const sym = currSym(selectedCurrency);
     const rate = Math.round(btcPrice * (1 + offer.premium / 100));
@@ -1277,10 +1313,29 @@ export default function PeachMarket() {
             </div>
           </div>
           <div className="topbar-right">
-            <div className="avatar-peachid">
-              <span className="peach-id">PEACH08476D23</span>
-              <div className="avatar">PW<div className="avatar-badge">2</div></div>
-            </div>
+            {isLoggedIn ? (
+              <div className="avatar-menu-wrap">
+                <div className="avatar-peachid" onClick={(e) => { e.stopPropagation(); setShowAvatarMenu(v => !v); }}>
+                  <span className="peach-id">PEACH08476D23</span>
+                  <div className="avatar">PW<div className="avatar-badge">2</div></div>
+                </div>
+                {showAvatarMenu && (
+                  <div className="avatar-menu">
+                    <button className="avatar-menu-item danger" onClick={handleLogout}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 2H3.5A1.5 1.5 0 002 3.5v9A1.5 1.5 0 003.5 14H6"/><path d="M10.5 11.5L14 8l-3.5-3.5"/><path d="M14 8H6"/></svg>
+                      Log out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="avatar-login-btn" onClick={handleLogin}>
+                <div className="avatar" style={{background:"var(--black-10)",color:"var(--black-25)"}}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
+                </div>
+                <span className="avatar-login-label">Log in</span>
+              </div>
+            )}
           </div>
         </header>
 
@@ -1376,14 +1431,17 @@ export default function PeachMarket() {
             />
 
             <button
-              className="my-offers-btn"
-              onClick={() => setMyOffersOnly(o => !o)}
-              style={myOffersOnly ? {borderColor:"var(--primary)",color:"var(--primary-dark)",background:"var(--primary-mild)"} : {}}
+              className={isLoggedIn ? "my-offers-btn" : "my-offers-btn my-offers-btn-disabled"}
+              onClick={() => isLoggedIn && setMyOffersOnly(o => !o)}
+              style={myOffersOnly && isLoggedIn ? {borderColor:"var(--primary)",color:"var(--primary-dark)",background:"var(--primary-mild)"} : {}}
             >
-              My Offers{myOffersOnly ? " ✕" : ""}
+              My Offers{myOffersOnly && isLoggedIn ? " ✕" : ""}
             </button>
             <div className="cta-wrap">
-              <button className="cta-btn" onClick={() => navigate("/offer/new")}>+ Create Offer</button>
+              {isLoggedIn
+                ? <button className="cta-btn" onClick={() => navigate("/offer/new")}>+ Create Offer</button>
+                : <button className="cta-btn-disabled">+ Create Offer</button>
+              }
               <span className="how-to-start">How to start</span>
             </div>
           </div>
@@ -1393,7 +1451,7 @@ export default function PeachMarket() {
             <div className="info-sentence">
               Request as many trades as you want. You'll enter a trade with the first {isSellTab ? "buyer" : "seller"} who accepts your request.
             </div>
-            {filtered.length === 0 ? (
+            {displayOffers.length === 0 ? (
               <div className="empty">
                 <div className="empty-icon">🍑</div>
                 <div className="empty-title">No offers match your filters</div>
@@ -1413,13 +1471,13 @@ export default function PeachMarket() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(offer => (
+                  {displayOffers.map(offer => (
                     <tr key={offer.id} className={[
                         offer.isOwn?"own-row":"",
-                        localRequested.has(offer.id)&&!offer.auto&&!offer.isOwn?"requested-row":"",
+                        effectiveRequested.has(offer.id)&&!offer.auto&&!offer.isOwn?"requested-row":"",
                         undoAnim===offer.id?"undo-row":""
                       ].filter(Boolean).join(" ")}
-                      style={{cursor:"pointer"}} onClick={() => openPopup(offer)}>
+                      style={{cursor: isLoggedIn ? "pointer" : "default"}} onClick={() => isLoggedIn && openPopup(offer)}>
                       <td><RepCell offer={offer}/></td>
                       <td><AmountCell offer={offer} btcPrice={btcPrice} currency={selectedCurrency}/></td>
                       <td><PriceCell offer={offer} btcPrice={btcPrice} currency={selectedCurrency}/></td>
@@ -1440,9 +1498,11 @@ export default function PeachMarket() {
                           {offer.auto && <span className="auto-badge">⚡ Instant Match</span>}
                           {offer.isOwn
                             ? <button className="action-btn edit-btn">✏ Edit</button>
-                            : localRequested.has(offer.id) && !offer.auto
+                            : effectiveRequested.has(offer.id) && !offer.auto
                               ? <span className="requested-tag">Requested</span>
-                              : <button className={`action-btn action-${tab}`}>{isSellTab ? "Sell" : "Buy"}</button>}
+                              : isLoggedIn
+                                ? <button className={`action-btn action-${tab}`}>{isSellTab ? "Sell" : "Buy"}</button>
+                                : <button className="action-btn-disabled">{isSellTab ? "Sell" : "Buy"}</button>}
                         </div>
                       </td>
                     </tr>
@@ -1457,15 +1517,15 @@ export default function PeachMarket() {
             <div className="info-sentence" style={{margin:"0 0 4px"}}>
               Request as many trades as you want. You'll enter a trade with the first {isSellTab ? "buyer" : "seller"} who accepts your request.
             </div>
-            {filtered.length === 0 ? (
+            {displayOffers.length === 0 ? (
               <div className="empty">
                 <div className="empty-icon">🍑</div>
                 <div className="empty-title">No offers found</div>
                 <div className="empty-sub">Adjust your filters</div>
               </div>
-            ) : filtered.map(offer => (
-            <div key={offer.id} className={`offer-card${offer.isOwn?" own-card":""}${localRequested.has(offer.id)&&!offer.auto&&!offer.isOwn?" requested-card":""}${undoAnim===offer.id?" undo-card":""}`}
-              style={{cursor:"pointer"}} onClick={() => openPopup(offer)}>
+            ) : displayOffers.map(offer => (
+            <div key={offer.id} className={`offer-card${offer.isOwn?" own-card":""}${effectiveRequested.has(offer.id)&&!offer.auto&&!offer.isOwn?" requested-card":""}${undoAnim===offer.id?" undo-card":""}`}
+              style={{cursor: isLoggedIn ? "pointer" : "default"}} onClick={() => isLoggedIn && openPopup(offer)}>
                 {/* Row 1: avatar · rep/badges (left) | action buttons (right) */}
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <div className="rep-avatar" style={{flexShrink:0}}>
@@ -1483,9 +1543,11 @@ export default function PeachMarket() {
                     {offer.auto&&<span className="auto-badge">⚡ Instant Match</span>}
                     {offer.isOwn
                       ? <button className="action-btn edit-btn">✏ Edit</button>
-                      : localRequested.has(offer.id) && !offer.auto
+                      : effectiveRequested.has(offer.id) && !offer.auto
                         ? <span className="requested-tag">Requested</span>
-                        : <button className={`action-btn action-${tab}`}>{isSellTab?"Sell":"Buy"}</button>
+                        : isLoggedIn
+                          ? <button className={`action-btn action-${tab}`}>{isSellTab?"Sell":"Buy"}</button>
+                          : <button className="action-btn-disabled">{isSellTab?"Sell":"Buy"}</button>
                     }
                   </div>
                 </div>
