@@ -627,7 +627,7 @@ function NetworkFeesSubScreen({ onBack }) {
   useEffect(() => {
     async function fetchFees() {
       try {
-        const res = await fetch("https://api.peachbitcoin.com/v1/estimateFees");
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/estimateFees`);
         const data = await res.json();
         if (data) setFeeRates({
           fast:   data.fastestFee  ?? data.fast   ?? 1,
@@ -1315,7 +1315,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch('https://api.peachbitcoin.com/v1/market/prices');
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);

@@ -728,7 +728,7 @@ export default function PeachPaymentMethods() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch('https://api.peachbitcoin.com/v1/market/prices');
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -745,7 +745,7 @@ export default function PeachPaymentMethods() {
   useEffect(() => {
     async function fetchMethods() {
       try {
-        const res = await fetch('https://api.peachbitcoin.com/v1/info/paymentMethods');
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/info/paymentMethods`);
         const data = await res.json();
         // The API may return a different shape — we normalise it here.
         // If the response is usable, merge with our category metadata.

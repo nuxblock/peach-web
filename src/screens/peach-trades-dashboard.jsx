@@ -1145,7 +1145,7 @@ export default function TradesDashboard() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch('https://api.peachbitcoin.com/v1/market/prices');
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
