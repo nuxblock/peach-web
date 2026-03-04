@@ -6,6 +6,7 @@ import OfferCreation from './screens/peach-offer-creation.jsx'
 import TradesDashboard from './screens/peach-trades-dashboard.jsx'
 import TradeExecution from './screens/peach-trade-execution.jsx'
 import SettingsScreen from './screens/peach-settings.jsx'
+import PeachPaymentMethods from './screens/peach-payment-methods.jsx'
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/trades" element={<TradesDashboard />} />
         <Route path="/trade/:id" element={<TradeExecution />} />
         <Route path="/settings" element={<SettingsScreen />} />
+        <Route path="/payment-methods" element={<PeachPaymentMethods />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>
