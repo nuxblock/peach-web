@@ -389,7 +389,7 @@ const CSS = `
     border-radius:12px;font-size:.8rem;font-weight:700;cursor:pointer;
     border:2px solid var(--black-10);background:var(--surface);
     color:var(--black-65);transition:all .12s;font-family:var(--font);
-    text-align:left;width:100%}
+    text-align:left}
   .pm-chip:hover{border-color:var(--primary);color:var(--primary-dark)}
   .pm-chip.sel{border-color:var(--primary);background:var(--primary-mild);color:var(--primary-dark)}
   .pm-chip-type{font-size:.65rem;font-weight:800;text-transform:uppercase;
@@ -434,7 +434,7 @@ const CSS = `
   .btn-add-pm{display:flex;align-items:center;gap:5px;padding:4px 12px;
     border-radius:999px;border:1.5px solid var(--primary);background:var(--primary-mild);
     color:var(--primary-dark);font-family:var(--font);font-size:.76rem;font-weight:800;
-    cursor:pointer;margin-left:auto;transition:all .12s;flex-shrink:0}
+    cursor:pointer;transition:all .12s;flex-shrink:0}
   .btn-add-pm:hover{background:var(--primary);color:white}
 
   /* Modal overlay */
@@ -657,9 +657,8 @@ function LivePreview({ type, form, btcPrice, offerMethods, offerCurrencies }) {
   const hasPrem = form.premium!=="";
   const empty   = !hasAmt&&!hasPay&&!hasPrem;
 
-  let satStr="—", fiatStr="—";
+  let fiatStr="—";
   if(hasAmt){
-    satStr=`${fmt(form.amtFixed)} sats`;
     fiatStr=`≈ €${fmtEur(satsToFiat(form.amtFixed,effP))}`;
   }
   let premCls="pt-n";
@@ -676,6 +675,8 @@ function LivePreview({ type, form, btcPrice, offerMethods, offerCurrencies }) {
         </div>
       ):(
         <div className={`prev-card ${isBuy?"buy-top":"sell-top"}`}>
+
+          {/* Row 1: Your offer badge left · Buy/Sell button right */}
           <div className="prev-top">
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <div className="prev-avatar">PW<div className="prev-dot"/></div>
@@ -689,26 +690,43 @@ function LivePreview({ type, form, btcPrice, offerMethods, offerCurrencies }) {
                   marginTop:2,display:"inline-block"}}>Your offer</div>
               </div>
             </div>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontSize:".9rem",fontWeight:800,color:"var(--black)"}}>{satStr}</div>
-              <div style={{fontSize:".68rem",color:"var(--black-65)",fontWeight:500}}>{fiatStr}</div>
-            </div>
-          </div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:6}}>
-            {hasPrem&&<span className={`pt ${premCls}`}>{p===0?"0%":(p>0?"+":"")+p.toFixed(2)+"%"}</span>}
-            {offerMethods.slice(0,3).map(m=><span key={m} className="pt pt-m">{m}</span>)}
-            {offerCurrencies.slice(0,3).map(c=><span key={c} className="pt pt-c">{c}</span>)}
-            {form.instantMatch&&<span style={{
-              padding:"2px 7px",borderRadius:999,fontSize:".6rem",fontWeight:800,
-              background:"var(--grad)",color:"white",border:"none"}}>⚡ Instant Match</span>}
-          </div>
-          <div style={{display:"flex",justifyContent:"flex-end",marginTop:10}}>
             <button style={{padding:"5px 16px",borderRadius:999,border:"none",
               fontFamily:"var(--font)",fontSize:".76rem",fontWeight:800,cursor:"default",
               background:isBuy?"var(--error-bg)":"var(--success-bg)",
               color:isBuy?"var(--error)":"var(--success)"}}>
               {isBuy?"Sell":"Buy"}
             </button>
+          </div>
+
+          {/* Row 2: left spacer · right = stacked amounts */}
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",
+            padding:"4px 0 8px"}}>
+            <div style={{flex:1}}/>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
+              {hasAmt
+                ? <SatsAmount sats={form.amtFixed}/>
+                : <span style={{color:"var(--black-25)",fontSize:".9rem",fontWeight:700}}>—</span>
+              }
+              {hasAmt&&(
+                <span style={{fontSize:".78rem",fontWeight:600,color:"var(--black-65)"}}>{fiatStr}</span>
+              )}
+              {hasPrem&&p!==0&&(
+                <span style={{fontSize:".72rem",fontWeight:700,
+                  color:isBuy?(p<0?"var(--success)":"var(--error)"):(p>0?"var(--success)":"var(--error)")}}>
+                  {p>0?"+":""}{p.toFixed(2)}%
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Row 3: tags */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:3,paddingBottom:4}}>
+            {hasPrem&&<span className={`pt ${premCls}`}>{p===0?"0%":(p>0?"+":"")+p.toFixed(2)+"%"}</span>}
+            {offerMethods.slice(0,3).map(m=><span key={m} className="pt pt-m">{m}</span>)}
+            {offerCurrencies.slice(0,3).map(c=><span key={c} className="pt pt-c">{c}</span>)}
+            {form.instantMatch&&<span style={{
+              padding:"2px 7px",borderRadius:999,fontSize:".6rem",fontWeight:800,
+              background:"var(--grad)",color:"white",border:"none"}}>⚡ Instant Match</span>}
           </div>
         </div>
       )}
@@ -737,8 +755,7 @@ function BuyAmountSlider({ form, setF, btcPrice }) {
     <>
       {/* Display */}
       <div className="amt-display">
-        <span className="amt-display-val">{fmt(val)}</span>
-        <span style={{fontSize:".72rem",color:"var(--black-65)",fontWeight:500}}>sats</span>
+        <SatsAmount sats={val}/>
         <span className="amt-display-fiat">≈ €{fmtEur(currentFiat)}</span>
       </div>
 
@@ -764,7 +781,7 @@ function BuyAmountSlider({ form, setF, btcPrice }) {
         <div className="limit-bar-label">
           <span>Daily limit usage</span>
           <span style={{color:pctOfLimit>=0.9?"#7A5F00":"var(--black-65)"}}>
-            €{fmtEur(currentFiat)} / €{fmtEur(LIMIT_EUR)}
+            €{Math.round(currentFiat).toLocaleString()} / €{Math.round(LIMIT_EUR).toLocaleString()}
           </span>
         </div>
         <div className="limit-bar-track">
@@ -812,8 +829,7 @@ function SellAmountSlider({ form, setF, btcPrice }) {
     <>
       {/* Display */}
       <div className="amt-display">
-        <span className="amt-display-val">{fmt(val)}</span>
-        <span style={{fontSize:".72rem",color:"var(--black-65)",fontWeight:500}}>sats</span>
+        <SatsAmount sats={val}/>
         <span className="amt-display-fiat">≈ €{fmtEur(currentFiat)}</span>
       </div>
 
@@ -839,7 +855,7 @@ function SellAmountSlider({ form, setF, btcPrice }) {
         <div className="limit-bar-label">
           <span>Daily limit usage</span>
           <span style={{color:pctOfLimit>=0.9?"#7A5F00":"var(--black-65)"}}>
-            €{fmtEur(currentFiat)} / €{fmtEur(LIMIT_EUR)}
+            €{Math.round(currentFiat).toLocaleString()} / €{Math.round(LIMIT_EUR).toLocaleString()}
           </span>
         </div>
         <div className="limit-bar-track">
@@ -1055,6 +1071,30 @@ const IcoBtc = ({ size = 15 }) => (
     <path d="M22.2 13.8c.3-2-1.2-3.1-3.3-3.8l.7-2.7-1.6-.4-.7 2.6c-.4-.1-.9-.2-1.3-.3l.7-2.6-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.3l-2.1-.5-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8.9l-.8 3.3c.1 0 .2 0 .3.1-.1 0-.2-.1-.3-.1L11.4 20c-.1.3-.4.7-1 .5 0 0-1.2-.3-1.2-.3l-.8 1.8 2 .5c.4.1.7.2 1.1.3l-.7 2.7 1.6.4.7-2.7c.4.1.9.2 1.4.3l-.7 2.7 1.6.4.7-2.7c2.8.5 4.9.3 5.8-2.2.7-2-.03-3.2-1.5-3.9 1.1-.25 1.9-1 2.1-2.5zm-3.8 5.3c-.5 2-3.9.9-5 .6l.9-3.5c1.1.3 4.6.8 4.1 2.9zm.5-5.3c-.45 1.8-3.3.9-4.2.7l.8-3.2c.9.2 3.8.6 3.4 2.5z" fill="white"/>
   </svg>
 );
+
+function SatsAmount({ sats, fontSize }) {
+  const fs = fontSize || ".9rem";
+  const satsStr = sats.toLocaleString("fr-FR");
+  if (sats >= 100_000_000) {
+    const btc = (sats / 100_000_000).toFixed(2).replace(".", ",");
+    return (
+      <span style={{ display:"inline-flex", alignItems:"center", gap:5, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
+        <IcoBtc size={15}/>
+        <span style={{ color:"var(--black)", fontWeight:800, fontSize:fs }}>{btc} BTC</span>
+      </span>
+    );
+  }
+  const digits = sats.toString().length;
+  const leadingZeros = 8 - digits;
+  const greyPart = "0," + "0".repeat(leadingZeros);
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
+      <IcoBtc size={15}/>
+      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:fs }}>{greyPart}</span>
+      <span style={{ color:"var(--black)", fontWeight:800, fontSize:fs }}>{satsStr} Sats</span>
+    </span>
+  );
+}
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function OfferCreation({ initialType="buy" }) {
@@ -1351,7 +1391,7 @@ export default function OfferCreation({ initialType="buy" }) {
                 New offer
               </div>
               <div className="wizard-title">
-                {step===0?"Configure your offer":step===1?"Review & publish":"Fund escrow"}
+                {step===0?"Create your offer":step===1?"Review & publish":"Fund escrow"}
               </div>
             </div>
             <div className="type-toggle" style={step===1?{opacity:0.45,pointerEvents:"none"}:{}}>
@@ -1432,10 +1472,9 @@ export default function OfferCreation({ initialType="buy" }) {
                       return (
                         <div key={pm.id} style={{display:"flex",alignItems:"center",gap:6}}>
                           <button className={`pm-chip${sel?" sel":""}`}
-                            style={{flex:1}}
                             onClick={()=>toggleMethod(pm.id)}>
                             <span className="pm-chip-type">{pm.type}</span>
-                            <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",
+                            <span style={{overflow:"hidden",textOverflow:"ellipsis",
                               whiteSpace:"nowrap"}}>
                               {methodLabel(pm)}
                             </span>
@@ -1559,9 +1598,9 @@ export default function OfferCreation({ initialType="buy" }) {
                   )}
                 </div>
 
-                {!isSell&&(
+                {(
                   <div className="check-row" style={{marginTop:12}}
-                    onClick={()=>setF("instantMatch",!form.instantMatch)}>
+                    onClick={()=>{ setForm(f => ({ ...f, instantMatch: !f.instantMatch, ...(f.instantMatch ? {noNewUsers: false} : {}) })); }}>
                     <div className="check-box" style={{
                       border:`2px solid ${form.instantMatch?"var(--primary)":"var(--black-10)"}`,
                       background:form.instantMatch?"var(--primary-mild)":"var(--surface)"}}>
@@ -1576,12 +1615,12 @@ export default function OfferCreation({ initialType="buy" }) {
                   </div>
                 )}
 
-                {/* No new users — visible for both buy and sell; buy: requires Instant Match on */}
+                {/* No new users — visible for both buy and sell; requires Instant Match on */}
                 <div className="check-row" style={{
                     marginTop:10,
-                    opacity: (!isSell && !form.instantMatch) ? 0.4 : 1,
-                    pointerEvents: (!isSell && !form.instantMatch) ? "none" : "auto",
-                    cursor: (!isSell && !form.instantMatch) ? "not-allowed" : "pointer",
+                    opacity: !form.instantMatch ? 0.4 : 1,
+                    pointerEvents: !form.instantMatch ? "none" : "auto",
+                    cursor: !form.instantMatch ? "not-allowed" : "pointer",
                   }}
                   onClick={()=>setF("noNewUsers",!form.noNewUsers)}>
                   <div className="check-box" style={{
@@ -1605,8 +1644,9 @@ export default function OfferCreation({ initialType="buy" }) {
             <div className="step-anim">
               <div style={{marginBottom:16,fontSize:".84rem",color:"var(--black-65)",
                 fontWeight:500,lineHeight:1.6}}>
-                Check everything carefully — amount and payment methods can't be changed after publishing.
-                {isSell&&" You'll fund the escrow in the next step."}
+                {isSell
+                  ? "Check everything carefully — payment method can't be changed after publishing. You'll have to fund the escrow in the next step for the offer to be published."
+                  : "Check everything carefully — payment method and amount can't be changed after publishing."}
               </div>
               <div className="review-card">
                 {[
@@ -1614,15 +1654,19 @@ export default function OfferCreation({ initialType="buy" }) {
                     <span style={{color:isSell?"var(--error)":"var(--success)",fontWeight:800}}>
                       {isSell?"Sell BTC":"Buy BTC"}
                     </span>],
-                  ["Amount", isSell
-                    ? `${fmt(form.amtFixed)} sats ≈ €${fmtEur(satsToFiat(form.amtFixed,effP))}`
-                    : `${fmt(form.amtFixed)} sats ≈ €${fmtEur(satsToFiat(form.amtFixed,effP))}`],
+                  ["Amount",
+                    <span style={{display:"inline-flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                      <SatsAmount sats={form.amtFixed}/>
+                      <span style={{color:"var(--black-65)",fontWeight:600,fontSize:".82rem"}}>
+                        ≈ €{fmtEur(satsToFiat(form.amtFixed,effP))}
+                      </span>
+                    </span>],
                   ["Premium",
                     <span style={{fontWeight:800,color:prem===0?"var(--black-65)":
                       isSell?(prem>0?"var(--success)":"var(--error)"):(prem<0?"var(--success)":"var(--error)")}}>
                       {prem>0?"+":""}{prem.toFixed(2)}%
                     </span>],
-                  ["Effective price", `€${Math.round(effP).toLocaleString()}/BTC`],
+                  ["Current effective price", `€${Math.round(effP).toLocaleString()}/BTC`],
                   ["Methods", offerMethods.join(", ")||"—"],
                   ["Currencies", offerCurrencies.join(", ")||"—"],
                   ...(!isSell?[["Instant Match", form.instantMatch?"⚡ Enabled":"Off"]]:[] ),
@@ -1634,13 +1678,6 @@ export default function OfferCreation({ initialType="buy" }) {
                   </div>
                 ))}
               </div>
-              {isSell&&(
-                <div className="callout callout-orange" style={{marginTop:14}}>
-                  <span style={{fontSize:"1rem",flexShrink:0}}>🔒</span>
-                  <span>After publishing you'll receive an escrow address. Fund it with exactly <strong>
-                    {fmt(form.amtFixed)} sats</strong> to activate your offer.</span>
-                </div>
-              )}
             </div>
           )}
 
@@ -1662,9 +1699,109 @@ export default function OfferCreation({ initialType="buy" }) {
                     minHeight:18,marginTop:4,marginBottom:20}}>
                     {copiedAddr?"✓ Copied to clipboard":"Click to copy"}
                   </div>
+                  {/* QR code */}
+                  <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+                    <div style={{padding:12,background:"white",borderRadius:12,
+                      border:"1px solid var(--black-10)",display:"inline-block"}}>
+                      <svg width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        {/* Outer border squares */}
+                        <rect x="8" y="8" width="38" height="38" rx="4" fill="none" stroke="#2B1911" strokeWidth="4"/>
+                        <rect x="16" y="16" width="22" height="22" rx="2" fill="#2B1911"/>
+                        <rect x="94" y="8" width="38" height="38" rx="4" fill="none" stroke="#2B1911" strokeWidth="4"/>
+                        <rect x="102" y="16" width="22" height="22" rx="2" fill="#2B1911"/>
+                        <rect x="8" y="94" width="38" height="38" rx="4" fill="none" stroke="#2B1911" strokeWidth="4"/>
+                        <rect x="16" y="102" width="22" height="22" rx="2" fill="#2B1911"/>
+                        {/* Data modules — center area */}
+                        <rect x="54" y="8" width="6" height="6" fill="#2B1911"/>
+                        <rect x="62" y="8" width="6" height="6" fill="#2B1911"/>
+                        <rect x="70" y="8" width="6" height="6" fill="#2B1911"/>
+                        <rect x="78" y="8" width="6" height="6" fill="#2B1911"/>
+                        <rect x="54" y="16" width="6" height="6" fill="#2B1911"/>
+                        <rect x="70" y="16" width="6" height="6" fill="#2B1911"/>
+                        <rect x="54" y="24" width="6" height="6" fill="#2B1911"/>
+                        <rect x="62" y="24" width="6" height="6" fill="#2B1911"/>
+                        <rect x="78" y="24" width="6" height="6" fill="#2B1911"/>
+                        <rect x="54" y="32" width="6" height="6" fill="#2B1911"/>
+                        <rect x="70" y="32" width="6" height="6" fill="#2B1911"/>
+                        <rect x="54" y="40" width="6" height="6" fill="#2B1911"/>
+                        <rect x="62" y="40" width="6" height="6" fill="#2B1911"/>
+                        <rect x="70" y="40" width="6" height="6" fill="#2B1911"/>
+                        <rect x="78" y="40" width="6" height="6" fill="#2B1911"/>
+                        {/* Left column data */}
+                        <rect x="8" y="54" width="6" height="6" fill="#2B1911"/>
+                        <rect x="16" y="54" width="6" height="6" fill="#2B1911"/>
+                        <rect x="32" y="54" width="6" height="6" fill="#2B1911"/>
+                        <rect x="40" y="54" width="6" height="6" fill="#2B1911"/>
+                        <rect x="8" y="62" width="6" height="6" fill="#2B1911"/>
+                        <rect x="24" y="62" width="6" height="6" fill="#2B1911"/>
+                        <rect x="40" y="62" width="6" height="6" fill="#2B1911"/>
+                        <rect x="16" y="70" width="6" height="6" fill="#2B1911"/>
+                        <rect x="32" y="70" width="6" height="6" fill="#2B1911"/>
+                        <rect x="8" y="78" width="6" height="6" fill="#2B1911"/>
+                        <rect x="24" y="78" width="6" height="6" fill="#2B1911"/>
+                        <rect x="40" y="78" width="6" height="6" fill="#2B1911"/>
+                        <rect x="8" y="86" width="6" height="6" fill="#2B1911"/>
+                        <rect x="16" y="86" width="6" height="6" fill="#2B1911"/>
+                        <rect x="32" y="86" width="6" height="6" fill="#2B1911"/>
+                        {/* Center data modules */}
+                        <rect x="54" y="54" width="6" height="6" fill="#2B1911"/>
+                        <rect x="70" y="54" width="6" height="6" fill="#2B1911"/>
+                        <rect x="78" y="54" width="6" height="6" fill="#2B1911"/>
+                        <rect x="62" y="62" width="6" height="6" fill="#2B1911"/>
+                        <rect x="78" y="62" width="6" height="6" fill="#2B1911"/>
+                        <rect x="54" y="70" width="6" height="6" fill="#2B1911"/>
+                        <rect x="70" y="70" width="6" height="6" fill="#2B1911"/>
+                        <rect x="62" y="78" width="6" height="6" fill="#2B1911"/>
+                        <rect x="78" y="78" width="6" height="6" fill="#2B1911"/>
+                        <rect x="54" y="86" width="6" height="6" fill="#2B1911"/>
+                        <rect x="62" y="86" width="6" height="6" fill="#2B1911"/>
+                        <rect x="70" y="86" width="6" height="6" fill="#2B1911"/>
+                        {/* Right column data */}
+                        <rect x="94" y="54" width="6" height="6" fill="#2B1911"/>
+                        <rect x="110" y="54" width="6" height="6" fill="#2B1911"/>
+                        <rect x="126" y="54" width="6" height="6" fill="#2B1911"/>
+                        <rect x="94" y="62" width="6" height="6" fill="#2B1911"/>
+                        <rect x="118" y="62" width="6" height="6" fill="#2B1911"/>
+                        <rect x="102" y="70" width="6" height="6" fill="#2B1911"/>
+                        <rect x="126" y="70" width="6" height="6" fill="#2B1911"/>
+                        <rect x="94" y="78" width="6" height="6" fill="#2B1911"/>
+                        <rect x="110" y="78" width="6" height="6" fill="#2B1911"/>
+                        <rect x="118" y="78" width="6" height="6" fill="#2B1911"/>
+                        <rect x="102" y="86" width="6" height="6" fill="#2B1911"/>
+                        <rect x="126" y="86" width="6" height="6" fill="#2B1911"/>
+                        {/* Bottom data modules */}
+                        <rect x="54" y="94" width="6" height="6" fill="#2B1911"/>
+                        <rect x="70" y="94" width="6" height="6" fill="#2B1911"/>
+                        <rect x="78" y="94" width="6" height="6" fill="#2B1911"/>
+                        <rect x="54" y="102" width="6" height="6" fill="#2B1911"/>
+                        <rect x="62" y="102" width="6" height="6" fill="#2B1911"/>
+                        <rect x="78" y="102" width="6" height="6" fill="#2B1911"/>
+                        <rect x="70" y="110" width="6" height="6" fill="#2B1911"/>
+                        <rect x="78" y="110" width="6" height="6" fill="#2B1911"/>
+                        <rect x="54" y="118" width="6" height="6" fill="#2B1911"/>
+                        <rect x="62" y="118" width="6" height="6" fill="#2B1911"/>
+                        <rect x="78" y="118" width="6" height="6" fill="#2B1911"/>
+                        <rect x="54" y="126" width="6" height="6" fill="#2B1911"/>
+                        <rect x="70" y="126" width="6" height="6" fill="#2B1911"/>
+                        <rect x="78" y="126" width="6" height="6" fill="#2B1911"/>
+                        {/* Bottom right */}
+                        <rect x="94" y="94" width="6" height="6" fill="#2B1911"/>
+                        <rect x="110" y="94" width="6" height="6" fill="#2B1911"/>
+                        <rect x="126" y="94" width="6" height="6" fill="#2B1911"/>
+                        <rect x="102" y="102" width="6" height="6" fill="#2B1911"/>
+                        <rect x="118" y="102" width="6" height="6" fill="#2B1911"/>
+                        <rect x="94" y="110" width="6" height="6" fill="#2B1911"/>
+                        <rect x="110" y="110" width="6" height="6" fill="#2B1911"/>
+                        <rect x="126" y="110" width="6" height="6" fill="#2B1911"/>
+                        <rect x="102" y="118" width="6" height="6" fill="#2B1911"/>
+                        <rect x="94" y="126" width="6" height="6" fill="#2B1911"/>
+                        <rect x="118" y="126" width="6" height="6" fill="#2B1911"/>
+                      </svg>
+                    </div>
+                  </div>
                   <label className="field-label" style={{marginBottom:6}}>Exact amount to send</label>
-                  <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:22}}>
-                    <span className="escrow-amt">{fmt(form.amtFixed)} sats</span>
+                  <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:22}}>
+                    <SatsAmount sats={form.amtFixed} fontSize="1.6rem"/>
                     <span style={{fontSize:".88rem",color:"var(--black-65)",fontWeight:600}}>
                       ≈ €{fmtEur(satsToFiat(form.amtFixed,effP))}
                     </span>

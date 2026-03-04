@@ -80,6 +80,31 @@ const IcoBtc = ({ size = 15 }) => (
   </svg>
 );
 
+function SatsAmount({ sats, size = "md" }) {
+  const satsStr = sats.toLocaleString("fr-FR");
+  const fs = size === "sm" ? ".82rem" : size === "lg" ? "1.2rem" : ".95rem";
+  const ico = size === "sm" ? 13 : size === "lg" ? 18 : 15;
+  if (sats >= 100_000_000) {
+    const btc = (sats / 100_000_000).toFixed(2).replace(".", ",");
+    return (
+      <span style={{ display:"inline-flex", alignItems:"center", gap:5, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
+        <IcoBtc size={ico}/>
+        <span style={{ color:"var(--black)", fontWeight:800, fontSize:fs, whiteSpace:"nowrap" }}>{btc} BTC</span>
+      </span>
+    );
+  }
+  const digits = sats.toString().length;
+  const leadingZeros = 8 - digits;
+  const greyPart = "0," + "0".repeat(leadingZeros);
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:5, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
+      <IcoBtc size={ico}/>
+      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:fs, whiteSpace:"nowrap" }}>{greyPart}</span>
+      <span style={{ color:"var(--black)", fontWeight:800, fontSize:fs, whiteSpace:"nowrap" }}>{satsStr} Sats</span>
+    </span>
+  );
+}
+
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const BTC_PRICE = 87432;
 const SAT = 100_000_000;
@@ -128,19 +153,20 @@ const DEMO_SCENARIOS = [
     id:"buyer_escrow_pending",
     label:"Buyer — Awaiting Escrow",
     role:"buyer",
-    status:"matched",
+    tradeStatus:"matched",
     lifecycleStep: 0,
+    instantTrade: false,
     contract: {
       id:"CT-00152",
       direction:"buy",
-      sats:85000,
+      amount:85000,
       fiat:"74.32",
       currency:"EUR",
       premium:-1.2,
       method:"SEPA",
-      startedAt: Date.now() - 12 * 60_000,
-      deadline: null,
-      escrowAddress:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+      creationDate: Date.now() - 12 * 60_000,
+      paymentExpectedBy: null,
+      escrow:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
     },
     counterparty:{ initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"], online:true },
     paymentDetails:null,
@@ -149,19 +175,20 @@ const DEMO_SCENARIOS = [
     id:"seller_escrow_pending",
     label:"Seller — Fund Escrow",
     role:"seller",
-    status:"matched",
+    tradeStatus:"matched",
     lifecycleStep: 0,
+    instantTrade: true,
     contract: {
       id:"CT-00152",
       direction:"sell",
-      sats:85000,
+      amount:85000,
       fiat:"74.32",
       currency:"EUR",
       premium:-1.2,
       method:"SEPA",
-      startedAt: Date.now() - 12 * 60_000,
-      deadline: null,
-      escrowAddress:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+      creationDate: Date.now() - 12 * 60_000,
+      paymentExpectedBy: null,
+      escrow:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
     },
     counterparty:{ initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"], online:true },
     paymentDetails:null,
@@ -170,19 +197,20 @@ const DEMO_SCENARIOS = [
     id:"buyer_awaiting",
     label:"Buyer — Awaiting Payment",
     role:"buyer",
-    status:"escrow_funded",
+    tradeStatus:"escrow_funded",
     lifecycleStep: 1,
+    instantTrade: false,
     contract: {
       id:"CT-00148",
       direction:"buy",
-      sats:85000,
+      amount:85000,
       fiat:"74.32",
       currency:"EUR",
       premium:-1.2,
       method:"SEPA",
-      startedAt: Date.now() - 4 * 3600_000,
-      deadline: Date.now() + 8 * 3600_000,
-      escrowAddress:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+      creationDate: Date.now() - 4 * 3600_000,
+      paymentExpectedBy: Date.now() + 8 * 3600_000,
+      escrow:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
     },
     counterparty:{ initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"], online:true },
     paymentDetails:{
@@ -198,19 +226,20 @@ const DEMO_SCENARIOS = [
     id:"seller_awaiting",
     label:"Seller — Awaiting Payment",
     role:"seller",
-    status:"awaiting_payment",
+    tradeStatus:"awaiting_payment",
     lifecycleStep: 1,
+    instantTrade: false,
     contract: {
       id:"CT-00149",
       direction:"sell",
-      sats:120000,
+      amount:120000,
       fiat:"104.92",
       currency:"EUR",
       premium:0.5,
       method:"Revolut",
-      startedAt: Date.now() - 1.5 * 3600_000,
-      deadline: Date.now() + 10.5 * 3600_000,
-      escrowAddress:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+      creationDate: Date.now() - 1.5 * 3600_000,
+      paymentExpectedBy: Date.now() + 10.5 * 3600_000,
+      escrow:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
     },
     counterparty:{ initials:"DV", color:"#9B5CFF", name:"Peer #A1F3", rep:4.6, trades:67, badges:[], online:true },
     paymentDetails:null,
@@ -219,19 +248,20 @@ const DEMO_SCENARIOS = [
     id:"payment_in_transit",
     label:"Seller — Confirm Payment",
     role:"seller",
-    status:"payment_in_transit",
+    tradeStatus:"payment_in_transit",
     lifecycleStep: 2,
+    instantTrade: false,
     contract: {
       id:"CT-00150",
       direction:"sell",
-      sats:55000,
+      amount:55000,
       fiat:"47.88",
       currency:"EUR",
       premium:-0.5,
       method:"SEPA",
-      startedAt: Date.now() - 6 * 3600_000,
-      deadline: null,
-      escrowAddress:"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+      creationDate: Date.now() - 6 * 3600_000,
+      paymentExpectedBy: null,
+      escrow:"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
     },
     counterparty:{ initials:"NB", color:"#037DB5", name:"Peer #C73E", rep:4.8, trades:156, badges:["fast"], online:false },
     paymentDetails:null,
@@ -240,19 +270,20 @@ const DEMO_SCENARIOS = [
     id:"completed",
     label:"Completed — Rate Counterparty",
     role:"buyer",
-    status:"completed",
+    tradeStatus:"completed",
     lifecycleStep: 3,
+    instantTrade: false,
     contract: {
       id:"CT-00145",
       direction:"buy",
-      sats:100000,
+      amount:100000,
       fiat:"87.43",
       currency:"EUR",
       premium:-1.5,
       method:"SEPA",
-      startedAt: Date.now() - 26 * 3600_000,
-      deadline: null,
-      escrowAddress:"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+      creationDate: Date.now() - 26 * 3600_000,
+      paymentExpectedBy: null,
+      escrow:"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
     },
     counterparty:{ initials:"PW", color:"#FF7A50", name:"Peer #4E2A", rep:4.9, trades:312, badges:["supertrader"], online:false },
     paymentDetails:null,
@@ -261,19 +292,20 @@ const DEMO_SCENARIOS = [
     id:"dispute",
     label:"Dispute Open",
     role:"buyer",
-    status:"dispute",
+    tradeStatus:"dispute",
     lifecycleStep: 2,
+    instantTrade: false,
     contract: {
       id:"CT-00143",
       direction:"buy",
-      sats:30000,
+      amount:30000,
       fiat:"26.23",
       currency:"EUR",
       premium:-2.0,
       method:"Revolut",
-      startedAt: Date.now() - 28 * 3600_000,
-      deadline: null,
-      escrowAddress:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+      creationDate: Date.now() - 28 * 3600_000,
+      paymentExpectedBy: null,
+      escrow:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
     },
     counterparty:{ initials:"FR", color:"#DF321F", name:"Peer #D8B1", rep:3.9, trades:9, badges:[], online:false },
     paymentDetails:null,
@@ -826,32 +858,31 @@ function EscrowFundingCard({ address, sats, btcPrice }) {
     setTimeout(() => setter(false), 1500);
   }
 
-  // QR code rendered as SVG using a simple grid pattern
-  // In production this would use a QR library; here we show a convincing placeholder
   function QRCode({ size = 160 }) {
-    const cells = 25;
-    const cell = size / cells;
-    // Deterministic pseudorandom fill based on content hash
-    function filled(r, c) {
-      // Protect the three finder patterns (7x7 corners)
-      if (r < 8 && c < 8) return (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4));
-      if (r < 8 && c > cells - 9) return (r === 0 || r === 6 || c === cells-1 || c === cells-7 || (r >= 2 && r <= 4 && c >= cells-5 && c <= cells-3));
-      if (r > cells - 9 && c < 8) return (r === cells-1 || r === cells-7 || c === 0 || c === 6 || (r >= cells-5 && r <= cells-3 && c >= 2 && c <= 4));
-      const seed = (r * 31 + c * 17 + qrContent.length * 7) % 100;
-      return seed < 48;
-    }
-    return (
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display:"block", borderRadius:6 }}>
-        <rect width={size} height={size} fill="white"/>
-        {Array.from({ length: cells }, (_, r) =>
-          Array.from({ length: cells }, (_, c) =>
-            filled(r, c)
-              ? <rect key={`${r}-${c}`} x={c * cell} y={r * cell} width={cell} height={cell} fill="#2B1911"/>
-              : null
-          )
-        )}
-      </svg>
-    );
+    const ref = useRef(null);
+    useEffect(() => {
+      if (!ref.current) return;
+      ref.current.innerHTML = '';
+      function render() {
+        new window.QRCode(ref.current, {
+          text: qrContent,
+          width: size,
+          height: size,
+          colorDark: "#2B1911",
+          colorLight: "#ffffff",
+          correctLevel: window.QRCode.CorrectLevel.M,
+        });
+      }
+      if (window.QRCode) {
+        render();
+      } else {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        script.onload = render;
+        document.head.appendChild(script);
+      }
+    }, [qrContent, size]);
+    return <div ref={ref} style={{ width:size, height:size, borderRadius:6, overflow:"hidden" }}/>;
   }
 
   return (
@@ -877,8 +908,8 @@ function EscrowFundingCard({ address, sats, btcPrice }) {
       }}>
         <div>
           <div style={{ fontSize:".68rem", fontWeight:700, color:"#7D675E", textTransform:"uppercase", letterSpacing:".05em", marginBottom:3 }}>Amount to send</div>
-          <div style={{ fontSize:"1.2rem", fontWeight:800, color:"#2B1911" }}>{(sats / 1000).toFixed(0)}k sats</div>
-          <div style={{ fontSize:".78rem", color:"#7D675E" }}>= {btcAmount} BTC</div>
+          <SatsAmount sats={sats} size="lg"/>
+          <div style={{ fontSize:".78rem", color:"#7D675E", marginTop:2 }}>= {btcAmount} BTC</div>
         </div>
         <button
           style={{
@@ -1024,9 +1055,104 @@ function ConfirmModal({ title, body, confirmLabel, onConfirm, onCancel }) {
   );
 }
 
+// ─── SLIDE TO CONFIRM ────────────────────────────────────────────────────────
+function SlideToConfirm({ label, onConfirm, disabled = false, confirmedColor = "#65A519" }) {
+  const [dragging, setDragging]   = useState(false);
+  const [pos, setPos]             = useState(0);
+  const [confirmed, setConfirmed] = useState(false);
+  const trackRef  = useRef(null);
+  const startXRef = useRef(0);
+  const THUMB = 48;
+
+  function getMax() {
+    return (trackRef.current?.offsetWidth ?? 280) - THUMB - 4;
+  }
+
+  function onPointerDown(e) {
+    if (disabled || confirmed) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+    startXRef.current = e.clientX - pos;
+  }
+
+  function onPointerMove(e) {
+    if (!dragging) return;
+    const next = Math.max(0, Math.min(e.clientX - startXRef.current, getMax()));
+    setPos(next);
+  }
+
+  function onPointerUp() {
+    if (!dragging) return;
+    setDragging(false);
+    if (pos >= getMax() * 0.88) {
+      setPos(getMax());
+      setConfirmed(true);
+      onConfirm && onConfirm();
+    } else {
+      setPos(0);
+    }
+  }
+
+  const progress = confirmed ? 1 : pos / Math.max(getMax(), 1);
+
+  return (
+    <div
+      ref={trackRef}
+      style={{
+        position:"relative", height:52, borderRadius:999,
+        background: confirmed
+          ? confirmedColor
+          : `linear-gradient(90deg, rgba(245,101,34,${0.12 + progress * 0.18}) ${progress * 100}%, #F4EEEB ${progress * 100}%)`,
+        border:`1.5px solid ${confirmed ? confirmedColor : "#EAE3DF"}`,
+        overflow:"hidden", userSelect:"none", touchAction:"none",
+        cursor: disabled ? "not-allowed" : confirmed ? "default" : "grab",
+        transition: dragging ? "none" : "background .3s, border-color .3s",
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      {/* Track label */}
+      <div style={{
+        position:"absolute", inset:0,
+        display:"flex", alignItems:"center", justifyContent:"center",
+        fontSize:".82rem", fontWeight:700,
+        color: confirmed ? "white" : "#624D44",
+        pointerEvents:"none",
+        opacity: confirmed ? 1 : Math.max(0, 1 - progress * 2.5),
+        transition:"opacity .2s",
+      }}>
+        {confirmed ? "✓  Done" : label}
+      </div>
+
+      {/* Thumb */}
+      {!confirmed && (
+        <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          style={{
+            position:"absolute", top:2, left:2 + pos,
+            width:THUMB, height:THUMB - 4, borderRadius:999,
+            background:"linear-gradient(135deg,#FF7A50,#FF4D42)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            boxShadow:"0 2px 8px rgba(245,101,34,.4)",
+            cursor: disabled ? "not-allowed" : "grab",
+            transition: dragging ? "none" : "left .25s cubic-bezier(.4,0,.2,1)",
+            color:"white",
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <polyline points="6,5 12,9 6,13"/>
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ACTION BUTTONS ───────────────────────────────────────────────────────────
 function ActionPanel({ scenario, onAction }) {
-  const { status, role } = scenario;
+  const { tradeStatus: status, role } = scenario;
   const [showConfirm, setShowConfirm] = useState(false);
 
   const Btn = ({ label, bg, color, onClick }) => (
@@ -1076,12 +1202,14 @@ function ActionPanel({ scenario, onAction }) {
         )}
 
         {status === "escrow_funded" && role === "buyer" && <>
-          <div className="action-hint">Send the exact fiat amount using the payment details above, then confirm below.</div>
-          <BtnGrad label="✓  I've Sent the Payment" onClick={() => onAction("payment_sent")}/>
+          <SlideToConfirm
+            label="I've sent the payment"
+            onConfirm={() => onAction("payment_sent")}
+          />
         </>}
 
         {status === "awaiting_payment" && role === "seller" && (() => {
-          const deadline = scenario.contract.deadline;
+          const deadline = scenario.contract.paymentExpectedBy;
           const hoursLeft = deadline ? Math.floor((deadline - Date.now()) / 3600_000) : null;
           const nearDeadline = hoursLeft !== null && hoursLeft < 3;
           return <>
@@ -1099,18 +1227,20 @@ function ActionPanel({ scenario, onAction }) {
             </div>
             {nearDeadline && <Btn label="⏱  Extend Deadline (+12h)" bg="#D7F2FE" color="#037DB5" onClick={() => onAction("extend_time")}/>}
             {/* Greyed-out — seller cannot confirm payment yet */}
-            <button disabled style={{
-              background:"#EAE3DF", color:"#C4B5AE", border:"none", borderRadius:999,
-              fontFamily:"Baloo 2, cursive", fontSize:".9rem", fontWeight:800,
-              padding:"12px 24px", cursor:"not-allowed", textAlign:"center",
-            }}>✓  I Received the Payment</button>
+            <SlideToConfirm
+              label="I've received the payment"
+              disabled={true}
+            />
           </>;
         })()}
 
         {/* Seller: confirm receipt → releases bitcoin */}
         {(status === "payment_in_transit" || status === "payment_confirmed") && role === "seller" && <>
           <div className="action-hint">The buyer has marked the payment as sent. Check your account and confirm once the funds have arrived.</div>
-          <BtnGrad label="✓  I Received the Payment" onClick={() => setShowConfirm(true)}/>
+          <SlideToConfirm
+            label="I've received the payment"
+            onConfirm={() => setShowConfirm(true)}
+          />
           <Btn label="Open Dispute" bg="#FFF0EE" color="#DF321F" onClick={() => onAction("dispute")}/>
         </>}
 
@@ -1612,7 +1742,7 @@ export default function TradeExecution() {
 
   const scenario = DEMO_SCENARIOS.find(s => s.id === scenarioId) || DEMO_SCENARIOS[0];
   const messages = MOCK_MESSAGES[scenarioId] || [];
-  const { contract, counterparty, status, role, paymentDetails } = scenario;
+  const { contract, counterparty, tradeStatus: status, role, paymentDetails } = scenario;
 
   useEffect(() => {
     async function fetchPrices() {
@@ -1633,15 +1763,15 @@ export default function TradeExecution() {
   const satsPerCur  = Math.round(SAT / btcPrice);
 
   // Elapsed time
-  const elapsedMs = Date.now() - contract.startedAt;
+  const elapsedMs = Date.now() - contract.creationDate;
   const elapsedH  = Math.floor(elapsedMs / 3600_000);
   const elapsedM  = Math.floor((elapsedMs % 3600_000) / 60_000);
   const elapsedStr = elapsedH > 0 ? `${elapsedH}h ${elapsedM}m` : `${elapsedM}m`;
 
   // Deadline countdown
   let deadlineStr = null;
-  if (contract.deadline) {
-    const left = contract.deadline - Date.now();
+  if (contract.paymentExpectedBy) {
+    const left = contract.paymentExpectedBy - Date.now();
     const h = Math.floor(left / 3600_000);
     const m = Math.floor((left % 3600_000) / 60_000);
     deadlineStr = `${h}h ${m}m`;
@@ -1761,12 +1891,7 @@ export default function TradeExecution() {
           <span className="trade-topbar-sep">·</span>
           <span className={role === "buyer" ? "dir-buy" : "dir-sell"}>{role === "buyer" ? "BUY" : "SELL"}</span>
           <span className="trade-topbar-sep">·</span>
-          <span className="trade-topbar-name">{counterparty.name}</span>
-          <span className="trade-topbar-sep">·</span>
           <StatusChip status={status} large/>
-          <div className="trade-topbar-right">
-            <div className="trade-topbar-elapsed"><IconClock/> {elapsedStr}</div>
-          </div>
         </div>
 
         {/* ── Mobile tabs ── */}
@@ -1794,19 +1919,20 @@ export default function TradeExecution() {
                   <span>★ {counterparty.rep.toFixed(1)}</span>
                   <span>·</span>
                   <span>{counterparty.trades} trades</span>
-                  {counterparty.badges?.includes("supertrader") && <span className="badge-supertrader">🏆 Supertrader</span>}
-                  {counterparty.badges?.includes("fast") && <span className="badge-fast">⚡ Fast</span>}
                 </div>
               </div>
-              <span className="badge-role">{role === "buyer" ? "You buy" : "You sell"}</span>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
+                {counterparty.badges?.includes("supertrader") && <span className="badge-supertrader">🏆 Supertrader</span>}
+                {counterparty.badges?.includes("fast") && <span className="badge-fast">⚡ Fast</span>}
+              </div>
             </div>
 
             {/* Trade amounts — no deadline here anymore */}
             <div className="trade-summary">
               <div>
                 <div className="summary-item-label">Amount</div>
-                <div className="summary-item-val">{fmt(contract.sats)} sats</div>
-                <div className="summary-item-sub">≈ €{satsToFiat(contract.sats)}</div>
+                <div className="summary-item-val"><SatsAmount sats={contract.amount} size="lg"/></div>
+                <div className="summary-item-sub">≈ €{satsToFiat(contract.amount)}</div>
               </div>
               <div>
                 <div className="summary-item-label">You {role === "buyer" ? "pay" : "receive"}</div>
@@ -1827,6 +1953,26 @@ export default function TradeExecution() {
               </div>
             </div>
 
+            {/* Escrow link — just above Actions */}
+            <div style={{ padding:"0 0 4px", textAlign:"right" }}>
+              <a
+                href={`https://mempool.space/address/${contract.escrow}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize:".72rem", fontWeight:600, color:"#7D675E",
+                  textDecoration:"none", display:"inline-flex", alignItems:"center", gap:4,
+                }}
+                onMouseEnter={e => e.currentTarget.style.color="#F56522"}
+                onMouseLeave={e => e.currentTarget.style.color="#7D675E"}
+              >
+                View escrow on mempool.space
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 9L9 2M9 2H5M9 2v4"/>
+                </svg>
+              </a>
+            </div>
+
             {/* ── Actions (always first, includes deadline + escrow funding) ── */}
             <div className="panel-section">
               <div className="panel-section-title">Actions</div>
@@ -1835,19 +1981,23 @@ export default function TradeExecution() {
               {/* Payment deadline pill — not shown for seller awaiting payment (has its own merged bar) */}
               {deadlineStr && !(status === "awaiting_payment" && role === "seller") && (
                 <div style={{
-                  display:"flex", alignItems:"center", gap:6,
-                  background:"#FEEDE5", borderRadius:8, padding:"8px 12px",
-                  marginBottom:10, fontSize:".83rem", color:"#C45104", fontWeight:600,
+                  display:"flex", alignItems:"center", gap:12,
+                  background:"#FEEDE5", border:"1.5px solid rgba(196,81,4,.2)",
+                  borderRadius:12, padding:"12px 16px", marginBottom:12,
                 }}>
-                  <IconClock/> Payment deadline: {deadlineStr} remaining
+                  <span style={{ fontSize:"1.5rem", flexShrink:0 }}>⏳</span>
+                  <div>
+                    <div style={{ fontSize:".72rem", fontWeight:700, color:"#C45104", textTransform:"uppercase", letterSpacing:".05em", marginBottom:1 }}>Payment deadline</div>
+                    <div style={{ fontSize:"1.05rem", fontWeight:800, color:"#C45104" }}>{deadlineStr} remaining</div>
+                  </div>
                 </div>
               )}
 
               {/* Escrow funding card — inside actions for seller */}
               {role === "seller" && status === "matched" && (
                 <EscrowFundingCard
-                  address={contract.escrowAddress}
-                  sats={contract.sats}
+                  address={contract.escrow}
+                  sats={contract.amount}
                   btcPrice={btcPrice}
                 />
               )}
@@ -1884,6 +2034,11 @@ export default function TradeExecution() {
             {paymentDetails && role === "buyer" && (
               <div className="panel-section">
                 <div className="panel-section-title">Payment Details</div>
+                {status === "escrow_funded" && (
+                  <p style={{ fontSize:".83rem", color:"#7D675E", marginBottom:10 }}>
+                    Send the exact fiat amount to the payment details below, then confirm using the slider.
+                  </p>
+                )}
                 <p style={{ fontSize:".83rem", color:"#DF321F", fontWeight:600, marginBottom:10 }}>
                   Make sure to include the reference with your payment
                 </p>
@@ -1895,7 +2050,7 @@ export default function TradeExecution() {
             {role === "seller" && status !== "matched" && (
               <div className="panel-section">
                 <div className="panel-section-title">Escrow</div>
-                <EscrowAddressCard address={contract.escrowAddress}/>
+                <EscrowAddressCard address={contract.escrow}/>
               </div>
             )}
 

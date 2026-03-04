@@ -41,16 +41,26 @@ const IcoBtc        = ({ size = 15 }) => (
 
 // Standardized sats display: ₿ icon · "0.00" grey · "36 074 Sats" black, same font size
 function SatsAmount({ sats, size = "md" }) {
-  const btcInt  = Math.floor(sats / 100_000_000);
-  const btcGrey = btcInt === 0 ? "0.00" : btcInt.toFixed(2);
   const satsStr = sats.toLocaleString("fr-FR");
   const fs = size === "sm" ? ".82rem" : size === "lg" ? "1.05rem" : ".95rem";
   const ico = size === "sm" ? 13 : size === "lg" ? 17 : 15;
+  if (sats >= 100_000_000) {
+    const btc = (sats / 100_000_000).toFixed(2).replace(".", ",");
+    return (
+      <span style={{ display:"inline-flex", alignItems:"center", gap:5, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
+        <IcoBtc size={ico}/>
+        <span style={{ color:"var(--black)", fontWeight:800, fontSize:fs, whiteSpace:"nowrap" }}>{btc} BTC</span>
+      </span>
+    );
+  }
+  const digits = sats.toString().length;
+  const leadingZeros = 8 - digits;
+  const greyPart = "0," + "0".repeat(leadingZeros);
   return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:5 }}>
+    <span style={{ display:"inline-flex", alignItems:"center", gap:5, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
       <IcoBtc size={ico}/>
-      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:fs }}>{btcGrey}</span>
-      <span style={{ color:"var(--black-100,#2B1911)", fontWeight:800, fontSize:fs }}>{satsStr} Sats</span>
+      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:fs, whiteSpace:"nowrap" }}>{greyPart}</span>
+      <span style={{ color:"var(--black)", fontWeight:800, fontSize:fs, whiteSpace:"nowrap" }}>{satsStr} Sats</span>
     </span>
   );
 }
@@ -124,7 +134,7 @@ const MOCK_ACTIVE = [
   // ── BUY ──
   {
     id:"b1", kind:"open_offer", direction:"buy",
-    amount:[40000,120000], premium:-0.5, methods:["SEPA"], currencies:["EUR"],
+    amount:80000, premium:-0.5, methods:["SEPA"], currencies:["EUR"],
     createdAt: Date.now() - 45*60_000, expiresIn:"23h 15m",
     counterparty:null, unread:0,
   },
@@ -136,30 +146,30 @@ const MOCK_ACTIVE = [
     unread:0,
   },
   {
-    id:"b3", kind:"contract", status:"awaiting_payment", direction:"buy",
+    id:"b3", kind:"contract", tradeStatus:"awaiting_payment", direction:"buy",
     amount:85000, premium:-1.2, methods:["SEPA"], currencies:["EUR"],
-    startedAt: Date.now() - 4*3600_000, deadline: Date.now() + 8*3600_000,
+    creationDate: Date.now() - 4*3600_000, paymentExpectedBy: Date.now() + 8*3600_000,
     counterparty:{ initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"] },
     unread:3, fiatAmount:"74.32",
   },
   {
-    id:"b4", kind:"contract", status:"not_paid_in_time", direction:"buy",
+    id:"b4", kind:"contract", tradeStatus:"not_paid_in_time", direction:"buy",
     amount:42000, premium:0.5, methods:["Wise"], currencies:["CHF"],
-    startedAt: Date.now() - 26*3600_000,
+    creationDate: Date.now() - 26*3600_000,
     counterparty:{ initials:"MR", color:"#037DB5", name:"Peer #7F1C", rep:4.7, trades:88, badges:["fast"] },
     unread:2, fiatAmount:"38.14",
   },
   {
-    id:"b5", kind:"contract", status:"payment_confirmed", direction:"buy",
+    id:"b5", kind:"contract", tradeStatus:"payment_confirmed", direction:"buy",
     amount:55000, premium:-0.8, methods:["SEPA"], currencies:["EUR"],
-    startedAt: Date.now() - 6*3600_000,
+    creationDate: Date.now() - 6*3600_000,
     counterparty:{ initials:"NB", color:"#9B5CFF", name:"Peer #C73E", rep:4.8, trades:156, badges:[] },
     unread:0, fiatAmount:"47.88",
   },
   {
-    id:"b6", kind:"contract", status:"dispute", direction:"buy",
+    id:"b6", kind:"contract", tradeStatus:"dispute", direction:"buy",
     amount:30000, premium:-2.0, methods:["Revolut"], currencies:["EUR"],
-    startedAt: Date.now() - 28*3600_000,
+    creationDate: Date.now() - 28*3600_000,
     counterparty:{ initials:"FR", color:"#DF321F", name:"Peer #D8B1", rep:3.9, trades:9, badges:[] },
     unread:5, fiatAmount:"26.23",
   },
@@ -171,37 +181,37 @@ const MOCK_ACTIVE = [
     counterparty:null, unread:0,
   },
   {
-    id:"s2", kind:"contract", status:"matched", direction:"sell",
+    id:"s2", kind:"contract", tradeStatus:"matched", direction:"sell",
     amount:95000, premium:1.5, methods:["SEPA"], currencies:["EUR"],
-    startedAt: Date.now() - 30*60_000,
+    creationDate: Date.now() - 30*60_000,
     counterparty:{ initials:"DV", color:"#F56522", name:"Peer #A1F3", rep:4.6, trades:67, badges:[] },
     unread:1, fiatAmount:"82.79",
   },
   {
-    id:"s3", kind:"contract", status:"payment_in_transit", direction:"sell",
+    id:"s3", kind:"contract", tradeStatus:"payment_in_transit", direction:"sell",
     amount:120000, premium:1.8, methods:["PayPal"], currencies:["EUR"],
-    startedAt: Date.now() - 1.5*3600_000,
+    creationDate: Date.now() - 1.5*3600_000,
     counterparty:{ initials:"PW", color:"#05A85A", name:"Peer #F9C2", rep:4.3, trades:22, badges:[] },
     unread:1, fiatAmount:"102.18",
   },
   {
-    id:"s4", kind:"contract", status:"confirm_payment", direction:"sell",
+    id:"s4", kind:"contract", tradeStatus:"confirm_payment", direction:"sell",
     amount:50000, premium:0.3, methods:["Revolut"], currencies:["EUR"],
-    startedAt: Date.now() - 10*60_000,
+    creationDate: Date.now() - 10*60_000,
     counterparty:{ initials:"JC", color:"#9B5CFF", name:"Peer #B8D0", rep:5.0, trades:289, badges:["supertrader","fast"] },
     unread:0, fiatAmount:"43.25",
   },
   {
-    id:"s5", kind:"contract", status:"payment_confirmed", direction:"sell",
+    id:"s5", kind:"contract", tradeStatus:"payment_confirmed", direction:"sell",
     amount:200000, premium:2.1, methods:["SEPA"], currencies:["EUR"],
-    startedAt: Date.now() - 8*3600_000,
+    creationDate: Date.now() - 8*3600_000,
     counterparty:{ initials:"EH", color:"#037DB5", name:"Peer #3A7E", rep:4.5, trades:44, badges:["fast"] },
     unread:0, fiatAmount:"174.86",
   },
   {
-    id:"s6", kind:"contract", status:"dispute", direction:"sell",
+    id:"s6", kind:"contract", tradeStatus:"dispute", direction:"sell",
     amount:65000, premium:1.0, methods:["Strike"], currencies:["EUR"],
-    startedAt: Date.now() - 36*3600_000,
+    creationDate: Date.now() - 36*3600_000,
     counterparty:{ initials:"OT", color:"#F56522", name:"Peer #E52C", rep:2.1, trades:3, badges:[] },
     unread:4, fiatAmount:"56.73",
   },
@@ -210,7 +220,7 @@ const MOCK_ACTIVE = [
 // Trade history mock
 const MOCK_HISTORY = [
   {
-    id:"h1", direction:"buy", status:"completed",
+    id:"h1", direction:"buy", tradeStatus:"completed",
     amount:100000, fiatAmount:"87.43", currency:"EUR", premium:-1.5,
     method:"SEPA",
     counterparty:{ initials:"PW", color:"#FF7A50", name:"Peer #4E2A", rep:4.9 },
@@ -219,7 +229,7 @@ const MOCK_HISTORY = [
     tradeId:"CT-00142",
   },
   {
-    id:"h2", direction:"sell", status:"completed",
+    id:"h2", direction:"sell", tradeStatus:"completed",
     amount:50000, fiatAmount:"44.21", currency:"EUR", premium:0.8,
     method:"Revolut",
     counterparty:{ initials:"JC", color:"#037DB5", name:"Peer #F2E0", rep:4.7 },
@@ -228,7 +238,7 @@ const MOCK_HISTORY = [
     tradeId:"CT-00138",
   },
   {
-    id:"h3", direction:"buy", status:"cancelled",
+    id:"h3", direction:"buy", tradeStatus:"cancelled",
     amount:75000, fiatAmount:"65.57", currency:"EUR", premium:-0.5,
     method:"SEPA",
     counterparty:{ initials:"EH", color:"#65A519", name:"Peer #91CA", rep:4.2 },
@@ -237,7 +247,7 @@ const MOCK_HISTORY = [
     tradeId:"CT-00131",
   },
   {
-    id:"h4", direction:"sell", status:"completed",
+    id:"h4", direction:"sell", tradeStatus:"completed",
     amount:200000, fiatAmount:"174.86", currency:"EUR", premium:1.2,
     method:"Wise",
     counterparty:{ initials:"OT", color:"#9B5CFF", name:"Peer #55D3", rep:5.0 },
@@ -246,7 +256,7 @@ const MOCK_HISTORY = [
     tradeId:"CT-00122",
   },
   {
-    id:"h5", direction:"buy", status:"completed",
+    id:"h5", direction:"buy", tradeStatus:"completed",
     amount:45000, fiatAmount:"39.34", currency:"CHF", premium:-2.1,
     method:"SEPA",
     counterparty:{ initials:"KL", color:"#F56522", name:"Peer #7B2F", rep:4.8 },
@@ -255,7 +265,7 @@ const MOCK_HISTORY = [
     tradeId:"CT-00115",
   },
   {
-    id:"h6", direction:"sell", status:"completed",
+    id:"h6", direction:"sell", tradeStatus:"completed",
     amount:350000, fiatAmount:"306.01", currency:"EUR", premium:0.3,
     method:"SEPA",
     counterparty:{ initials:"MR", color:"#05A85A", name:"Peer #CC88", rep:4.9 },
@@ -428,7 +438,7 @@ function Badge({ label, icon }) {
 
 // ─── TRADE CARD — Variant C ───────────────────────────────────────────────────
 function TradeCard({ trade, onSelect }) {
-  const statusKey = trade.kind === "contract" ? trade.status : trade.kind;
+  const statusKey = trade.kind === "contract" ? trade.tradeStatus : trade.kind;
   const pill = PILL_CONFIG[statusKey] || PILL_CONFIG.open_offer;
   const isBuy = trade.direction === "buy";
   const hasSatsRange = Array.isArray(trade.amount);
@@ -442,15 +452,15 @@ function TradeCard({ trade, onSelect }) {
   function timeStr() {
     if (trade.kind === "open_offer")    return `Expires in ${trade.expiresIn}`;
     if (trade.kind === "pending_match") return `Matched ${relativeTime(trade.matchedAt)}`;
-    if (trade.deadline) {
-      const left = trade.deadline - Date.now();
+    if (trade.paymentExpectedBy) {
+      const left = trade.paymentExpectedBy - Date.now();
       const h = Math.floor(left / 3600_000);
       const m = Math.floor((left % 3600_000) / 60_000);
       return `${h}h ${m}m remaining`;
     }
-    return relativeTime(trade.startedAt);
+    return relativeTime(trade.creationDate);
   }
-  const isUrgentTime = trade.deadline && (trade.deadline - Date.now()) < 2 * 3600_000;
+  const isUrgentTime = trade.paymentExpectedBy && (trade.paymentExpectedBy - Date.now()) < 2 * 3600_000;
 
   return (
     <div className="trade-card-v3" onClick={() => onSelect && onSelect(trade.id)}>
@@ -464,7 +474,7 @@ function TradeCard({ trade, onSelect }) {
           {trade.id.toUpperCase()}
         </span>
         <span style={{ fontSize:".68rem", color:"var(--black-65)" }}>
-          · {new Date(trade.startedAt || trade.createdAt || trade.matchedAt || Date.now()).toLocaleDateString("en-GB")}
+          · {new Date(trade.creationDate || trade.createdAt || trade.matchedAt || Date.now()).toLocaleDateString("en-GB")}
         </span>
         <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:5 }}>
           {trade.unread > 0 && (
@@ -555,13 +565,24 @@ function TradeCard({ trade, onSelect }) {
 
 // ─── HISTORY TABLE ────────────────────────────────────────────────────────────
 function HistorySatsAmount({ sats }) {
-  const grey = Math.floor(sats / 100_000_000) === 0 ? "0.00" : (sats/100_000_000).toFixed(2);
   const satsStr = sats.toLocaleString("fr-FR");
+  if (sats >= 100_000_000) {
+    const btc = (sats / 100_000_000).toFixed(2).replace(".", ",");
+    return (
+      <span style={{ display:"inline-flex", alignItems:"center", gap:4, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
+        <IcoBtc size={13}/>
+        <span style={{ color:"var(--black)", fontWeight:800, fontSize:".78rem", whiteSpace:"nowrap" }}>{btc} BTC</span>
+      </span>
+    );
+  }
+  const digits = sats.toString().length;
+  const leadingZeros = 8 - digits;
+  const greyPart = "0," + "0".repeat(leadingZeros);
   return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
       <IcoBtc size={13}/>
-      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:".78rem" }}>{grey}</span>
-      <span style={{ color:"var(--black)", fontWeight:800, fontSize:".78rem" }}>{satsStr} Sats</span>
+      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:".78rem", whiteSpace:"nowrap" }}>{greyPart}</span>
+      <span style={{ color:"var(--black)", fontWeight:800, fontSize:".78rem", whiteSpace:"nowrap" }}>{satsStr} Sats</span>
     </span>
   );
 }
@@ -599,7 +620,7 @@ function HistoryTable({ rows }) {
     const rowsCSV = sorted.map(r => [
       r.tradeId, r.direction.toUpperCase(), r.counterparty.name,
       r.amount, r.fiatAmount, r.currency,
-      r.premium.toFixed(2), r.method, r.status,
+      r.premium.toFixed(2), r.method, r.tradeStatus,
       r.ratingGiven !== null ? (r.ratingGiven === 5 ? "positive" : "negative") : "",
       formatDate(r.completedAt),
     ]);
@@ -691,7 +712,7 @@ function HistoryTable({ rows }) {
                   </span>
                 </td>
                 <td><span className="tag tag-method">{r.method}</span></td>
-                <td><StatusChip status={r.status}/></td>
+                <td><StatusChip status={r.tradeStatus}/></td>
                 <td>
                   {r.ratingGiven !== null
                     ? <span style={{ fontSize:"1rem" }}>{r.ratingGiven === 5 ? "👍" : "👎"}</span>
@@ -864,7 +885,12 @@ const CSS = `
 
   /* Page layout */
   .page-wrap{margin-top:var(--topbar);margin-left:68px;padding:32px 28px;min-height:calc(100vh - 56px)}
-  @media(max-width:767px){.page-wrap{margin-left:0;padding:20px 16px}}
+  @media(max-width:767px){
+    .page-wrap{margin-left:0;padding:20px 16px}
+    .tabs-action-row{flex-wrap:wrap;gap:8px}
+    .tabs-action-row .urgent-banner{flex:none;width:100%;order:3}
+    .tabs-action-row .btn-cta{order:2}
+  }
 
   /* Page header */
   .page-header{display:flex;align-items:flex-start;gap:16px;margin-bottom:28px;flex-wrap:wrap}
@@ -892,6 +918,9 @@ const CSS = `
     padding:8px 20px;cursor:pointer;white-space:nowrap;
     box-shadow:0 2px 12px rgba(245,101,34,.3);transition:transform .15s,box-shadow .15s}
   .btn-cta:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(245,101,34,.4)}
+
+  /* Tabs + banner + CTA row */
+  .tabs-action-row{display:flex;align-items:center;gap:10px;margin-bottom:24px;flex-wrap:wrap}
 
   /* Main tabs */
   .main-tabs{display:flex;gap:4px;background:var(--black-5);border-radius:12px;padding:4px;
@@ -1074,7 +1103,7 @@ const CSS = `
     background:linear-gradient(90deg,#FFF0EE,#FFF9F6);
     border:1px solid rgba(245,101,34,.25);border-radius:12px;
     padding:10px 16px;margin-bottom:20px;
-    display:flex;align-items:center;gap:10px;font-size:.83rem;color:var(--primary-dark);font-weight:600}
+    display:flex;align-items:center;gap:10px;font-size:.83rem;color:var(--primary-dark);font-weight:600;width:fit-content}
 `;
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
@@ -1154,7 +1183,7 @@ export default function TradesDashboard() {
       if (!filterCurrencies.some(c => currencies.includes(c))) return false;
     }
     if (filterStatuses.length > 0) {
-      const s = t.kind === "contract" ? t.status : t.kind;
+      const s = t.kind === "contract" ? t.tradeStatus : t.kind;
       if (!filterStatuses.includes(s)) return false;
     }
     return true;
@@ -1162,15 +1191,15 @@ export default function TradesDashboard() {
 
   // Sort: action-required first, then by time
   const sortedFiltered = [...filtered].sort((a, b) => {
-    const aAction = (STATUS_CONFIG[a.kind === "contract" ? a.status : a.kind] || {}).action ? 1 : 0;
-    const bAction = (STATUS_CONFIG[b.kind === "contract" ? b.status : b.kind] || {}).action ? 1 : 0;
+    const aAction = (STATUS_CONFIG[a.kind === "contract" ? a.tradeStatus : a.kind] || {}).action ? 1 : 0;
+    const bAction = (STATUS_CONFIG[b.kind === "contract" ? b.tradeStatus : b.kind] || {}).action ? 1 : 0;
     if (aAction !== bAction) return bAction - aAction;
     return 0;
   });
 
   // Count urgent items
   const urgentCount = MOCK_ACTIVE.filter(t => {
-    const cfg = STATUS_CONFIG[t.kind === "contract" ? t.status : t.kind] || {};
+    const cfg = STATUS_CONFIG[t.kind === "contract" ? t.tradeStatus : t.kind] || {};
     return cfg.action;
   }).length;
 
@@ -1262,60 +1291,61 @@ export default function TradesDashboard() {
       {/* ── PAGE ── */}
       <main className="page-wrap">
         {/* Page header */}
-        <div className="page-header">
-          <div>
-            <div className="page-title">Your Trades</div>
-            <div className="page-subtitle">Manage your active trades and review history</div>
-          </div>
-          <div className="header-right">
-            <div className="limit-bar-wrap">
-              {/* Daily */}
-              <div className="limit-bar-top">
-                <span className="limit-bar-label">Daily Limit</span>
-                <span className="limit-bar-val">€{LIMIT_USED} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{LIMIT_TOTAL}</span></span>
-              </div>
-              <div className="limit-bar-track">
-                <div className="limit-bar-fill" style={{ width:`${limitPct}%` }}/>
-              </div>
-              {/* Anonymous methods — monthly */}
-              <div className="limit-bar-top" style={{ marginTop:10 }}>
-                <span className="limit-bar-label">
-                  <span className="limit-anon-dot"/>Anonymous · Monthly
-                </span>
-                <span className="limit-bar-val">€{ANON_USED} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{ANON_TOTAL}</span></span>
-              </div>
-              <div className="limit-bar-track">
-                <div className="limit-bar-fill limit-bar-fill-anon" style={{ width:`${anonPct}%` }}/>
-              </div>
-              {/* Annual */}
-              <div className="limit-bar-top" style={{ marginTop:10 }}>
-                <span className="limit-bar-label">Annual Limit</span>
-                <span className="limit-bar-val">€{ANNUAL_USED.toLocaleString()} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{ANNUAL_TOTAL.toLocaleString()}</span></span>
-              </div>
-              <div className="limit-bar-track">
-                <div className="limit-bar-fill limit-bar-fill-annual" style={{ width:`${annualPct}%` }}/>
-              </div>
+        {/* Title row */}
+        <div style={{marginBottom:16}}>
+          <div className="page-title">Your Trades</div>
+          <div className="page-subtitle">Manage your active trades and review history</div>
+        </div>
+
+        {/* Limits card — left-aligned */}
+        <div style={{marginBottom:20}}>
+          <div className="limit-bar-wrap" style={{display:"inline-block",minWidth:260,maxWidth:380,width:"100%"}}>
+            {/* Daily */}
+            <div className="limit-bar-top">
+              <span className="limit-bar-label">Daily Limit</span>
+              <span className="limit-bar-val">€{LIMIT_USED} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{LIMIT_TOTAL}</span></span>
             </div>
-            <button className="btn-cta">+ New Offer</button>
+            <div className="limit-bar-track">
+              <div className="limit-bar-fill" style={{ width:`${limitPct}%` }}/>
+            </div>
+            {/* Anonymous methods — monthly */}
+            <div className="limit-bar-top" style={{ marginTop:10 }}>
+              <span className="limit-bar-label">
+                <span className="limit-anon-dot"/>Anonymous · Monthly
+              </span>
+              <span className="limit-bar-val">€{ANON_USED} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{ANON_TOTAL}</span></span>
+            </div>
+            <div className="limit-bar-track">
+              <div className="limit-bar-fill limit-bar-fill-anon" style={{ width:`${anonPct}%` }}/>
+            </div>
+            {/* Annual */}
+            <div className="limit-bar-top" style={{ marginTop:10 }}>
+              <span className="limit-bar-label">Annual Limit</span>
+              <span className="limit-bar-val">€{ANNUAL_USED.toLocaleString()} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{ANNUAL_TOTAL.toLocaleString()}</span></span>
+            </div>
+            <div className="limit-bar-track">
+              <div className="limit-bar-fill limit-bar-fill-annual" style={{ width:`${annualPct}%` }}/>
+            </div>
           </div>
         </div>
 
-        {/* Urgent action banner */}
-        {urgentCount > 0 && (
-          <div className="urgent-banner">
-            <IconAlert/>
-            <span>{urgentCount} trade{urgentCount > 1 ? "s" : ""} require{urgentCount === 1 ? "s" : ""} your attention</span>
+        {/* Tabs + urgent banner + New Offer button — all one row */}
+        <div className="tabs-action-row">
+          <div className="main-tabs" style={{margin:0}}>
+            <button className={`main-tab${mainTab === "active" ? " active" : ""}`} onClick={() => setMainTab("active")}>
+              Active Trades {MOCK_ACTIVE.length > 0 && <span style={{ background:"var(--primary)", color:"white", borderRadius:999, padding:"0 7px", fontSize:".7rem", fontWeight:800, marginLeft:6 }}>{MOCK_ACTIVE.length}</span>}
+            </button>
+            <button className={`main-tab${mainTab === "history" ? " active" : ""}`} onClick={() => setMainTab("history")}>
+              Trade History
+            </button>
           </div>
-        )}
-
-        {/* Main tabs */}
-        <div className="main-tabs">
-          <button className={`main-tab${mainTab === "active" ? " active" : ""}`} onClick={() => setMainTab("active")}>
-            Active Trades {MOCK_ACTIVE.length > 0 && <span style={{ background:"var(--primary)", color:"white", borderRadius:999, padding:"0 7px", fontSize:".7rem", fontWeight:800, marginLeft:6 }}>{MOCK_ACTIVE.length}</span>}
-          </button>
-          <button className={`main-tab${mainTab === "history" ? " active" : ""}`} onClick={() => setMainTab("history")}>
-            Trade History
-          </button>
+          {urgentCount > 0 && (
+            <div className="urgent-banner" style={{margin:0}}>
+              <IconAlert/>
+              <span>{urgentCount} trade{urgentCount > 1 ? "s" : ""} require{urgentCount === 1 ? "s" : ""} your attention</span>
+            </div>
+          )}
+          <button className="btn-cta" style={{marginLeft:"auto",flexShrink:0}}>+ New Offer</button>
         </div>
 
         {/* ── ACTIVE TRADES ── */}

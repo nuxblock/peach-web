@@ -70,6 +70,31 @@ const IcoBtc = ({ size = 15 }) => (
     <path d="M22.2 13.8c.3-2-1.2-3.1-3.3-3.8l.7-2.7-1.6-.4-.7 2.6c-.4-.1-.9-.2-1.3-.3l.7-2.6-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.3l-2.1-.5-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8.9l-.8 3.3c.1 0 .2 0 .3.1-.1 0-.2-.1-.3-.1L11.4 20c-.1.3-.4.7-1 .5 0 0-1.2-.3-1.2-.3l-.8 1.8 2 .5c.4.1.7.2 1.1.3l-.7 2.7 1.6.4.7-2.7c.4.1.9.2 1.4.3l-.7 2.7 1.6.4.7-2.7c2.8.5 4.9.3 5.8-2.2.7-2-.03-3.2-1.5-3.9 1.1-.25 1.9-1 2.1-2.5zm-3.8 5.3c-.5 2-3.9.9-5 .6l.9-3.5c1.1.3 4.6.8 4.1 2.9zm.5-5.3c-.45 1.8-3.3.9-4.2.7l.8-3.2c.9.2 3.8.6 3.4 2.5z" fill="white"/>
   </svg>
 );
+
+function SatsAmount({ sats, fontSize }) {
+  const fs = fontSize || ".9rem";
+  const ico = fontSize ? Math.round(parseFloat(fontSize) * 11) || 15 : 15;
+  const satsStr = sats.toLocaleString("fr-FR");
+  if (sats >= 100_000_000) {
+    const btc = (sats / 100_000_000).toFixed(2).replace(".", ",");
+    return (
+      <span style={{ display:"inline-flex", alignItems:"center", gap:5, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
+        <IcoBtc size={ico}/>
+        <span style={{ color:"var(--black)", fontWeight:800, fontSize:fs, whiteSpace:"nowrap" }}>{btc} BTC</span>
+      </span>
+    );
+  }
+  const digits = sats.toString().length;
+  const leadingZeros = 8 - digits;
+  const greyPart = "0," + "0".repeat(leadingZeros);
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
+      <IcoBtc size={ico}/>
+      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:fs, whiteSpace:"nowrap" }}>{greyPart}</span>
+      <span style={{ color:"var(--black)", fontWeight:800, fontSize:fs, whiteSpace:"nowrap" }}>{satsStr} Sats</span>
+    </span>
+  );
+}
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const BTC_PRICE = 87432;
 
@@ -421,6 +446,16 @@ const css = `
   .content > *:nth-child(3){animation-delay:.11s}
   .content > *:nth-child(4){animation-delay:.15s}
   .content > *:nth-child(5){animation-delay:.19s}
+
+  /* ── PEACH STATS RESPONSIVE GRID ── */
+  .stats-card-wrap{container-type:inline-size;container-name:stats;width:100%}
+  .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .stats-bottom{display:contents}
+  @container stats (max-width:540px){
+    .stats-grid{grid-template-columns:1fr}
+    .stats-vol{grid-column:1/-1}
+    .stats-bottom{display:grid;grid-template-columns:1fr 1fr;gap:16px;grid-column:1/-1}
+  }
 
   /* ── RESPONSIVE ── */
   @media(max-width:767px){
@@ -814,45 +849,52 @@ export default function PeachHome() {
               </div>
 
               {/* Peach Stats — 24h Volume, Trades Today, Active Offers */}
+              <div className="stats-card-wrap">
               <div className="card" style={{width:"100%"}}>
                 <div className="card-header">
                   <span className="card-title">Peach Stats</span>
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
+                <div className="stats-grid">
 
-                  {/* 24h Volume */}
-                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                  {/* 24h Volume — full width when narrow */}
+                  <div className="stats-vol" style={{display:"flex",flexDirection:"column",gap:4}}>
                     <span style={{fontSize:".72rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"var(--black-65)"}}>24h Volume</span>
-                    <div className="stat-big">{formatSats(MOCK_STATS.dailyVolume.sats)} <span style={{fontSize:".6em",fontWeight:600,color:"#C4B5AE"}}>sats</span></div>
+                    <div className="stat-big"><SatsAmount sats={MOCK_STATS.dailyVolume.sats} fontSize="1.1rem"/></div>
                     <div className="stat-sub">≈ €{MOCK_STATS.dailyVolume.eur.toLocaleString()} · today</div>
                     <span className="stat-change pos">↑ +12% vs yesterday</span>
                   </div>
 
-                  {/* Trades Today */}
-                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    <span style={{fontSize:".72rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"var(--black-65)"}}>Trades Today</span>
-                    <div className="stat-big">{MOCK_STATS.dailyTrades}</div>
-                    <div className="stat-sub">completed trades · today</div>
-                    <span className="stat-change neu">→ Same as yesterday</span>
-                  </div>
+                  {/* Bottom 2 cols wrapper — only used at narrow widths */}
+                  <div className="stats-bottom">
 
-                  {/* Active Offers */}
-                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    <span style={{fontSize:".72rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"var(--black-65)"}}>Active Offers</span>
-                    <div className="stat-big">{MOCK_STATS.activeOffers.buy + MOCK_STATS.activeOffers.sell}</div>
-                    <div className="stat-sub">
-                      <span style={{color:"var(--success)",fontWeight:700}}>{MOCK_STATS.activeOffers.buy} buy</span>
-                      {" · "}
-                      <span style={{color:"var(--error)",fontWeight:700}}>{MOCK_STATS.activeOffers.sell} sell</span>
+                    {/* Trades Today */}
+                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                      <span style={{fontSize:".72rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"var(--black-65)"}}>Trades Today</span>
+                      <div className="stat-big">{MOCK_STATS.dailyTrades}</div>
+                      <div className="stat-sub">completed trades · today</div>
+                      <span className="stat-change neu">→ Same as yesterday</span>
                     </div>
-                    <div style={{display:"flex",gap:6,marginTop:2}}>
-                      <span className="stat-change neg">Buy avg {fmtPct(MOCK_STATS.avgPremiumBuy)}</span>
-                      <span className="stat-change pos">Sell avg {fmtPct(MOCK_STATS.avgPremiumSell)}</span>
+
+                    {/* Active Offers */}
+                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                      <span style={{fontSize:".72rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"var(--black-65)"}}>Active Offers</span>
+                      <div className="stat-big">{MOCK_STATS.activeOffers.buy + MOCK_STATS.activeOffers.sell}</div>
+                      <div className="stat-sub">
+                        <span style={{color:"var(--success)",fontWeight:700}}>{MOCK_STATS.activeOffers.buy} buy</span>
+                        {" · "}
+                        <span style={{color:"var(--error)",fontWeight:700}}>{MOCK_STATS.activeOffers.sell} sell</span>
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-start",marginTop:2}}>
+                        <span className="stat-change neg" style={{width:"fit-content"}}>Buy avg {fmtPct(MOCK_STATS.avgPremiumBuy)}</span>
+                        <span className="stat-change pos" style={{width:"fit-content"}}>Sell avg {fmtPct(MOCK_STATS.avgPremiumSell)}</span>
+                      </div>
                     </div>
-                  </div>
+
+                  </div>{/* end stats-bottom */}
 
                 </div>
               </div>
+              </div>{/* end stats-card-wrap */}
 
               </div>{/* end right column */}
 
