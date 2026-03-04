@@ -1111,16 +1111,38 @@ export default function OfferCreation({ initialType="buy" }) {
   const [savedMethods, setSavedMethods] = useState(MOCK_SAVED);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPM,    setEditingPM]    = useState(null); // PM object being edited
+
+  // ── FETCH LIVE SAVED PMs ──
+  useEffect(() => {
+    const auth = window.__PEACH_AUTH__;
+    if (!auth) return;
+    fetch(`${auth.baseUrl}/user/me/paymentMethods`, {
+      headers: { Authorization: `Bearer ${auth.token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setSavedMethods(data.map(pm => ({
+            id: pm.id,
+            type: pm.type ?? pm.id,
+            currencies: pm.currencies ?? [],
+            details: pm.data ?? pm.details ?? {},
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
-  // ── AUTH STATE (persisted via localStorage) ──
+  // ── AUTH STATE ──
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (window.__PEACH_AUTH__) return true;
     try { return localStorage.getItem("peach_logged_in") !== "false"; } catch { return true; }
   });
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
-  const handleLogout = () => { setIsLoggedIn(false); setShowAvatarMenu(false); try { localStorage.setItem("peach_logged_in", "false"); } catch {} };
-  const handleLogin = () => { setIsLoggedIn(true); try { localStorage.setItem("peach_logged_in", "true"); } catch {} };
+  const handleLogout = () => { window.__PEACH_AUTH__ = null; setIsLoggedIn(false); setShowAvatarMenu(false); navigate("/"); };
+  const handleLogin  = () => { navigate("/auth"); };
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
@@ -1145,7 +1167,7 @@ export default function OfferCreation({ initialType="buy" }) {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await fetch('https://api.peachbitcoin.com/v1/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);

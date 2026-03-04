@@ -2,6 +2,55 @@ import { useState, useEffect, useRef } from "react";
 // ⚠️ react-router-dom removed for Claude.ai preview. Restore import for local dev.
 import { useNavigate } from "react-router-dom";
 
+// ─── INPUT VALIDATORS (inline for Claude.ai preview; import from peach-validators.js for GitHub build) ──
+const IBAN_RE = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/;
+function validateIBAN(raw) {
+  if (!raw || !raw.trim()) return { valid: false, error: "IBAN is required" };
+  const clean = raw.replace(/\s/g, "").toUpperCase();
+  if (clean.length < 15 || clean.length > 34) return { valid: false, error: "IBAN must be 15–34 characters" };
+  if (!IBAN_RE.test(clean)) return { valid: false, error: "Invalid IBAN format (expected: CC00 + alphanumeric)" };
+  return { valid: true, error: null };
+}
+const DIGITS_ONLY_RE = /^\d{7,15}$/;
+function validatePhone(raw, expectedPrefix) {
+  if (!raw || !raw.trim()) return { valid: false, error: "Phone number is required" };
+  const clean = raw.replace(/[\s\-().]/g, "");
+  if (!clean.startsWith("+")) return { valid: false, error: "Must start with + (international format)" };
+  const digits = clean.slice(1);
+  if (!DIGITS_ONLY_RE.test(digits)) return { valid: false, error: "Phone number must be 7–15 digits after +" };
+  if (expectedPrefix && !clean.startsWith(expectedPrefix)) {
+    return { valid: false, error: `Expected country prefix ${expectedPrefix}` };
+  }
+  return { valid: true, error: null };
+}
+function makeBlurHandler(setErrors) {
+  return (fieldKey, value, validatorFn, ...extraArgs) => {
+    const result = validatorFn(value, ...extraArgs);
+    setErrors(prev => ({ ...prev, [fieldKey]: result.valid ? null : result.error }));
+    return result.valid;
+  };
+}
+
+// Phone country prefix per payment method (extracted from placeholder patterns)
+const PHONE_PREFIX_MAP = {
+  bizum:     "+34",
+  twint:     "+41",
+  swish:     "+46",
+  mobilePay: "+45",
+  vipps:     "+47",
+  satispay:  "+39",
+  mbWay:     "+351",
+  iris:      "+30",
+  paylib:    "+33",
+  verse:     "+34",
+  blik:      "+48",
+};
+
+// Inline error component
+const FieldError = ({ error }) => error
+  ? <div style={{ fontSize:".72rem", fontWeight:600, color:"#DF321F", marginTop:4 }}>{error}</div>
+  : null;
+
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
 const PeachIcon = ({ size = 28 }) => (
   <svg width={size} height={size} viewBox="0 0 352 353" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -235,6 +284,10 @@ function AddPMFlow({ methods, onSave, onClose, editData }) {
   const [payRefCustom, setPayRefCustom] = useState(editData?.details?._payRefCustom || "");
   const [showPayRefPicker, setShowPayRefPicker] = useState(false);
 
+  // Validation
+  const [errors, setErrors] = useState({});
+  const handleBlur = makeBlurHandler(setErrors);
+
   // Region tab for step 0
   const [selRegion, setSelRegion] = useState("Europe");
 
@@ -267,7 +320,8 @@ function AddPMFlow({ methods, onSave, onClose, editData }) {
   const step0Ok = selCurrency !== "";
   const step1Ok = selCategory !== "";
   const step2Ok = selMethodId !== "";
-  const step3Ok = fields.every(f => f.optional || (details[f.key] || "").trim().length > 0) && selCurrencies.length > 0;
+  const step3Ok = fields.every(f => f.optional || (details[f.key] || "").trim().length > 0) && selCurrencies.length > 0
+    && !Object.values(errors).some(e => e);
 
   function handleSelectCurrency(c) {
     setSelCurrency(c);
@@ -276,6 +330,7 @@ function AddPMFlow({ methods, onSave, onClose, editData }) {
     setSelMethodId("");
     setDetails({});
     setSelCurrencies([]);
+    setErrors({});
     setStep(1);
   }
 
@@ -284,12 +339,14 @@ function AddPMFlow({ methods, onSave, onClose, editData }) {
     setSelMethodId("");
     setDetails({});
     setSelCurrencies([]);
+    setErrors({});
     setStep(2);
   }
 
   function handleSelectMethod(id) {
     setSelMethodId(id);
     setDetails({});
+    setErrors({});
     // Auto-select the currency we started with
     const m = methods[id];
     if (m) {
@@ -307,6 +364,22 @@ function AddPMFlow({ methods, onSave, onClose, editData }) {
   }
 
   function handleSave() {
+    // Final validation gate
+    const newErrors = {};
+    fields.forEach(f => {
+      if (f.key === "iban") {
+        const r = validateIBAN(details[f.key]);
+        if (!r.valid) newErrors[f.key] = r.error;
+      } else if (f.key === "phone") {
+        const r = validatePhone(details[f.key], PHONE_PREFIX_MAP[selMethodId]);
+        if (!r.valid) newErrors[f.key] = r.error;
+      }
+    });
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(prev => ({ ...prev, ...newErrors }));
+      return;
+    }
+
     const pm = {
       id:         editData?.id || `pm_${Date.now()}`,
       methodId:   selMethodId,
@@ -460,20 +533,37 @@ function AddPMFlow({ methods, onSave, onClose, editData }) {
               )}
 
               {/* Detail fields */}
-              {fields.map(f => (
-                <div key={f.key} style={{ marginBottom:14 }}>
-                  <label className="field-label">
-                    {f.label}
-                    {f.optional && <span style={{ fontWeight:500, textTransform:"none",
-                      letterSpacing:0, color:"var(--black-25)", marginLeft:4 }}>(optional)</span>}
-                  </label>
-                  <input className="modal-input"
-                    placeholder={f.placeholder}
-                    value={details[f.key] || ""}
-                    onChange={e => setDetails(prev => ({ ...prev, [f.key]: e.target.value }))}
-                  />
-                </div>
-              ))}
+              {fields.map(f => {
+                // Determine if this field needs validation
+                const isIBAN = f.key === "iban";
+                const isPhone = f.key === "phone";
+                const phonePrefix = isPhone ? PHONE_PREFIX_MAP[selMethodId] : null;
+
+                function handleFieldBlur() {
+                  const val = (details[f.key] || "").trim();
+                  if (!val && f.optional) { setErrors(p => ({ ...p, [f.key]: null })); return; }
+                  if (isIBAN) handleBlur(f.key, details[f.key], validateIBAN);
+                  else if (isPhone) handleBlur(f.key, details[f.key], validatePhone, phonePrefix);
+                }
+
+                return (
+                  <div key={f.key} style={{ marginBottom:14 }}>
+                    <label className="field-label">
+                      {f.label}
+                      {f.optional && <span style={{ fontWeight:500, textTransform:"none",
+                        letterSpacing:0, color:"var(--black-25)", marginLeft:4 }}>(optional)</span>}
+                    </label>
+                    <input className="modal-input"
+                      placeholder={f.placeholder}
+                      value={details[f.key] || ""}
+                      onChange={e => { setDetails(prev => ({ ...prev, [f.key]: e.target.value })); if (errors[f.key]) setErrors(p => ({ ...p, [f.key]: null })); }}
+                      onBlur={(isIBAN || isPhone) ? handleFieldBlur : undefined}
+                      style={errors[f.key] ? { borderColor:"#DF321F" } : {}}
+                    />
+                    {(isIBAN || isPhone) && <FieldError error={errors[f.key]}/>}
+                  </div>
+                );
+              })}
 
               {/* Payment reference */}
               <div style={{ marginBottom:14 }}>
@@ -638,7 +728,7 @@ export default function PeachPaymentMethods() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await fetch('https://api.peachbitcoin.com/v1/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -655,7 +745,7 @@ export default function PeachPaymentMethods() {
   useEffect(() => {
     async function fetchMethods() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/info/paymentMethods`);
+        const res = await fetch('https://api.peachbitcoin.com/v1/info/paymentMethods');
         const data = await res.json();
         // The API may return a different shape — we normalise it here.
         // If the response is usable, merge with our category metadata.

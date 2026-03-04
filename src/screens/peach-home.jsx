@@ -497,21 +497,39 @@ export default function PeachHome() {
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
-  // ── AUTH STATE (persisted via localStorage) ──
+  // ── AUTH — read from Dev Login global ──
+  const auth = window.__PEACH_AUTH__ ?? null;
+  const liveProfile = auth?.profile ?? null;
+  const user = {
+    peachId:             auth?.peachId              ?? MOCK_USER.peachId,
+    memberSince:         MOCK_USER.memberSince,
+    trades:              liveProfile?.trades         ?? MOCK_USER.trades,
+    disputesTotal:       MOCK_USER.disputesTotal,
+    rating:              liveProfile?.rating         ?? MOCK_USER.rating,
+    badges:              liveProfile?.medals ?? liveProfile?.badges ?? MOCK_USER.badges,
+    preferredMethods:    MOCK_USER.preferredMethods,
+    preferredCurrencies: MOCK_USER.preferredCurrencies,
+    totalVolumeBtc:      MOCK_USER.totalVolumeBtc,
+    lastTradeDaysAgo:    MOCK_USER.lastTradeDaysAgo,
+    blockedByCount:      MOCK_USER.blockedByCount,
+  };
+
+  // ── AUTH STATE ──
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (window.__PEACH_AUTH__) return true;
     try { return localStorage.getItem("peach_logged_in") !== "false"; } catch { return true; }
   });
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
 
   const handleLogout = () => {
+    window.__PEACH_AUTH__ = null;
     setIsLoggedIn(false);
     setShowAvatarMenu(false);
-    try { localStorage.setItem("peach_logged_in", "false"); } catch {}
+    navigate("/");
   };
   const handleLogin = () => {
     setIsLoggedIn(true);
-    try { localStorage.setItem("peach_logged_in", "true"); } catch {}
-    // In production: navigate("/auth")
+    navigate("/auth");
   };
 
   // Close avatar menu on outside click
@@ -533,7 +551,7 @@ export default function PeachHome() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await fetch('https://api.peachbitcoin.com/v1/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -577,7 +595,7 @@ export default function PeachHome() {
             {isLoggedIn ? (
               <div className="avatar-menu-wrap">
                 <div className="avatar-peachid" onClick={(e) => { e.stopPropagation(); setShowAvatarMenu(v => !v); }}>
-                  <span className="peach-id">{MOCK_USER.peachId}</span>
+                  <span className="peach-id">{user.peachId}</span>
                   <div className="avatar">PW<div className="avatar-badge">2</div></div>
                 </div>
                 {showAvatarMenu && (
@@ -635,7 +653,7 @@ export default function PeachHome() {
                   <div className="welcome-avatar">PW</div>
                   <div className="welcome-text">
                     <h1>Welcome back 👋</h1>
-                    <p>{MOCK_USER.peachId} · {MOCK_USER.trades} trades completed</p>
+                    <p>{user.peachId} · {user.trades} trades completed</p>
                   </div>
                   <div className="welcome-actions">
                     <button className="btn-ghost" onClick={() => navigate("/trades")}>View Trades</button>
@@ -708,46 +726,46 @@ export default function PeachHome() {
                   <div className="profile-top">
                     <div className="profile-avatar">PW</div>
                     <div>
-                      <div className="profile-name">{MOCK_USER.peachId}</div>
-                      <div className="profile-since">Member since {MOCK_USER.memberSince}</div>
+                      <div className="profile-name">{user.peachId}</div>
+                      <div className="profile-since">Member since {user.memberSince}</div>
                     </div>
                   </div>
                   <div className="profile-row">
                     <span className="profile-row-label">Preferred methods</span>
                     <div className="profile-methods">
-                      {MOCK_USER.preferredMethods.map(m => <span key={m} className="pref-chip">{m}</span>)}
+                      {user.preferredMethods.map(m => <span key={m} className="pref-chip">{m}</span>)}
                     </div>
                   </div>
                   <div className="profile-row">
                     <span className="profile-row-label">Preferred currencies</span>
                     <div className="profile-methods">
-                      {MOCK_USER.preferredCurrencies.map(c => <span key={c} className="pref-chip">{c}</span>)}
+                      {user.preferredCurrencies.map(c => <span key={c} className="pref-chip">{c}</span>)}
                     </div>
                   </div>
                   <div className="profile-row">
                     <span className="profile-row-label">Badges</span>
                     <div className="profile-badges">
-                      {MOCK_USER.badges.includes("supertrader") && <span className="badge badge-super">🏆 Supertrader</span>}
-                      {MOCK_USER.badges.includes("fast") && <span className="badge badge-fast">⚡ Fast</span>}
-                      {MOCK_USER.badges.length === 0 && <span style={{fontSize:".78rem",color:"var(--black-65)"}}>No badges yet</span>}
+                      {user.badges.includes("supertrader") && <span className="badge badge-super">🏆 Supertrader</span>}
+                      {user.badges.includes("fast") && <span className="badge badge-fast">⚡ Fast</span>}
+                      {user.badges.length === 0 && <span style={{fontSize:".78rem",color:"var(--black-65)"}}>No badges yet</span>}
                     </div>
                   </div>
 
                   {/* Row 1: Rating · Disputes · Blocked by */}
                   <div className="profile-stats">
                     <div className="profile-stat">
-                      <div className="profile-stat-val">⭐ {MOCK_USER.rating}</div>
+                      <div className="profile-stat-val">⭐ {user.rating}</div>
                       <div className="profile-stat-lbl">Rating</div>
                     </div>
                     <div className="profile-stat">
-                      <div className="profile-stat-val" style={{color: MOCK_USER.disputesTotal > 0 ? "var(--error)" : "var(--success)"}}>
-                        {MOCK_USER.disputesTotal}
+                      <div className="profile-stat-val" style={{color: user.disputesTotal > 0 ? "var(--error)" : "var(--success)"}}>
+                        {user.disputesTotal}
                       </div>
                       <div className="profile-stat-lbl">Disputes</div>
                     </div>
                     <div className="profile-stat">
-                      <div className="profile-stat-val" style={{color: MOCK_USER.blockedByCount > 0 ? "var(--error)" : "var(--black-65)"}}>
-                        {MOCK_USER.blockedByCount}
+                      <div className="profile-stat-val" style={{color: user.blockedByCount > 0 ? "var(--error)" : "var(--black-65)"}}>
+                        {user.blockedByCount}
                       </div>
                       <div className="profile-stat-lbl">Blocked by</div>
                     </div>
@@ -756,15 +774,15 @@ export default function PeachHome() {
                   {/* Row 2: Trades · Total Volume · Last Trade */}
                   <div className="profile-stats">
                     <div className="profile-stat">
-                      <div className="profile-stat-val">{MOCK_USER.trades}</div>
+                      <div className="profile-stat-val">{user.trades}</div>
                       <div className="profile-stat-lbl">Trades</div>
                     </div>
                     <div className="profile-stat">
-                      <div className="profile-stat-val">{MOCK_USER.totalVolumeBtc} BTC</div>
+                      <div className="profile-stat-val">{user.totalVolumeBtc} BTC</div>
                       <div className="profile-stat-lbl">Total Volume</div>
                     </div>
                     <div className="profile-stat">
-                      <div className="profile-stat-val">{MOCK_USER.lastTradeDaysAgo}d ago</div>
+                      <div className="profile-stat-val">{user.lastTradeDaysAgo}d ago</div>
                       <div className="profile-stat-lbl">Last Trade</div>
                     </div>
                   </div>

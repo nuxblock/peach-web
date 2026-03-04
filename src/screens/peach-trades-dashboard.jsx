@@ -1118,13 +1118,18 @@ export default function TradesDashboard() {
   const [collapsed, setCollapsed]       = useState(false);
   const [mobileOpen, setMobileOpen]     = useState(false);
 
-  // ── AUTH STATE (persisted via localStorage) ──
+  // ── AUTH ──
+  const auth = window.__PEACH_AUTH__ ?? null;
+  const [liveItems, setLiveItems] = useState(null);   // null = use mock
+  const [liveLimit, setLiveLimit] = useState(null);   // null = use mock
+
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (window.__PEACH_AUTH__) return true;
     try { return localStorage.getItem("peach_logged_in") !== "false"; } catch { return true; }
   });
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
-  const handleLogout = () => { setIsLoggedIn(false); setShowAvatarMenu(false); try { localStorage.setItem("peach_logged_in", "false"); } catch {} };
-  const handleLogin = () => { setIsLoggedIn(true); try { localStorage.setItem("peach_logged_in", "true"); } catch {} };
+  const handleLogout = () => { window.__PEACH_AUTH__ = null; setIsLoggedIn(false); setShowAvatarMenu(false); navigate("/"); };
+  const handleLogin  = () => { navigate("/auth"); };
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
@@ -1140,7 +1145,7 @@ export default function TradesDashboard() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await fetch('https://api.peachbitcoin.com/v1/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -1153,25 +1158,92 @@ export default function TradesDashboard() {
     return () => clearInterval(iv);
   }, []);
 
+  // ── LIVE TRADES + LIMITS ──
+  useEffect(() => {
+    if (!auth) return;
+    const base = auth.baseUrl;
+    const hdrs = { Authorization: `Bearer ${auth.token}` };
+    const peachId = auth.peachId;
+
+    function normalizeOffer(o) {
+      const isBuy = o.type === "bid";
+      const methods = o.meansOfPayment ? Object.keys(o.meansOfPayment) : [];
+      const currencies = o.meansOfPayment
+        ? [...new Set(Object.values(o.meansOfPayment).flat())]
+        : [];
+      return {
+        id: o.id,
+        kind: "open_offer",
+        direction: isBuy ? "buy" : "sell",
+        amount: Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0),
+        premium: o.premium ?? 0,
+        methods,
+        currencies,
+        createdAt: o.creationDate ?? Date.now(),
+        expiresIn: null,
+        counterparty: null,
+        unread: 0,
+      };
+    }
+
+    function normalizeContract(c) {
+      const isBuyer = (c.buyer?.id ?? c.buyerId) === peachId;
+      return {
+        id: c.id,
+        kind: "contract",
+        direction: isBuyer ? "buy" : "sell",
+        tradeStatus: c.status ?? "unknown",
+        instantTrade: c.instantTrade ?? false,
+        amount: c.amount ?? 0,
+        premium: c.premium ?? 0,
+        methods: c.paymentMethod ? [c.paymentMethod] : [],
+        currencies: c.currency ? [c.currency] : [],
+        createdAt: c.creationDate ?? Date.now(),
+        counterparty: null,
+        unread: 0,
+      };
+    }
+
+    async function fetchTradesAndLimits() {
+      try {
+        const [offersRes, contractsRes, limitRes] = await Promise.all([
+          fetch(`${base}/offers/summary`, { headers: hdrs }),
+          fetch(`${base}/contracts/summary`, { headers: hdrs }),
+          fetch(`${base}/user/tradingLimit`, { headers: hdrs }),
+        ]);
+        const [offersData, contractsData, limitData] = await Promise.all([
+          offersRes.ok ? offersRes.json() : [],
+          contractsRes.ok ? contractsRes.json() : [],
+          limitRes.ok ? limitRes.json() : null,
+        ]);
+        const items = [
+          ...(Array.isArray(offersData) ? offersData.map(normalizeOffer) : []),
+          ...(Array.isArray(contractsData) ? contractsData.map(normalizeContract) : []),
+        ];
+        setLiveItems(items);
+        if (limitData) setLiveLimit(limitData);
+      } catch {}
+    }
+    fetchTradesAndLimits();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const trades = liveItems ?? MOCK_ACTIVE;
+
   const satsPerCur  = Math.round(SAT / btcPrice);
 
-  // Daily limit mock: 340 EUR used out of 1000 EUR
-  const LIMIT_TOTAL = 1000;
-  const LIMIT_USED  = 340;
-  const limitPct = Math.min(100, (LIMIT_USED / LIMIT_TOTAL) * 100);
-
-  // Anonymous methods (cash, gift cards) — monthly limit in CHF
-  const ANON_TOTAL = 1000;
-  const ANON_USED  = 620;
-  const anonPct = Math.min(100, (ANON_USED / ANON_TOTAL) * 100);
-
-  // Annual limit
-  const ANNUAL_TOTAL = 100000;
-  const ANNUAL_USED  = 8740;
+  // Trading limits — live if available, mock fallback
+  const LIMIT_TOTAL  = liveLimit?.dailyAmount              ?? liveLimit?.daily?.amount              ?? 1000;
+  const LIMIT_USED   = liveLimit?.dailyAmountTraded        ?? liveLimit?.daily?.amountTraded        ?? 340;
+  const ANON_TOTAL   = liveLimit?.monthlyAnonymousAmount   ?? liveLimit?.monthlyAnon?.amount        ?? 1000;
+  const ANON_USED    = liveLimit?.monthlyAnonymousTraded   ?? liveLimit?.monthlyAnon?.amountTraded  ?? 620;
+  const ANNUAL_TOTAL = liveLimit?.yearlyAmount             ?? liveLimit?.yearly?.amount             ?? 100000;
+  const ANNUAL_USED  = liveLimit?.yearlyAmountTraded       ?? liveLimit?.yearly?.amountTraded       ?? 8740;
+  const limitPct  = Math.min(100, (LIMIT_USED  / LIMIT_TOTAL)  * 100);
+  const anonPct   = Math.min(100, (ANON_USED   / ANON_TOTAL)   * 100);
   const annualPct = Math.min(100, (ANNUAL_USED / ANNUAL_TOTAL) * 100);
 
   // Filter active trades
-  const filtered = MOCK_ACTIVE.filter(t => {
+  const filtered = trades.filter(t => {
     if (t.direction !== subTab) return false;
 
     if (filterMethods.length > 0) {
@@ -1198,14 +1270,14 @@ export default function TradesDashboard() {
   });
 
   // Count urgent items
-  const urgentCount = MOCK_ACTIVE.filter(t => {
+  const urgentCount = trades.filter(t => {
     const cfg = STATUS_CONFIG[t.kind === "contract" ? t.tradeStatus : t.kind] || {};
     return cfg.action;
   }).length;
 
   // Count by sub-tab
-  const buyCount  = MOCK_ACTIVE.filter(t => t.direction === "buy").length;
-  const sellCount = MOCK_ACTIVE.filter(t => t.direction === "sell").length;
+  const buyCount  = trades.filter(t => t.direction === "buy").length;
+  const sellCount = trades.filter(t => t.direction === "sell").length;
 
   const anyFilterActive = filterMethods.length + filterCurrencies.length + filterStatuses.length > 0;
 
@@ -1333,7 +1405,7 @@ export default function TradesDashboard() {
         <div className="tabs-action-row">
           <div className="main-tabs" style={{margin:0}}>
             <button className={`main-tab${mainTab === "active" ? " active" : ""}`} onClick={() => setMainTab("active")}>
-              Active Trades {MOCK_ACTIVE.length > 0 && <span style={{ background:"var(--primary)", color:"white", borderRadius:999, padding:"0 7px", fontSize:".7rem", fontWeight:800, marginLeft:6 }}>{MOCK_ACTIVE.length}</span>}
+              Active Trades {trades.length > 0 && <span style={{ background:"var(--primary)", color:"white", borderRadius:999, padding:"0 7px", fontSize:".7rem", fontWeight:800, marginLeft:6 }}>{trades.length}</span>}
             </button>
             <button className={`main-tab${mainTab === "history" ? " active" : ""}`} onClick={() => setMainTab("history")}>
               Trade History

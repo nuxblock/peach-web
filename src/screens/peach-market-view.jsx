@@ -870,13 +870,18 @@ export default function PeachMarket() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
-  // ── AUTH STATE (persisted via localStorage) ──
+  // ── AUTH ──
+  const auth = window.__PEACH_AUTH__ ?? null;
+  const [liveOffers,   setLiveOffers]   = useState(null); // null = use mock
+  const [liveUserPMs,  setLiveUserPMs]  = useState(null); // null = use mock
+
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (window.__PEACH_AUTH__) return true;
     try { return localStorage.getItem("peach_logged_in") !== "false"; } catch { return true; }
   });
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
-  const handleLogout = () => { setIsLoggedIn(false); setShowAvatarMenu(false); try { localStorage.setItem("peach_logged_in", "false"); } catch {} };
-  const handleLogin = () => { setIsLoggedIn(true); try { localStorage.setItem("peach_logged_in", "true"); } catch {} };
+  const handleLogout = () => { window.__PEACH_AUTH__ = null; setIsLoggedIn(false); setShowAvatarMenu(false); navigate("/"); };
+  const handleLogin  = () => { navigate("/auth"); };
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
@@ -890,9 +895,7 @@ export default function PeachMarket() {
   const [popupCurrency,  setPopupCurrency]  = useState(null);   // currency for trade popup
   const [requestAnim,    setRequestAnim]    = useState(false);  // "Trade requested" animation
   const [undoAnim,       setUndoAnim]       = useState(null);   // offer id being undone
-  const [localRequested, setLocalRequested] = useState(() =>
-    new Set(MOCK_OFFERS.filter(o => o.requested).map(o => o.id))
-  ); // track requested state locally
+  const [localRequested, setLocalRequested] = useState(() => new Set()); // track requested state locally
 
   const isSellTab = tab === "sell";
 
@@ -914,7 +917,7 @@ export default function PeachMarket() {
 
   // Find which of the user's PMs match the offer's methods
   function matchingUserPMs(offer) {
-    return USER_PMS.filter(pm => offer.methods.includes(pm.type));
+    return userPMs.filter(pm => offer.methods.includes(pm.type));
   }
 
   function handleRequestTrade(offer) {
@@ -945,7 +948,7 @@ export default function PeachMarket() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await fetch('https://api.peachbitcoin.com/v1/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -960,6 +963,73 @@ export default function PeachMarket() {
     return () => clearInterval(iv);
   }, []);
 
+  // ── LIVE MARKET OFFERS + USER PMs ──
+  useEffect(() => {
+    const base = auth?.baseUrl ?? 'https://api.peachbitcoin.com/v1';
+    const peachId = auth?.peachId ?? null;
+
+    function normalizeOffer(o) {
+      const methods = o.meansOfPayment ? Object.keys(o.meansOfPayment) : [];
+      const currencies = o.meansOfPayment
+        ? [...new Set(Object.values(o.meansOfPayment).flat())]
+        : [];
+      return {
+        id: o.id,
+        type: o.type,
+        amount: Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0),
+        premium: o.premium ?? 0,
+        methods,
+        currencies,
+        rep: o.user?.rating ?? 0,
+        trades: o.user?.trades ?? 0,
+        badges: o.user?.medals ?? o.user?.badges ?? [],
+        auto: false,
+        online: o.user?.online ?? false,
+        isOwn: !!peachId && o.user?.id === peachId,
+      };
+    }
+
+    async function fetchMarket() {
+      try {
+        const [bidsRes, asksRes] = await Promise.all([
+          fetch(`${base}/offer/search`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ type:"bid" }) }),
+          fetch(`${base}/offer/search`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ type:"ask" }) }),
+        ]);
+        const [bids, asks] = await Promise.all([
+          bidsRes.ok ? bidsRes.json() : [],
+          asksRes.ok ? asksRes.json() : [],
+        ]);
+        const all = [
+          ...(Array.isArray(bids) ? bids : bids?.offers ?? []).map(normalizeOffer),
+          ...(Array.isArray(asks) ? asks : asks?.offers ?? []).map(normalizeOffer),
+        ];
+        setLiveOffers(all);
+      } catch {}
+    }
+    fetchMarket();
+
+    if (auth) {
+      fetch(`${base}/user/me/paymentMethods`, {
+        headers: { Authorization: `Bearer ${auth.token}` },
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            setLiveUserPMs(data.map(pm => ({
+              id: pm.id,
+              type: pm.type ?? pm.id,
+              currencies: pm.currencies ?? [],
+              details: pm.data ?? pm.details ?? {},
+            })));
+          }
+        })
+        .catch(() => {});
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const marketOffers = liveOffers ?? MOCK_OFFERS;
+  const userPMs = liveUserPMs ?? USER_PMS;
+
   const offerType = isSellTab ? "bid" : "ask";
 
   const PAYMENT_TYPE_MAP = {
@@ -968,7 +1038,7 @@ export default function PeachMarket() {
     "Gift card": ["Amazon","iTunes"],
   };
 
-  const filtered = MOCK_OFFERS
+  const filtered = marketOffers
     .filter(o => o.type === offerType)
     .filter(o => !myOffersOnly || o.isOwn)
     .filter(o => selCurrencies.length === 0 || selCurrencies.some(c => o.currencies.includes(c)))

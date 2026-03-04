@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-// ⚠️ react-router-dom removed for Claude.ai preview. Restore import for local dev.
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
 const PeachIcon = ({ size = 28 }) => (
@@ -1730,6 +1729,9 @@ const CSS = `
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function TradeExecution() {
   const navigate = useNavigate();
+  const { id: routeId } = useParams();
+  const auth = window.__PEACH_AUTH__ ?? null;
+
   const [demoOpen, setDemoOpen] = useState(false);
   const [scenarioId, setScenarioId]   = useState("buyer_awaiting");
   const [collapsed, setCollapsed]     = useState(false);
@@ -1740,14 +1742,23 @@ export default function TradeExecution() {
   const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
   const btcPrice = Math.round(allPrices[selectedCurrency] ?? BTC_PRICE);
 
-  const scenario = DEMO_SCENARIOS.find(s => s.id === scenarioId) || DEMO_SCENARIOS[0];
-  const messages = MOCK_MESSAGES[scenarioId] || [];
+  // ── LIVE CONTRACT DATA ──
+  const [liveContract, setLiveContract] = useState(null);
+  const [liveMessages, setLiveMessages] = useState(null);
+
+  const demoScenario = DEMO_SCENARIOS.find(s => s.id === scenarioId) || DEMO_SCENARIOS[0];
+  const demoMessages = MOCK_MESSAGES[scenarioId] || [];
+
+  // Use live data if available, fall back to demo scenario
+  const activeLive = !!liveContract;
+  const scenario = activeLive ? liveContract : demoScenario;
+  const messages = activeLive ? (liveMessages ?? []) : demoMessages;
   const { contract, counterparty, tradeStatus: status, role, paymentDetails } = scenario;
 
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await fetch('https://api.peachbitcoin.com/v1/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -1759,6 +1770,61 @@ export default function TradeExecution() {
     const iv = setInterval(fetchPrices, 30000);
     return () => clearInterval(iv);
   }, []);
+
+  // ── FETCH LIVE CONTRACT + CHAT ──
+  useEffect(() => {
+    if (!auth || !routeId) return;
+    const base = auth.baseUrl;
+    const hdrs = { Authorization: `Bearer ${auth.token}` };
+    const peachId = auth.peachId;
+
+    async function fetchContract() {
+      try {
+        const res = await fetch(`${base}/contract/${routeId}`, { headers: hdrs });
+        if (!res.ok) return;
+        const c = await res.json();
+        const isBuyer = (c.buyer?.id ?? c.buyerId) === peachId;
+        setLiveContract({
+          id: c.id,
+          role: isBuyer ? "buyer" : "seller",
+          tradeStatus: c.status ?? "matched",
+          instantTrade: c.instantTrade ?? false,
+          contract: {
+            id: c.id,
+            direction: isBuyer ? "buy" : "sell",
+            amount: c.amount ?? 0,
+            fiat: c.price != null ? c.price.toFixed(2) : null,
+            currency: c.currency ?? "EUR",
+            premium: c.premium ?? 0,
+            method: c.paymentMethod ?? "",
+            creationDate: c.creationDate ?? Date.now(),
+            paymentExpectedBy: c.paymentExpectedBy ?? null,
+            escrow: c.escrow ?? null,
+          },
+          counterparty: null,
+          paymentDetails: c.paymentData ?? null,
+        });
+      } catch {}
+    }
+
+    async function fetchChat() {
+      try {
+        const res = await fetch(`${base}/contract/${routeId}/chat?page=0`, { headers: hdrs });
+        if (!res.ok) return;
+        const data = await res.json();
+        const msgs = Array.isArray(data) ? data : (data?.messages ?? []);
+        setLiveMessages(msgs.map(m => ({
+          id: m.id ?? Math.random(),
+          from: m.from === peachId ? "me" : "them",
+          text: m.message ?? m.text ?? "",
+          time: m.date ? new Date(m.date).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }) : "",
+        })));
+      } catch {}
+    }
+
+    fetchContract();
+    fetchChat();
+  }, [routeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const satsPerCur  = Math.round(SAT / btcPrice);
 

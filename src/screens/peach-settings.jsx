@@ -2,6 +2,192 @@ import { useState, useEffect } from "react";
 // ⚠️ react-router-dom removed for Claude.ai preview. Restore import for local dev.
 import { useNavigate } from "react-router-dom";
 
+// ─── INPUT VALIDATORS (inline for Claude.ai preview; import from peach-validators.js for GitHub build) ──
+
+// ─── SHA-256 (compact pure-JS) ───────────────────────────────────────────────
+const SHA256_K = new Uint32Array([
+  0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+  0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+  0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+  0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+  0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+  0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+  0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+  0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2,
+]);
+function sha256(msgBytes) {
+  const rr = (v, n) => (v >>> n) | (v << (32 - n));
+  let H0=0x6a09e667,H1=0xbb67ae85,H2=0x3c6ef372,H3=0xa54ff53a,
+      H4=0x510e527f,H5=0x9b05688c,H6=0x1f83d9ab,H7=0x5be0cd19;
+  const len = msgBytes.length, bitLen = len * 8;
+  const padded = new Uint8Array(Math.ceil((len + 9) / 64) * 64);
+  padded.set(msgBytes); padded[len] = 0x80;
+  const dv = new DataView(padded.buffer);
+  dv.setUint32(padded.length - 4, bitLen, false);
+  const W = new Uint32Array(64);
+  for (let off = 0; off < padded.length; off += 64) {
+    for (let i = 0; i < 16; i++) W[i] = dv.getUint32(off + i * 4, false);
+    for (let i = 16; i < 64; i++) {
+      const s0 = rr(W[i-15],7)^rr(W[i-15],18)^(W[i-15]>>>3);
+      const s1 = rr(W[i-2],17)^rr(W[i-2],19)^(W[i-2]>>>10);
+      W[i] = (W[i-16]+s0+W[i-7]+s1)|0;
+    }
+    let a=H0,b=H1,c=H2,d=H3,e=H4,f=H5,g=H6,h=H7;
+    for (let i = 0; i < 64; i++) {
+      const S1=rr(e,6)^rr(e,11)^rr(e,25), ch=(e&f)^(~e&g), t1=(h+S1+ch+SHA256_K[i]+W[i])|0;
+      const S0=rr(a,2)^rr(a,13)^rr(a,22), maj=(a&b)^(a&c)^(b&c), t2=(S0+maj)|0;
+      h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
+    }
+    H0=(H0+a)|0;H1=(H1+b)|0;H2=(H2+c)|0;H3=(H3+d)|0;
+    H4=(H4+e)|0;H5=(H5+f)|0;H6=(H6+g)|0;H7=(H7+h)|0;
+  }
+  const out = new Uint8Array(32), odv = new DataView(out.buffer);
+  [H0,H1,H2,H3,H4,H5,H6,H7].forEach((v,i) => odv.setUint32(i*4, v, false));
+  return out;
+}
+
+// ─── Base58Check ─────────────────────────────────────────────────────────────
+const B58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const B58_MAP = new Uint8Array(128).fill(255);
+for (let i = 0; i < 58; i++) B58_MAP[B58_ALPHABET.charCodeAt(i)] = i;
+function base58Decode(str) {
+  let zeros = 0;
+  for (let i = 0; i < str.length && str[i]==='1'; i++) zeros++;
+  const size = Math.ceil(str.length * 733 / 1000) + 1;
+  const buf = new Uint8Array(size);
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    if (c >= 128 || B58_MAP[c] === 255) return null;
+    let carry = B58_MAP[c];
+    for (let j = size - 1; j >= 0; j--) { carry += 58*buf[j]; buf[j] = carry & 0xff; carry >>= 8; }
+    if (carry !== 0) return null;
+  }
+  let start = 0;
+  while (start < size && buf[start] === 0) start++;
+  const result = new Uint8Array(zeros + (size - start));
+  result.set(buf.subarray(start), zeros);
+  return result;
+}
+function verifyBase58Check(addr, expectedVersion) {
+  const decoded = base58Decode(addr);
+  if (!decoded || decoded.length !== 25) return false;
+  if (decoded[0] !== expectedVersion) return false;
+  const hash = sha256(sha256(decoded.slice(0, 21)));
+  return hash[0]===decoded[21] && hash[1]===decoded[22] && hash[2]===decoded[23] && hash[3]===decoded[24];
+}
+
+// ─── Bech32 / Bech32m ───────────────────────────────────────────────────────
+const BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+function bech32Polymod(values) {
+  const GEN = [0x3b6a57b2,0x26508e6d,0x1ea119fa,0x3d4233dd,0x2a1462b3];
+  let chk = 1;
+  for (let i = 0; i < values.length; i++) {
+    const top = chk >> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ values[i];
+    for (let j = 0; j < 5; j++) { if ((top >> j) & 1) chk ^= GEN[j]; }
+  }
+  return chk;
+}
+function bech32HrpExpand(hrp) {
+  const out = [];
+  for (let i = 0; i < hrp.length; i++) out.push(hrp.charCodeAt(i) >> 5);
+  out.push(0);
+  for (let i = 0; i < hrp.length; i++) out.push(hrp.charCodeAt(i) & 31);
+  return out;
+}
+function bech32Decode(addr) {
+  const lower = addr.toLowerCase();
+  if (lower !== addr && addr.toUpperCase() !== addr) return null;
+  const a = lower, pos = a.lastIndexOf("1");
+  if (pos < 1 || pos + 7 > a.length || a.length > 90) return null;
+  const hrp = a.slice(0, pos), dataStr = a.slice(pos + 1), data = [];
+  for (let i = 0; i < dataStr.length; i++) {
+    const idx = BECH32_CHARSET.indexOf(dataStr[i]);
+    if (idx === -1) return null;
+    data.push(idx);
+  }
+  const polymod = bech32Polymod(bech32HrpExpand(hrp).concat(data));
+  let encoding = null;
+  if (polymod === 1) encoding = "bech32";
+  if (polymod === 0x2bc830a3) encoding = "bech32m";
+  if (!encoding) return null;
+  return { hrp, data: data.slice(0, data.length - 6), encoding };
+}
+function convertBits(data, fromBits, toBits, pad) {
+  let acc = 0, bits = 0; const out = [], maxv = (1 << toBits) - 1;
+  for (let i = 0; i < data.length; i++) {
+    acc = (acc << fromBits) | data[i]; bits += fromBits;
+    while (bits >= toBits) { bits -= toBits; out.push((acc >> bits) & maxv); }
+  }
+  if (pad) { if (bits > 0) out.push((acc << (toBits - bits)) & maxv); }
+  else { if (bits >= fromBits) return null; if ((acc << (toBits - bits)) & maxv) return null; }
+  return out;
+}
+function verifySegwitAddress(addr) {
+  const dec = bech32Decode(addr);
+  if (!dec || dec.hrp !== "bc") return { ok: false, error: "Invalid bech32 encoding or checksum" };
+  const witnessVer = dec.data[0];
+  if (witnessVer > 16) return { ok: false, error: "Witness version must be 0–16" };
+  const prog = convertBits(dec.data.slice(1), 5, 8, false);
+  if (!prog || prog.length < 2 || prog.length > 40) return { ok: false, error: "Invalid witness program length" };
+  if (witnessVer === 0) {
+    if (dec.encoding !== "bech32") return { ok: false, error: "Witness v0 must use bech32 encoding" };
+    if (prog.length !== 20 && prog.length !== 32) return { ok: false, error: "Witness v0 program must be 20 or 32 bytes" };
+  } else {
+    if (dec.encoding !== "bech32m") return { ok: false, error: `Witness v${witnessVer} must use bech32m encoding` };
+  }
+  return { ok: true };
+}
+
+// ─── Validators ──────────────────────────────────────────────────────────────
+function validateBtcAddress(addr) {
+  if (!addr || !addr.trim()) return { valid: false, error: "Address is required" };
+  const a = addr.trim();
+  if (a.startsWith("1")) {
+    if (a.length < 25 || a.length > 34) return { valid: false, error: "P2PKH address must be 25–34 characters" };
+    if (!verifyBase58Check(a, 0x00)) return { valid: false, error: "Invalid P2PKH address (checksum failed)" };
+    return { valid: true, error: null };
+  }
+  if (a.startsWith("3")) {
+    if (a.length < 25 || a.length > 34) return { valid: false, error: "P2SH address must be 25–34 characters" };
+    if (!verifyBase58Check(a, 0x05)) return { valid: false, error: "Invalid P2SH address (checksum failed)" };
+    return { valid: true, error: null };
+  }
+  if (a.toLowerCase().startsWith("bc1")) {
+    if (a.toLowerCase() !== a) return { valid: false, error: "Bech32 address must be lowercase" };
+    const result = verifySegwitAddress(a);
+    if (!result.ok) return { valid: false, error: result.error };
+    return { valid: true, error: null };
+  }
+  return { valid: false, error: "Address must start with 1, 3, or bc1" };
+}
+
+const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
+function validateBIP322Signature(raw) {
+  if (!raw || !raw.trim()) return { valid: false, error: "Signature is required" };
+  const clean = raw.trim();
+  if (clean.length < 20) return { valid: false, error: "Signature too short" };
+  if (!BASE64_RE.test(clean)) return { valid: false, error: "Signature must be valid base64" };
+  return { valid: true, error: null };
+}
+
+function validateFeeRate(raw) {
+  if (raw === "" || raw === null || raw === undefined) return { valid: false, error: "Fee rate is required" };
+  const n = Number(raw);
+  if (!Number.isInteger(n)) return { valid: false, error: "Must be a whole number" };
+  if (n < 1) return { valid: false, error: "Minimum 1 sat/vB" };
+  if (n > 150) return { valid: false, error: "Maximum 150 sat/vB" };
+  return { valid: true, error: null };
+}
+
+function makeBlurHandler(setErrors) {
+  return (fieldKey, value, validatorFn, ...extraArgs) => {
+    const result = validatorFn(value, ...extraArgs);
+    setErrors(prev => ({ ...prev, [fieldKey]: result.valid ? null : result.error }));
+    return result.valid;
+  };
+}
+
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
 const PeachIcon = ({ size = 28 }) => (
   <svg width={size} height={size} viewBox="0 0 352 353" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -184,6 +370,17 @@ function PrimaryBtn({ label, onClick, disabled }) {
 }
 
 // ─── SHARED: OUTLINE BUTTON ───────────────────────────────────────────────────
+
+// ─── SHARED: FIELD ERROR ─────────────────────────────────────────────────────
+function FieldError({ error }) {
+  if (!error) return null;
+  return (
+    <div style={{ fontSize:".72rem", fontWeight:600, color:"#DF321F", marginTop:4, marginBottom:4, paddingLeft:2 }}>
+      {error}
+    </div>
+  );
+}
+
 function OutlineBtn({ label, onClick }) {
   return (
     <button onClick={onClick} style={{
@@ -424,11 +621,13 @@ function NetworkFeesSubScreen({ onBack }) {
   const [selected, setSelected] = useState("medium");
   const [customVal, setCustomVal] = useState("");
   const [saved, setSaved] = useState(true);
+  const [errors, setErrors] = useState({});
+  const handleBlur = makeBlurHandler(setErrors);
 
   useEffect(() => {
     async function fetchFees() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/estimateFees`);
+        const res = await fetch("https://api.peachbitcoin.com/v1/estimateFees");
         const data = await res.json();
         if (data) setFeeRates({
           fast:   data.fastestFee  ?? data.fast   ?? 1,
@@ -447,7 +646,13 @@ function NetworkFeesSubScreen({ onBack }) {
     { id:"custom", label:"custom:",     sat: null },
   ];
 
-  const canSave = !saved && (selected !== "custom" || (customVal && parseInt(customVal) > 0));
+  function handleCustomBlur() {
+    if (selected !== "custom" || customVal === "") { setErrors(p => ({ ...p, fee: null })); return; }
+    handleBlur("fee", customVal, validateFeeRate);
+  }
+
+  const customValid = selected !== "custom" || (customVal !== "" && validateFeeRate(customVal).valid);
+  const canSave = !saved && customValid;
 
   return (
     <SubScreenWrapper title="Network Fees" onBack={onBack}>
@@ -465,10 +670,11 @@ function NetworkFeesSubScreen({ onBack }) {
               {o.id === "custom" ? (
                 <input
                   value={customVal}
-                  onChange={e => { setCustomVal(e.target.value); setSelected("custom"); setSaved(false); }}
+                  onChange={e => { setCustomVal(e.target.value); setSelected("custom"); setSaved(false); setErrors(p => ({ ...p, fee: null })); }}
+                  onBlur={handleCustomBlur}
                   onClick={e => e.stopPropagation()}
-                  placeholder="0" type="number" min="1"
-                  style={{ width:60, padding:"4px 8px", borderRadius:6, border:"1.5px solid #C4B5AE", fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"#2B1911", outline:"none", background:"#FFFFFF" }}
+                  placeholder="0" type="number" min="1" max="150"
+                  style={{ width:60, padding:"4px 8px", borderRadius:6, border: errors.fee ? "1.5px solid #DF321F" : "1.5px solid #C4B5AE", fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"#2B1911", outline:"none", background:"#FFFFFF" }}
                 />
               ) : (
                 <span style={{ fontSize:".82rem", color:"#7D675E", fontWeight:500 }}>({o.sat} sat/vB)</span>
@@ -480,6 +686,7 @@ function NetworkFeesSubScreen({ onBack }) {
             </div>
           </button>
         ))}
+        {errors.fee && <FieldError error={errors.fee}/>}
       </div>
       <PrimaryBtn label="FEE RATE SET" onClick={() => setSaved(true)} disabled={!canSave}/>
     </SubScreenWrapper>
@@ -488,6 +695,20 @@ function NetworkFeesSubScreen({ onBack }) {
 
 function TxBatchingSubScreen({ onBack }) {
   const [batching, setBatching] = useState(false);
+
+  async function handleBatchingChange(value) {
+    setBatching(value);
+    const auth = window.__PEACH_AUTH__;
+    if (!auth) return;
+    try {
+      await fetch(`${auth.baseUrl}/user/batching`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${auth.token}` },
+        body: JSON.stringify({ enable: value }),
+      });
+    } catch {}
+  }
+
   return (
     <SubScreenWrapper title="Transaction Batching" onBack={onBack}>
       <p style={{ fontSize:".9rem", color:"#2B1911", marginBottom:16, lineHeight:1.6 }}>
@@ -501,7 +722,7 @@ function TxBatchingSubScreen({ onBack }) {
       </div>
       <div style={{ background:"#FFFFFF", border:"1px solid #EAE3DF", borderRadius:12, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
         <span style={{ fontSize:".9rem", fontWeight:700, color:"#2B1911" }}>transaction batching</span>
-        <Toggle checked={batching} onChange={setBatching}/>
+        <Toggle checked={batching} onChange={handleBatchingChange}/>
       </div>
       <div style={{ background:"#F4EEEB", borderRadius:10, padding:"12px 16px" }}>
         <p style={{ fontSize:".76rem", color:"#7D675E", lineHeight:1.5, margin:0 }}>
@@ -519,13 +740,18 @@ function RefundAddressSubScreen({ onBack }) {
   const [address, setAddress] = useState("");
   const [addressSet, setAddressSet] = useState(false);
   const [signature, setSignature] = useState("");
-  const peachId = "peach03cf9e9a";
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const handleBlur = makeBlurHandler(setErrors);
+  const peachId = window.__PEACH_AUTH__?.peachId ?? "peach03cf9e9a";
   const signMessage = `I confirm that only I, ${peachId}, control the address ${address}`;
 
   function handleAddressBlur() {
-    if (address.trim().length > 10) setAddressSet(true);
+    if (!address.trim()) { setErrors(p => ({ ...p, address: null })); setAddressSet(false); return; }
+    const valid = handleBlur("address", address, validateBtcAddress);
+    setAddressSet(valid);
   }
-  function handleRemove() { setLabel(""); setAddress(""); setAddressSet(false); }
+  function handleRemove() { setLabel(""); setAddress(""); setAddressSet(false); setErrors(p => ({ ...p, address: null })); }
 
   if (step === 2) {
     return (
@@ -553,18 +779,44 @@ function RefundAddressSubScreen({ onBack }) {
         <div style={{ marginBottom:28 }}>
           <div style={{ fontSize:".75rem", fontWeight:700, color:"#2B1911", marginBottom:6 }}>signature</div>
           <div style={{ position:"relative" }}>
-            <input value={signature} onChange={e => setSignature(e.target.value)} placeholder="signature"
-              style={{ width:"100%", padding:"10px 40px 10px 14px", borderRadius:10, border:"1.5px solid #C4B5AE", background:"#FFFFFF", fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"#2B1911", outline:"none" }}/>
+            <input value={signature} onChange={e => { setSignature(e.target.value); setErrors(p => ({ ...p, sig: null })); }} onBlur={() => { if (signature.trim()) handleBlur("sig", signature, validateBIP322Signature); }} placeholder="signature"
+              style={{ width:"100%", padding:"10px 40px 10px 14px", borderRadius:10, border: errors.sig ? "1.5px solid #DF321F" : "1.5px solid #C4B5AE", background:"#FFFFFF", fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"#2B1911", outline:"none" }}/>
             <div style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)" }}>
-              <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setSignature(t); } catch {} }}
+              <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setSignature(t); setErrors(p => ({ ...p, sig: null })); } catch {} }}
                 style={{ border:"none", background:"transparent", cursor:"pointer", color:"#F56522", padding:4 }}>
                 <IconCopy size={16}/>
               </button>
             </div>
           </div>
+          <FieldError error={errors.sig}/>
         </div>
 
-        <PrimaryBtn label="CONFIRM" onClick={() => onBack()} disabled={!signature.trim()}/>
+        <PrimaryBtn label={submitting ? "SAVING…" : "CONFIRM"} disabled={!signature.trim() || !!errors.sig || !validateBIP322Signature(signature).valid || submitting} onClick={async () => {
+          setSubmitting(true);
+          const auth = window.__PEACH_AUTH__;
+          try {
+            if (auth) {
+              const res = await fetch(`${auth.baseUrl}/user`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${auth.token}` },
+                body: JSON.stringify({ refundAddress: address, refundAddressLabel: label || undefined, refundAddressSignature: signature }),
+              });
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                setErrors(p => ({ ...p, sig: err.message || "Server error — try again" }));
+                setSubmitting(false);
+                return;
+              }
+            } else {
+              await new Promise(r => setTimeout(r, 600));
+            }
+          } catch {
+            setErrors(p => ({ ...p, sig: "Network error — check your connection" }));
+            setSubmitting(false);
+            return;
+          }
+          onBack();
+        }}/>
       </SubScreenWrapper>
     );
   }
@@ -580,12 +832,12 @@ function RefundAddressSubScreen({ onBack }) {
       <input value={label} onChange={e => setLabel(e.target.value)} placeholder="address label"
         style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:10, border:"1.5px solid #C4B5AE", background:"#FFFFFF", fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"#2B1911", outline:"none" }}/>
 
-      <div style={{ position:"relative", marginBottom: addressSet ? 8 : 24 }}>
-        <input value={address} onChange={e => { setAddress(e.target.value); setAddressSet(false); }} onBlur={handleAddressBlur}
+      <div style={{ position:"relative", marginBottom: addressSet ? 8 : (errors.address ? 0 : 24) }}>
+        <input value={address} onChange={e => { setAddress(e.target.value); setAddressSet(false); setErrors(p => ({ ...p, address: null })); }} onBlur={handleAddressBlur}
           placeholder="bc1q …"
-          style={{ width:"100%", padding:"10px 72px 10px 14px", borderRadius:10, border: addressSet ? "2px solid #F56522" : "1.5px solid #C4B5AE", background:"#FFFFFF", fontFamily:"monospace", fontSize:".85rem", color:"#2B1911", outline:"none" }}/>
+          style={{ width:"100%", padding:"10px 72px 10px 14px", borderRadius:10, border: errors.address ? "2px solid #DF321F" : addressSet ? "2px solid #F56522" : "1.5px solid #C4B5AE", background:"#FFFFFF", fontFamily:"monospace", fontSize:".85rem", color:"#2B1911", outline:"none" }}/>
         <div style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", display:"flex", gap:4 }}>
-          <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setAddress(t); if(t.length>10) setAddressSet(true); } catch {} }}
+          <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setAddress(t); setErrors(p => ({ ...p, address: null })); const r = validateBtcAddress(t); if(r.valid) setAddressSet(true); else { setAddressSet(false); setErrors(p => ({ ...p, address: r.error })); } } catch {} }}
             style={{ border:"none", background:"transparent", cursor:"pointer", color:"#F56522", padding:4 }}>
             <IconCopy size={16}/>
           </button>
@@ -594,6 +846,7 @@ function RefundAddressSubScreen({ onBack }) {
           </button>
         </div>
       </div>
+      {errors.address && <div style={{ marginBottom:16 }}><FieldError error={errors.address}/></div>}
 
       {addressSet && (
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, marginBottom:20 }}>
@@ -610,7 +863,7 @@ function RefundAddressSubScreen({ onBack }) {
         </button>
       </div>
 
-      <PrimaryBtn label="NEXT" onClick={() => setStep(2)} disabled={!address.trim() || address.trim().length < 10}/>
+      <PrimaryBtn label="NEXT" onClick={() => setStep(2)} disabled={!addressSet || !!errors.address}/>
     </SubScreenWrapper>
   );
 }
@@ -622,13 +875,78 @@ function PayoutWalletSubScreen({ onBack }) {
   const [address, setAddress] = useState("");
   const [addressSet, setAddressSet] = useState(false);
   const [signature, setSignature] = useState("");
-  const peachId = "peach03cf9e9a";
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const handleBlur = makeBlurHandler(setErrors);
+  const peachId = window.__PEACH_AUTH__?.peachId ?? "peach03cf9e9a";
   const signMessage = `I confirm that only I, ${peachId}, control the address ${address}`;
 
-  function handleAddressBlur() { if (address.trim().length > 10) setAddressSet(true); }
-  function handleRemove() { setLabel(""); setAddress(""); setAddressSet(false); }
+  function handleAddressBlur() {
+    if (!address.trim()) { setErrors(p => ({ ...p, address: null })); setAddressSet(false); return; }
+    const valid = handleBlur("address", address, validateBtcAddress);
+    setAddressSet(valid);
+  }
+  function handleRemove() { setLabel(""); setAddress(""); setAddressSet(false); setErrors(p => ({ ...p, address: null })); }
+
+  async function handleConfirm() {
+    const sigCheck = validateBIP322Signature(signature);
+    if (!sigCheck.valid) { setErrors(p => ({ ...p, sig: sigCheck.error })); return; }
+
+    setSubmitting(true);
+    setErrors(p => ({ ...p, sig: null }));
+
+    const auth = window.__PEACH_AUTH__;
+    try {
+      if (auth) {
+        const res = await fetch(`${auth.baseUrl}/user`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${auth.token}` },
+          body: JSON.stringify({
+            payoutAddress: address,
+            payoutAddressLabel: label || undefined,
+            payoutAddressSignature: signature,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          setErrors(p => ({ ...p, sig: (res.status === 400 || res.status === 401) ? "Signature invalid" : (err.message || "Server error — try again") }));
+          setSubmitting(false);
+          return;
+        }
+      } else {
+        await new Promise(r => setTimeout(r, 800));
+      }
+      setSubmitting(false);
+      setShowSuccess(true);
+    } catch (e) {
+      setSubmitting(false);
+      setErrors(p => ({ ...p, sig: "Network error — check your connection" }));
+    }
+  }
+
+  // ── Success popup overlay ──
+  if (showSuccess) {
+    return (
+      <SubScreenWrapper title="Custom Payout Address" onBack={onBack}>
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 20px", textAlign:"center" }}>
+          <div style={{ width:64, height:64, borderRadius:"50%", background:"#E8F5E0", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:20 }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#65A519" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <div style={{ fontSize:"1.1rem", fontWeight:800, color:"#2B1911", marginBottom:8 }}>Signature valid</div>
+          <div style={{ fontSize:".88rem", color:"#7D675E", lineHeight:1.5 }}>Custom payout address added.</div>
+          <div style={{ marginTop:32, width:"100%" }}>
+            <PrimaryBtn label="DONE" onClick={onBack}/>
+          </div>
+        </div>
+      </SubScreenWrapper>
+    );
+  }
 
   if (step === 2) {
+    const sigValid = signature.trim() && validateBIP322Signature(signature).valid && !errors.sig;
     return (
       <SubScreenWrapper title="Sign Your Address" onBack={() => setStep(1)}>
         <p style={{ fontSize:".82rem", color:"#7D675E", marginBottom:20, lineHeight:1.6 }}>
@@ -654,15 +972,16 @@ function PayoutWalletSubScreen({ onBack }) {
         <div style={{ marginBottom:12 }}>
           <div style={{ fontSize:".75rem", fontWeight:700, color:"#2B1911", marginBottom:6 }}>signature</div>
           <div style={{ position:"relative" }}>
-            <input value={signature} onChange={e => setSignature(e.target.value)} placeholder="signature"
-              style={{ width:"100%", padding:"10px 40px 10px 14px", borderRadius:10, border:"1.5px solid #C4B5AE", background:"#FFFFFF", fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"#2B1911", outline:"none" }}/>
+            <input value={signature} onChange={e => { setSignature(e.target.value); setErrors(p => ({ ...p, sig: null })); }} onBlur={() => { if (signature.trim()) handleBlur("sig", signature, validateBIP322Signature); }} placeholder="signature"
+              style={{ width:"100%", padding:"10px 40px 10px 14px", borderRadius:10, border: errors.sig ? "1.5px solid #DF321F" : "1.5px solid #C4B5AE", background:"#FFFFFF", fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"#2B1911", outline:"none" }}/>
             <div style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)" }}>
-              <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setSignature(t); } catch {} }}
+              <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setSignature(t); setErrors(p => ({ ...p, sig: null })); } catch {} }}
                 style={{ border:"none", background:"transparent", cursor:"pointer", color:"#F56522", padding:4 }}>
                 <IconCopy size={16}/>
               </button>
             </div>
           </div>
+          <FieldError error={errors.sig}/>
         </div>
 
         <div style={{ background:"#FEEDE5", border:"1.5px solid #F56522", borderRadius:10, padding:"12px 14px", marginBottom:24 }}>
@@ -671,7 +990,7 @@ function PayoutWalletSubScreen({ onBack }) {
           </p>
         </div>
 
-        <PrimaryBtn label="CONFIRM" onClick={() => onBack()} disabled={!signature.trim()}/>
+        <PrimaryBtn label={submitting ? "VERIFYING…" : "CONFIRM"} onClick={handleConfirm} disabled={!sigValid || submitting}/>
       </SubScreenWrapper>
     );
   }
@@ -687,12 +1006,12 @@ function PayoutWalletSubScreen({ onBack }) {
       <input value={label} onChange={e => setLabel(e.target.value)} placeholder="address label"
         style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:10, border:"1.5px solid #C4B5AE", background:"#FFFFFF", fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"#2B1911", outline:"none" }}/>
 
-      <div style={{ position:"relative", marginBottom: addressSet ? 8 : 24 }}>
-        <input value={address} onChange={e => { setAddress(e.target.value); setAddressSet(false); }} onBlur={handleAddressBlur}
+      <div style={{ position:"relative", marginBottom: addressSet ? 8 : (errors.address ? 0 : 24) }}>
+        <input value={address} onChange={e => { setAddress(e.target.value); setAddressSet(false); setErrors(p => ({ ...p, address: null })); }} onBlur={handleAddressBlur}
           placeholder="bc1q …"
-          style={{ width:"100%", padding:"10px 72px 10px 14px", borderRadius:10, border: addressSet ? "2px solid #F56522" : "1.5px solid #C4B5AE", background:"#FFFFFF", fontFamily:"monospace", fontSize:".85rem", color:"#2B1911", outline:"none" }}/>
+          style={{ width:"100%", padding:"10px 72px 10px 14px", borderRadius:10, border: errors.address ? "2px solid #DF321F" : addressSet ? "2px solid #F56522" : "1.5px solid #C4B5AE", background:"#FFFFFF", fontFamily:"monospace", fontSize:".85rem", color:"#2B1911", outline:"none" }}/>
         <div style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", display:"flex", gap:4 }}>
-          <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setAddress(t); if(t.length>10) setAddressSet(true); } catch {} }}
+          <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setAddress(t); setErrors(p => ({ ...p, address: null })); const r = validateBtcAddress(t); if(r.valid) setAddressSet(true); else { setAddressSet(false); setErrors(p => ({ ...p, address: r.error })); } } catch {} }}
             style={{ border:"none", background:"transparent", cursor:"pointer", color:"#F56522", padding:4 }}>
             <IconCopy size={16}/>
           </button>
@@ -701,23 +1020,19 @@ function PayoutWalletSubScreen({ onBack }) {
           </button>
         </div>
       </div>
+      {errors.address && <div style={{ marginBottom:16 }}><FieldError error={errors.address}/></div>}
 
       {addressSet && (
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, marginBottom:20 }}>
-          <span style={{ fontSize:".8rem", fontWeight:800, color:"#65A519", letterSpacing:".04em" }}>ADDRESS SET ✓</span>
+          <span style={{ fontSize:".8rem", fontWeight:800, color:"#65A519", letterSpacing:".04em" }}>ADDRESS VALID ✓</span>
           <button onClick={handleRemove} style={{ display:"flex", alignItems:"center", gap:5, border:"none", background:"transparent", cursor:"pointer", color:"#2B1911", fontFamily:"'Baloo 2',cursive", fontSize:".78rem", fontWeight:700, textDecoration:"underline", textTransform:"uppercase", letterSpacing:".04em" }}>
             REMOVE WALLET <IconTrash size={14}/>
           </button>
         </div>
       )}
 
-      <div style={{ textAlign:"center", marginBottom:28 }}>
-        <button style={{ border:"none", background:"transparent", cursor:"pointer", color:"#7D675E", fontFamily:"'Baloo 2',cursive", fontSize:".78rem", fontWeight:700, textDecoration:"underline", textTransform:"uppercase", letterSpacing:".04em", display:"inline-flex", alignItems:"center", gap:5 }}>
-          OPEN EXTERNAL WALLET APP <IconExternalLink size={12}/>
-        </button>
-      </div>
 
-      <PrimaryBtn label="NEXT" onClick={() => setStep(2)} disabled={!address.trim() || address.trim().length < 10}/>
+      <PrimaryBtn label="NEXT" onClick={() => setStep(2)} disabled={!addressSet || !!errors.address}/>
     </SubScreenWrapper>
   );
 }
@@ -1000,7 +1315,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await fetch('https://api.peachbitcoin.com/v1/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);

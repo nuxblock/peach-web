@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-// ⚠️ react-router-dom removed for Claude.ai preview. Restore import for local dev.
 import { useNavigate } from "react-router-dom";
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
@@ -122,7 +121,7 @@ export default function PeachAuth() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await fetch('https://api.peachbitcoin.com/v1/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -144,6 +143,58 @@ export default function PeachAuth() {
   const [desktopShowCode, setDesktopShowCode] = useState(false);
   const [desktopPasteVal, setDesktopPasteVal] = useState("");
   const [desktopPastePhase, setDesktopPastePhase] = useState("idle"); // idle|error|validating|success
+  // ─── DEV AUTH (regtest) ────────────────────────────────────────────────────
+  const [devAuthOpen, setDevAuthOpen] = useState(false);
+  const [devAuthJson, setDevAuthJson] = useState("");
+  const [devAuthPhase, setDevAuthPhase] = useState("idle"); // idle|validating|success|error
+  const [devAuthError, setDevAuthError] = useState("");
+  const [devAuthProfile, setDevAuthProfile] = useState(null);
+
+  async function handleDevAuth() {
+    setDevAuthPhase("validating");
+    setDevAuthError("");
+    try {
+      let parsed;
+      try { parsed = JSON.parse(devAuthJson); }
+      catch { throw new Error("Invalid JSON — paste the full response from /nuxDesktopAuth"); }
+      const token = parsed.token;
+      if (!token) throw new Error("No 'token' field found in JSON");
+
+      const res = await fetch("https://api-regtest.peachbitcoin.com/v1/user/me", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        throw new Error(`API ${res.status}${errBody ? ": " + errBody.slice(0, 120) : ""}`);
+      }
+      const profile = await res.json();
+
+      // Store auth globally so other screens can pick it up
+      window.__PEACH_AUTH__ = {
+        token,
+        pgpPrivKey: parsed.pgpPrivKey || null,
+        peachId: profile.id || profile.publicKey || null,
+        baseUrl: "https://api-regtest.peachbitcoin.com/v1",
+        profile
+      };
+
+      setDevAuthProfile(profile);
+      setDevAuthPhase("success");
+      setTimeout(() => { setPhase("success"); }, 1200);
+    } catch (err) {
+      setDevAuthError(err.message);
+      setDevAuthPhase("error");
+    }
+  }
+
+  function resetDevAuth() {
+    setDevAuthPhase("idle");
+    setDevAuthError("");
+    setDevAuthProfile(null);
+    setDevAuthJson("");
+    window.__PEACH_AUTH__ = null;
+  }
+
   const MOCK_AUTH_CODE = "PEACH-A3F7-B2D9-4E1C-8K6M";
   const [codeCopied, setCodeCopied] = useState(false);
   function handleCopyCode() {
@@ -490,6 +541,97 @@ export default function PeachAuth() {
                     </a>
                   </div>
                 </div>
+
+                {/* Dev Login (regtest) — mobile */}
+                <div style={{borderTop:"1px dashed #EAE3DF",paddingTop:14}}>
+                  <button onClick={() => setDevAuthOpen(o => !o)} style={{
+                    background:"none",border:"none",cursor:"pointer",
+                    display:"flex",alignItems:"center",gap:6,
+                    fontFamily:"'Baloo 2',cursive",fontSize:".73rem",fontWeight:700,
+                    color:"#C4B5AE",padding:0,transition:"color .15s"
+                  }}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                      style={{transform:devAuthOpen?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"}}>
+                      <polyline points="4,2 8,6 4,10"/>
+                    </svg>
+                    🔧 Dev Login (regtest)
+                  </button>
+
+                  {devAuthOpen && (
+                    <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:10,
+                      animation:"fadeIn .2s ease both",padding:14,borderRadius:12,
+                      background:"#FFF7ED",border:"1.5px dashed #FFD5BF"}}>
+                      <div style={{fontSize:".7rem",color:"#7D675E",fontWeight:500,lineHeight:1.5}}>
+                        Paste the JSON from <strong style={{color:"#2B1911",fontFamily:"monospace"}}>/nuxDesktopAuth</strong>.
+                      </div>
+
+                      {devAuthPhase === "success" ? (
+                        <div style={{display:"flex",flexDirection:"column",gap:8,animation:"fadeIn .2s ease both"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <div style={{width:24,height:24,borderRadius:"50%",background:"#65A519",
+                              display:"flex",alignItems:"center",justifyContent:"center",
+                              fontSize:".7rem",color:"white",fontWeight:800}}>✓</div>
+                            <span style={{fontSize:".8rem",fontWeight:700,color:"#65A519"}}>Authenticated!</span>
+                          </div>
+                          {devAuthProfile && (
+                            <div style={{fontSize:".65rem",color:"#7D675E",fontFamily:"monospace",
+                              background:"#F4EEEB",padding:"8px 10px",borderRadius:8,
+                              maxHeight:100,overflowY:"auto",lineHeight:1.6,wordBreak:"break-all"}}>
+                              <div><strong>PeachID:</strong> {devAuthProfile.id || devAuthProfile.publicKey || "—"}</div>
+                              {devAuthProfile.rating != null && <div><strong>Rating:</strong> {devAuthProfile.rating}</div>}
+                              {devAuthProfile.trades != null && <div><strong>Trades:</strong> {devAuthProfile.trades}</div>}
+                            </div>
+                          )}
+                          <button onClick={resetDevAuth} style={{
+                            alignSelf:"flex-start",padding:"5px 14px",borderRadius:999,
+                            border:"1.5px solid #EAE3DF",background:"white",cursor:"pointer",
+                            fontFamily:"'Baloo 2',cursive",fontSize:".72rem",fontWeight:700,
+                            color:"#7D675E"
+                          }}>Reset</button>
+                        </div>
+                      ) : (
+                        <>
+                          <textarea
+                            value={devAuthJson}
+                            onChange={e => { setDevAuthJson(e.target.value); if (devAuthPhase === "error") setDevAuthPhase("idle"); }}
+                            placeholder='{"token":"eyJ...","pgpPrivKey":"..."}'
+                            spellCheck={false}
+                            style={{
+                              width:"100%",minHeight:64,padding:"10px 12px",borderRadius:8,
+                              border:`1.5px solid ${devAuthPhase === "error" ? "#DF321F" : "#EAE3DF"}`,
+                              fontFamily:"monospace",fontSize:".62rem",color:"#2B1911",
+                              background:"white",resize:"vertical",lineHeight:1.5,outline:"none"
+                            }}
+                          />
+                          {devAuthPhase === "error" && (
+                            <div style={{fontSize:".68rem",color:"#DF321F",fontWeight:600,
+                              animation:"shake .3s ease"}}>
+                              {devAuthError}
+                            </div>
+                          )}
+                          <button onClick={handleDevAuth} disabled={devAuthPhase === "validating" || !devAuthJson.trim()}
+                            style={{
+                              alignSelf:"flex-start",padding:"8px 18px",borderRadius:999,
+                              background: devAuthPhase === "validating"
+                                ? "#EAE3DF"
+                                : "linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)",
+                              color:"white",border:"none",cursor: devAuthPhase === "validating" ? "wait" : "pointer",
+                              fontFamily:"'Baloo 2',cursive",fontSize:".76rem",fontWeight:800,
+                              opacity: !devAuthJson.trim() ? 0.5 : 1,
+                              display:"flex",alignItems:"center",gap:8
+                            }}>
+                            {devAuthPhase === "validating" && (
+                              <div style={{width:14,height:14,borderRadius:"50%",
+                                border:"2px solid rgba(255,255,255,.3)",borderTopColor:"white",
+                                animation:"spin .8s linear infinite"}}/>
+                            )}
+                            {devAuthPhase === "validating" ? "Validating…" : "Connect"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               /* ── Mobile success ── */
@@ -739,9 +881,108 @@ export default function PeachAuth() {
                 </a>
               </div>
             </div>
-          </div>
 
-          {/* Divider */}
+            {/* Dev Login (regtest) */}
+            <div style={{borderTop:"1px dashed #EAE3DF",paddingTop:14}}>
+              <button onClick={() => setDevAuthOpen(o => !o)} style={{
+                background:"none",border:"none",cursor:"pointer",
+                display:"flex",alignItems:"center",gap:6,
+                fontFamily:"'Baloo 2',cursive",fontSize:".73rem",fontWeight:700,
+                color:"#C4B5AE",padding:0,transition:"color .15s"
+              }}
+                onMouseEnter={e=>e.currentTarget.style.color="#7D675E"}
+                onMouseLeave={e=>e.currentTarget.style.color="#C4B5AE"}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  style={{transform:devAuthOpen?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"}}>
+                  <polyline points="4,2 8,6 4,10"/>
+                </svg>
+                🔧 Dev Login (regtest)
+              </button>
+
+              {devAuthOpen && (
+                <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:10,
+                  animation:"fadeIn .2s ease both",padding:14,borderRadius:12,
+                  background:"#FFF7ED",border:"1.5px dashed #FFD5BF"}}>
+                  <div style={{fontSize:".7rem",color:"#7D675E",fontWeight:500,lineHeight:1.5}}>
+                    Paste the JSON response from <strong style={{color:"#2B1911",fontFamily:"monospace"}}>/nuxDesktopAuth</strong>. This validates the token against the regtest API.
+                  </div>
+
+                  {devAuthPhase === "success" ? (
+                    <div style={{display:"flex",flexDirection:"column",gap:8,animation:"fadeIn .2s ease both"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{width:24,height:24,borderRadius:"50%",background:"#65A519",
+                          display:"flex",alignItems:"center",justifyContent:"center",
+                          fontSize:".7rem",color:"white",fontWeight:800}}>✓</div>
+                        <span style={{fontSize:".8rem",fontWeight:700,color:"#65A519"}}>Authenticated!</span>
+                      </div>
+                      {devAuthProfile && (
+                        <div style={{fontSize:".68rem",color:"#7D675E",fontFamily:"monospace",
+                          background:"#F4EEEB",padding:"8px 10px",borderRadius:8,
+                          maxHeight:120,overflowY:"auto",lineHeight:1.6,wordBreak:"break-all"}}>
+                          <div><strong>PeachID:</strong> {devAuthProfile.id || devAuthProfile.publicKey || "—"}</div>
+                          {devAuthProfile.rating != null && <div><strong>Rating:</strong> {devAuthProfile.rating}</div>}
+                          {devAuthProfile.trades != null && <div><strong>Trades:</strong> {devAuthProfile.trades}</div>}
+                          {devAuthProfile.pgpPublicKey && <div><strong>PGP:</strong> {devAuthProfile.pgpPublicKey.slice(0, 40)}…</div>}
+                        </div>
+                      )}
+                      <button onClick={resetDevAuth} style={{
+                        alignSelf:"flex-start",padding:"5px 14px",borderRadius:999,
+                        border:"1.5px solid #EAE3DF",background:"white",cursor:"pointer",
+                        fontFamily:"'Baloo 2',cursive",fontSize:".72rem",fontWeight:700,
+                        color:"#7D675E",transition:"border-color .15s"
+                      }}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor="#F56522"}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor="#EAE3DF"}
+                      >Reset</button>
+                    </div>
+                  ) : (
+                    <>
+                      <textarea
+                        value={devAuthJson}
+                        onChange={e => { setDevAuthJson(e.target.value); if (devAuthPhase === "error") setDevAuthPhase("idle"); }}
+                        placeholder='{"token":"eyJ...","pgpPrivKey":"-----BEGIN PGP..."}'
+                        spellCheck={false}
+                        style={{
+                          width:"100%",minHeight:72,padding:"10px 12px",borderRadius:8,
+                          border:`1.5px solid ${devAuthPhase === "error" ? "#DF321F" : "#EAE3DF"}`,
+                          fontFamily:"monospace",fontSize:".68rem",color:"#2B1911",
+                          background:"white",resize:"vertical",lineHeight:1.5,
+                          outline:"none",transition:"border-color .15s"
+                        }}
+                        onFocus={e => e.target.style.borderColor = devAuthPhase === "error" ? "#DF321F" : "#F56522"}
+                        onBlur={e => e.target.style.borderColor = devAuthPhase === "error" ? "#DF321F" : "#EAE3DF"}
+                      />
+                      {devAuthPhase === "error" && (
+                        <div style={{fontSize:".7rem",color:"#DF321F",fontWeight:600,
+                          animation:"shake .3s ease"}}>
+                          {devAuthError}
+                        </div>
+                      )}
+                      <button onClick={handleDevAuth} disabled={devAuthPhase === "validating" || !devAuthJson.trim()}
+                        style={{
+                          alignSelf:"flex-start",padding:"8px 20px",borderRadius:999,
+                          background: devAuthPhase === "validating"
+                            ? "#EAE3DF"
+                            : "linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)",
+                          color:"white",border:"none",cursor: devAuthPhase === "validating" ? "wait" : "pointer",
+                          fontFamily:"'Baloo 2',cursive",fontSize:".78rem",fontWeight:800,
+                          letterSpacing:".02em",opacity: !devAuthJson.trim() ? 0.5 : 1,
+                          display:"flex",alignItems:"center",gap:8,transition:"opacity .15s"
+                        }}>
+                        {devAuthPhase === "validating" && (
+                          <div style={{width:14,height:14,borderRadius:"50%",
+                            border:"2px solid rgba(255,255,255,.3)",borderTopColor:"white",
+                            animation:"spin .8s linear infinite"}}/>
+                        )}
+                        {devAuthPhase === "validating" ? "Validating…" : "Connect to regtest"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
           <div style={{width:1,alignSelf:"stretch",background:"#EAE3DF",flexShrink:0}}/>
 
           {/* Right: QR */}

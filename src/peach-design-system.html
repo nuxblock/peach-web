@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peach Bitcoin — Design System</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Primary */
+    --primary-main:   #F56522;
+    --primary-dark1:  #C45104;
+    --primary-dark2:  #963600;
+    --primary-mild1:  #FCCCB6;
+    --primary-mild2:  #FFA171;
+    --primary-bg-dark:#FEEDE5;
+    --primary-bg-main:#FFF9F6;
+    --primary-bg-light:#FFFCFA;
+
+    /* Success */
+    --success-main:   #65A519;
+    --success-dark1:  #4F910C;
+    --success-dark2:  #246F00;
+    --success-mild1:  #DDEFC3;
+    --success-mild2:  #AFDA73;
+    --success-bg-dark:#F2F9E7;
+    --success-bg-main:#FCFEF6;
+    --success-bg-light:#FEFEFB;
+
+    /* Warning */
+    --warning-main:   #F5CE22;
+    --warning-dark1:  #F3B71A;
+    --warning-dark2:  #F19E12;
+    --warning-mild1:  #FDF6C0;
+    --warning-mild2:  #F9E96C;
+    --warning-bg-dark:#FEFCE5;
+    --warning-bg-main:#FFFEF5;
+    --warning-bg-light:#FFFEFA;
+
+    /* Error */
+    --error-main:     #DF321F;
+    --error-dark:     #B01807;
+    --error-light:    #FE5A48;
+    --error-mild:     #FFD1CA;
+    --error-bg:       #FFE6E1;
+
+    /* Info */
+    --info-main:      #037DB5;
+    --info-dark:      #005E89;
+    --info-light:     #099DE2;
+    --info-mild:      #93D6F5;
+    --info-bg:        #D7F2FE;
+
+    /* Bitcoin */
+    --bitcoin:        #F7931A;
+    --gradient-start: #FF4D42;
+    --gradient-mid:   #FF7A50;
+    --gradient-end:   #FFA24C;
+
+    /* Blacks */
+    --black-100: #2B1911;
+    --black-90:  #402F28;
+    --black-75:  #624D44;
+    --black-65:  #7D675E;
+    --black-50:  #9FBC82; /* note: this looks brownish-grey */
+    --black-25:  #9FBC82;
+    --black-10:  #EAE3DF;
+    --black-5:   #F4EEEB;
+
+    --bg: #FFF9F6;
+    --surface: #FFFFFF;
+    --text: #2B1911;
+    --font: 'Baloo 2', cursive;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 48px;
+  }
+  .logo {
+    font-size: 2.4rem;
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .logo span {
+    font-weight: 500;
+    font-size: 1.6rem;
+    -webkit-text-fill-color: var(--black-75);
+    color: var(--black-75);
+  }
+  .badge {
+    background: var(--bitcoin);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Section */
+  .section { margin-bottom: 56px; }
+  .section-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--black-65);
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--black-10);
+  }
+
+  /* Color grid */
+  .color-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .color-group {
+    flex: 1;
+    min-width: 140px;
+  }
+  .color-group-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--black-65);
+    margin-bottom: 8px;
+  }
+  .swatch {
+    border-radius: 8px;
+    height: 48px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: flex-end;
+    padding: 6px 10px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    font-family: monospace;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  .swatch.light-text { color: var(--black-65); text-shadow: none; }
+  .swatch.small { height: 32px; }
+
+  /* Gradient swatch */
+  .gradient-swatch {
+    border-radius: 12px;
+    height: 60px;
+    background: linear-gradient(90deg, var(--gradient-start) 0%, var(--gradient-mid) 50%, var(--gradient-end) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .gradient-swatch.card {
+    height: 80px;
+    border-radius: 16px;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 1.1rem;
+  }
+  .gradient-swatch.card small {
+    font-size: 0.75rem;
+    font-weight: 500;
+    opacity: 0.85;
+  }
+
+  /* Typography */
+  .type-row {
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--black-10);
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+  .type-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--black-65);
+    min-width: 100px;
+  }
+  .t-h1 { font-size: 2rem; font-weight: 800; }
+  .t-h2 { font-size: 1.5rem; font-weight: 700; }
+  .t-h3 { font-size: 1.2rem; font-weight: 700; }
+  .t-body { font-size: 1rem; font-weight: 400; }
+  .t-small { font-size: 0.875rem; font-weight: 400; }
+  .t-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  .t-mono { font-size: 0.85rem; font-family: monospace; font-weight: 600; color: var(--primary-main); }
+
+  /* Buttons */
+  .button-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn {
+    font-family: var(--font);
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 12px 28px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    letter-spacing: 0.01em;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: var(--success-main);
+    color: white;
+    box-shadow: 0 4px 16px rgba(101,165,25,0.3);
+  }
+  .btn-success {
+    background: var(--primary-main);
+    color: white;
+    box-shadow: 0 4px 16px rgba(245,101,34,0.3);
+  }
+  .btn-sell {
+    background: #F4645C;
+    color: white;
+  }
+  .btn-outline {
+    background: transparent;
+    color: var(--primary-main);
+    border: 2px solid var(--primary-main);
+  }
+  .btn-ghost {
+    background: var(--primary-bg-dark);
+    color: var(--primary-main);
+    border: none;
+  }
+  .btn-danger {
+    background: var(--error-main);
+    color: white;
+  }
+  .btn-sm { padding: 8px 18px; font-size: 0.8rem; }
+
+  /* Tags/badges */
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .tag {
+    font-family: var(--font);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1.5px solid currentColor;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .tag-primary   { color: var(--primary-main);  background: var(--primary-bg-dark); }
+  .tag-success   { color: var(--success-main);  background: var(--success-bg-dark); }
+  .tag-warning   { color: #B88000;              background: var(--warning-bg-dark); }
+  .tag-error     { color: var(--error-main);    background: var(--error-bg); }
+  .tag-info      { color: var(--info-main);     background: var(--info-bg); }
+  .tag-bitcoin   { color: var(--bitcoin);        background: #FFF3E0; border-color: var(--bitcoin); }
+  .tag-solid     { background: var(--primary-main); color: white; border-color: var(--primary-main); }
+
+  /* Cards */
+  .card-row { display: flex; flex-wrap: wrap; gap: 16px; }
+  .card {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid var(--black-10);
+    flex: 1;
+    min-width: 200px;
+  }
+  .card-offer {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 16px 20px;
+    border: 1px solid var(--black-10);
+    flex: 1;
+    min-width: 240px;
+  }
+  .card-offer.auto {
+    background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+    color: white;
+    border: none;
+  }
+  .card-offer.auto .offer-price { color: white; }
+  .card-offer.auto .offer-premium { color: rgba(255,255,255,0.85); }
+  .offer-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .offer-stars { color: var(--primary-main); font-size: 0.8rem; letter-spacing: -2px; }
+  .offer-price { font-size: 1.05rem; font-weight: 800; color: var(--text); text-align: right; }
+  .offer-premium { font-size: 0.75rem; color: var(--black-65); text-align: right; }
+  .offer-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+
+  /* Stars display */
+  .stars { display: inline-flex; gap: 1px; }
+  .star { width: 14px; height: 14px; fill: var(--primary-main); }
+  .star.empty { fill: var(--black-10); }
+
+  /* Inputs */
+  .input-row { display: flex; flex-wrap: wrap; gap: 16px; }
+  .input-group { flex: 1; min-width: 200px; }
+  .input-label { font-size: 0.75rem; font-weight: 700; color: var(--black-65); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .input {
+    width: 100%;
+    font-family: var(--font);
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 12px 16px;
+    border: 2px solid var(--black-10);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input:focus { border-color: var(--primary-main); }
+  .input.error { border-color: var(--error-main); }
+  .input.success { border-color: var(--success-main); }
+
+  /* Status chip */
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+  .status-chip::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .chip-success { background: var(--success-bg-dark); color: var(--success-dark1); }
+  .chip-warning { background: var(--warning-bg-dark); color: #9A7000; }
+  .chip-error   { background: var(--error-bg);        color: var(--error-main); }
+  .chip-info    { background: var(--info-bg);          color: var(--info-main); }
+
+  /* Price display */
+  .price-card {
+    background: linear-gradient(90deg, var(--gradient-start) 0%, var(--gradient-mid) 50%, var(--gradient-end) 100%);
+    border-radius: 20px;
+    padding: 20px 24px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    max-width: 380px;
+  }
+  .price-card .label { font-size: 0.8rem; opacity: 0.85; font-weight: 500; }
+  .price-card .amount { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+  .price-card .sub { font-size: 0.85rem; opacity: 0.85; margin-top: 2px; }
+  .price-card .btc-icon { font-size: 1.2rem; margin-bottom: 4px; }
+
+  /* Spacing tokens */
+  .spacing-row { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  .spacing-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .spacing-box { background: var(--primary-mild1); border-radius: 4px; width: 24px; }
+  .spacing-label { font-size: 0.65rem; font-weight: 700; color: var(--black-65); }
+
+  /* Divider */
+  hr { border: none; border-top: 1px solid var(--black-10); margin: 8px 0 24px; }
+
+  /* Scroll bar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--black-10); border-radius: 3px; }
+
+  /* ── MOBILE OFFER CARDS ── */
+  .mc-cards-row { display: flex; flex-wrap: wrap; gap: 16px; }
+  .mc-offer-card {
+    background: var(--surface); border-radius: 14px; border: 1.5px solid var(--black-10);
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+    width: 300px; box-sizing: border-box;
+  }
+  .mc-row1 { display: flex; align-items: center; gap: 8px; }
+  .mc-avatar {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--primary), #FFB347);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .7rem; font-weight: 800; color: white; position: relative;
+  }
+  .mc-avatar-green {
+    background: linear-gradient(135deg, #65A519, #A8E063);
+  }
+  .mc-online-dot {
+    position: absolute; bottom: 0; right: 0; width: 9px; height: 9px;
+    border-radius: 50%; background: #05A85A; border: 2px solid var(--surface);
+  }
+  .mc-rep { display: flex; align-items: center; gap: 3px; font-size: .78rem; font-weight: 700; color: var(--black); }
+  .mc-rep .star { color: #F7931A; }
+  .mc-rep-count { font-size: .67rem; color: var(--black-65); font-weight: 500; }
+  .mc-badge-fast {
+    display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 999px;
+    font-size: .62rem; font-weight: 700; background: var(--primary-mild); color: var(--primary-dark);
+  }
+  .mc-badge-super {
+    display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 999px;
+    font-size: .62rem; font-weight: 700;
+    background: linear-gradient(90deg, #FF4D42, #FFA24C); color: white;
+  }
+  .mc-action-buy {
+    margin-left: auto; padding: 6px 18px; border-radius: 999px; border: none; cursor: pointer;
+    font-size: .8rem; font-weight: 800; letter-spacing: .02em;
+    background: var(--primary-mild); color: var(--primary-dark);
+  }
+  .mc-action-sell {
+    margin-left: auto; padding: 6px 18px; border-radius: 999px; border: none; cursor: pointer;
+    font-size: .8rem; font-weight: 800; letter-spacing: .02em;
+    background: #F2F9E7; color: #65A519;
+  }
+  .mc-amount-block { text-align: right; }
+  .mc-sats {
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .mc-sats-grey { color: #C4B5AE; font-weight: 700; font-size: .95rem; }
+  .mc-sats-bold { color: var(--black); font-weight: 800; font-size: .95rem; }
+  .mc-fiat { font-size: .82rem; font-weight: 500; color: var(--black-65); margin-top: 2px; }
+  .mc-row3 { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+  .mc-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .mc-method-chip {
+    padding: 2px 7px; border-radius: 999px; font-size: .69rem; font-weight: 600;
+    background: var(--black-5); color: var(--black-65); border: 1px solid var(--black-10);
+  }
+  .mc-currency-chip {
+    padding: 2px 7px; border-radius: 4px; font-size: .69rem; font-weight: 700;
+    background: var(--primary-mild); color: var(--primary-dark); letter-spacing: .04em;
+  }
+  .mc-premium-pos { font-size: .78rem; font-weight: 700; color: #65A519; }
+  .mc-premium-neg { font-size: .78rem; font-weight: 700; color: #DF321F; }
+
+  /* ── STATUS CARDS ── */
+  .sc-card {
+    background: var(--surface); border: 1.5px solid var(--black-10); border-radius: 16px;
+    overflow: hidden; display: flex; flex-direction: column; width: 300px; box-sizing: border-box;
+  }
+  .sc-row1 { padding: 12px 15px 10px; display: flex; align-items: center; gap: 7px; }
+  .sc-dir-buy { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 13px; font-size: .82rem; font-weight: 800; letter-spacing: .04em; background: #F2F9E7; color: #65A519; }
+  .sc-dir-sell { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 13px; font-size: .82rem; font-weight: 800; letter-spacing: .04em; background: #FFF0EE; color: #DF321F; }
+  .sc-trade-id { font-size: .72rem; font-weight: 700; color: var(--black-65); font-family: monospace; }
+  .sc-date { font-size: .68rem; color: var(--black-65); }
+  .sc-row2 { padding: 0 15px 10px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .sc-peer { display: flex; align-items: flex-start; gap: 9px; flex: 1; min-width: 0; }
+  .sc-avatar {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .68rem; font-weight: 800; color: white;
+  }
+  .sc-peer-info { display: flex; flex-direction: column; gap: 3px; }
+  .sc-peer-name { font-size: .85rem; font-weight: 700; color: var(--black); }
+  .sc-peer-trades { font-size: .72rem; color: var(--black-65); }
+  .sc-peer-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
+  .sc-badge {
+    display: inline-flex; align-items: center; gap: 5px; border: 1.5px solid var(--primary);
+    border-radius: 999px; padding: 1px 8px; font-size: .65rem; font-weight: 700;
+    color: var(--primary); background: transparent; white-space: nowrap;
+  }
+  .sc-peer-rep { display: inline-flex; align-items: center; gap: 4px; font-size: .78rem; font-weight: 700; color: var(--black-65); }
+  .sc-amounts { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+  .sc-row3 { padding: 0 15px 10px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .sc-tag-method { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 8px; font-size: .7rem; font-weight: 600; background: var(--black-5); color: var(--black-75); }
+  .sc-tag-currency { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 8px; font-size: .7rem; font-weight: 600; background: var(--primary-mild); color: var(--primary-dark); }
+  .sc-pill-action {
+    margin: 0 10px 10px; border-radius: 12px; padding: 11px 14px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; font-size: .85rem; font-weight: 800; cursor: pointer; width: calc(100% - 20px); box-sizing: border-box;
+  }
+  .sc-pill-passive {
+    margin: 0 10px 10px; border-radius: 12px; padding: 13px 14px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1.5px solid var(--primary-mild); font-size: .82rem; font-weight: 600; width: calc(100% - 20px); box-sizing: border-box;
+    background: var(--primary-bg); color: var(--primary-dark);
+  }
+
+
+  /* Offer card — plain sats amount (no BTC icon) */
+  .mc-sats-plain { font-size: 1.2rem; font-weight: 800; color: var(--black); text-align: right; }
+
+  /* Instant Match badge */
+  .mc-instant-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 4px 10px; border-radius: 999px;
+    background: linear-gradient(90deg, var(--primary-main), #FFB347);
+    color: white; font-size: .72rem; font-weight: 800;
+    white-space: nowrap; box-shadow: 0 1px 6px rgba(245,101,34,.28);
+  }
+
+  /* Sell outline button */
+  .mc-btn-sell-outline {
+    padding: 4px 14px; border-radius: 999px;
+    border: 1.5px solid var(--primary-main); background: transparent;
+    color: var(--primary-main); font-size: .8rem; font-weight: 800;
+    cursor: pointer; font-family: var(--font); letter-spacing: .02em;
+  }
+
+  /* Requested badge */
+  .mc-requested-badge {
+    display: inline-flex; align-items: center;
+    padding: 4px 12px; border-radius: 999px;
+    border: 1.5px solid var(--success-main); background: transparent;
+    color: var(--success-main); font-size: .78rem; font-weight: 700;
+  }
+
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">Peach <span>bitcoin</span></div>
+    <div class="badge">Design System</div>
+  </div>
+
+  <!-- COLORS: PRIMARY -->
+  <div class="section">
+    <div class="section-title">Color System</div>
+    <div class="color-grid">
+
+      <div class="color-group">
+        <div class="color-group-label">Primary (Orange)</div>
+        <div class="swatch" style="background:#F56522">#F56522 main</div>
+        <div class="swatch" style="background:#C45104">#C45104 dark 1</div>
+        <div class="swatch" style="background:#963600">#963600 dark 2</div>
+        <div class="swatch light-text" style="background:#FCCCB6">#FCCCB6 mild 1</div>
+        <div class="swatch" style="background:#FFA171">#FFA171 mild 2</div>
+        <div class="swatch light-text small" style="background:#FEEDE5">#FEEDE5 bg dark</div>
+        <div class="swatch light-text small" style="background:#FFF9F6">#FFF9F6 bg main</div>
+      </div>
+
+      <div class="color-group">
+        <div class="color-group-label">Success (Green)</div>
+        <div class="swatch" style="background:#65A519">#65A519 main</div>
+        <div class="swatch" style="background:#4F910C">#4F910C dark 1</div>
+        <div class="swatch" style="background:#246F00">#246F00 dark 2</div>
+        <div class="swatch light-text" style="background:#DDEFC3">#DDEFC3 mild 1</div>
+        <div class="swatch" style="background:#AFDA73">#AFDA73 mild 2</div>
+        <div class="swatch light-text small" style="background:#F2F9E7">#F2F9E7 bg dark</div>
+      </div>
+
+      <div class="color-group">
+        <div class="color-group-label">Warning (Yellow)</div>
+        <div class="swatch" style="background:#F5CE22; color:#2B1911; text-shadow:none">#F5CE22 main</div>
+        <div class="swatch" style="background:#F3B71A">#F3B71A dark 1</div>
+        <div class="swatch" style="background:#F19E12">#F19E12 dark 2</div>
+        <div class="swatch light-text" style="background:#FDF6C0">#FDF6C0 mild 1</div>
+        <div class="swatch light-text" style="background:#F9E96C">#F9E96C mild 2</div>
+        <div class="swatch light-text small" style="background:#FEFCE5">#FEFCE5 bg dark</div>
+      </div>
+
+      <div class="color-group">
+        <div class="color-group-label">Error (Red)</div>
+        <div class="swatch" style="background:#DF321F">#DF321F main</div>
+        <div class="swatch" style="background:#B01807">#B01807 dark</div>
+        <div class="swatch" style="background:#FE5A48">#FE5A48 light</div>
+        <div class="swatch light-text" style="background:#FFD1CA">#FFD1CA mild</div>
+        <div class="swatch light-text small" style="background:#FFE6E1">#FFE6E1 bg</div>
+      </div>
+
+      <div class="color-group">
+        <div class="color-group-label">Info (Blue)</div>
+        <div class="swatch" style="background:#037DB5">#037DB5 main</div>
+        <div class="swatch" style="background:#005E89">#005E89 dark</div>
+        <div class="swatch" style="background:#099DE2">#099DE2 light</div>
+        <div class="swatch light-text" style="background:#93D6F5">#93D6F5 mild</div>
+        <div class="swatch light-text small" style="background:#D7F2FE">#D7F2FE bg</div>
+      </div>
+
+      <div class="color-group">
+        <div class="color-group-label">Bitcoin &amp; Gradient</div>
+        <div class="swatch" style="background:#F7931A">#F7931A bitcoin</div>
+        <div class="gradient-swatch" style="margin-top:6px">Peachy Gradient</div>
+        <div style="font-size:0.65rem; font-family:monospace; color:var(--black-65); margin-top:4px">#FF4D42 → #FF7A50 → #FFA24C</div>
+        <div class="color-group-label" style="margin-top:16px">Blacks</div>
+        <div class="swatch" style="background:#2B1911">#2B1911 100%</div>
+        <div class="swatch" style="background:#402F28">#402F28 90%</div>
+        <div class="swatch" style="background:#624D44">#624D44 75%</div>
+        <div class="swatch" style="background:#7D675E">#7D675E 65%</div>
+        <div class="swatch light-text small" style="background:#EAE3DF">#EAE3DF 10%</div>
+        <div class="swatch light-text small" style="background:#F4EEEB">#F4EEEB 5%</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- GRADIENT COMPONENTS -->
+  <div class="section">
+    <div class="section-title">Gradient Usage — Price Card</div>
+    <div class="price-card">
+      <div>
+        <div class="label">₿ 1 BTC</div>
+        <div class="amount">1 000 000</div>
+        <div class="sub">EUR</div>
+      </div>
+      <div style="text-align:right">
+        <div class="label">1 EUR</div>
+        <div class="amount" style="font-size:1.2rem">100</div>
+        <div class="sub">sats</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TYPOGRAPHY -->
+  <div class="section">
+    <div class="section-title">Typography — Baloo 2 (all weights)</div>
+    <div class="type-row"><span class="type-label">H1 / 800</span><span class="t-h1">Buy Bitcoin P2P</span></div>
+    <div class="type-row"><span class="type-label">H2 / 700</span><span class="t-h2">Open Offers</span></div>
+    <div class="type-row"><span class="type-label">H3 / 700</span><span class="t-h3">Select Payment Method</span></div>
+    <div class="type-row"><span class="type-label">Body / 400</span><span class="t-body">You can securely trade bitcoin for cash at a local meetup using Peach.</span></div>
+    <div class="type-row"><span class="type-label">Small / 400</span><span class="t-small">Avg. premium: –0.01% · Daily trading limit: EUR 540 / EUR 1 000</span></div>
+    <div class="type-row"><span class="type-label">Label / 700</span><span class="t-label">Payment Methods</span></div>
+    <div class="type-row"><span class="type-label">Monospace amt</span><span class="t-mono">1 280 000 sats · 275.06 EUR</span></div>
+  </div>
+
+  <!-- BUTTONS -->
+  <div class="section">
+    <div class="section-title">Buttons</div>
+    <div class="button-row">
+      <button class="btn btn-primary">Buy Bitcoin</button>
+      <button class="btn btn-success">Confirm Payment</button>
+      <button class="btn btn-outline">Create Sell Offer</button>
+      <button class="btn btn-ghost">View All Offers</button>
+      <button class="btn btn-danger">Open Dispute</button>
+    </div>
+    <br>
+    <div class="button-row">
+      <button class="btn btn-primary btn-sm">Buy</button>
+      <button class="btn btn-sell btn-sm">Sell</button>
+      <button class="btn btn-outline btn-sm">Filter</button>
+      <button class="btn btn-ghost btn-sm">Cancel</button>
+    </div>
+  </div>
+
+  <!-- TAGS -->
+  <div class="section">
+    <div class="section-title">Reputation Tags &amp; Badges</div>
+    <div class="tag-row">
+      <span class="tag tag-solid">NEWS</span>
+      <span class="tag tag-solid" style="background:var(--success-main);border-color:var(--success-main)">OPEN OFFERS</span>
+      <span class="tag tag-primary">supertrader ⭐</span>
+      <span class="tag tag-primary">fast trader ⚡</span>
+      <span class="tag tag-primary">early adopter 🍑</span>
+      <span class="tag tag-primary">repeat trader ②</span>
+      <span class="tag tag-success">+5% premium</span>
+      <span class="tag tag-error">–2% premium</span>
+      <span class="tag tag-bitcoin">₿ auto trade</span>
+      <span class="tag tag-info">KYC-free</span>
+      <span class="tag tag-warning">pending</span>
+    </div>
+  </div>
+
+  <!-- STATUS CHIPS -->
+  <div class="section">
+    <div class="section-title">Status Indicators</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="status-chip chip-success">Trade Active</div>
+      <div class="status-chip chip-warning">Awaiting Payment</div>
+      <div class="status-chip chip-error">Dispute Open</div>
+      <div class="status-chip chip-info">Escrow Funded</div>
+    </div>
+  </div>
+
+  <!-- OFFER CARDS -->
+  <div class="section">
+    <div class="section-title">Offer Cards — Mobile</div>
+    <div class="mc-cards-row">
+
+      <!-- Card 1: B1 · Instant Match · Sell -->
+      <div class="mc-offer-card">
+        <!-- Row 1: avatar · rep · badges · action -->
+        <div class="mc-row1">
+          <div class="mc-avatar" style="position:relative">B1<span class="mc-online-dot"></span></div>
+          <span class="mc-rep"><span class="star">★</span>4.5</span>
+          <span class="mc-rep-count">(44)</span>
+          <span style="font-size:.85rem">⚡</span>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+            <span class="mc-instant-badge">⚡ Instant Match</span>
+            <button class="mc-btn-sell-outline">Sell</button>
+          </div>
+        </div>
+        <!-- Row 2: amount right-aligned -->
+        <div class="mc-amount-block">
+          <div class="mc-sats-plain">30k–80k sats</div>
+          <div class="mc-fiat">€26–€70</div>
+        </div>
+        <!-- Row 3: methods · currency · premium -->
+        <div class="mc-row3">
+          <div class="mc-chips">
+            <span class="mc-method-chip">SEPA</span>
+            <span class="mc-currency-chip">EUR</span>
+          </div>
+          <span class="mc-premium-neg">-2.00%</span>
+        </div>
+      </div>
+
+      <!-- Card 2: B4 · Requested -->
+      <div class="mc-offer-card">
+        <!-- Row 1: avatar · rep · action -->
+        <div class="mc-row1">
+          <div class="mc-avatar" style="position:relative">B4<span class="mc-online-dot"></span></div>
+          <span class="mc-rep"><span class="star">★</span>4.7</span>
+          <span class="mc-rep-count">(119)</span>
+          <span style="font-size:.85rem">⚡</span>
+          <div style="margin-left:auto">
+            <span class="mc-requested-badge">Requested</span>
+          </div>
+        </div>
+        <!-- Row 2: amount right-aligned -->
+        <div class="mc-amount-block">
+          <div class="mc-sats-plain">20k–60k sats</div>
+          <div class="mc-fiat">€17–€52</div>
+        </div>
+        <!-- Row 3: methods · currencies · premium -->
+        <div class="mc-row3">
+          <div class="mc-chips">
+            <span class="mc-method-chip">Wise</span>
+            <span class="mc-method-chip">SEPA</span>
+            <span class="mc-currency-chip">EUR</span>
+            <span class="mc-currency-chip">GBP</span>
+          </div>
+          <span class="mc-premium-neg">-1.50%</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- STATUS CARDS -->
+  <div class="section">
+    <div class="section-title">Status Cards — Active Trades</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;">
+
+      <!-- Card 1: BUY B3 · Make Payment (action required, has unread) -->
+      <div class="sc-card">
+        <div class="sc-row1">
+          <span class="sc-dir-buy">BUY</span>
+          <span class="sc-trade-id">B3</span>
+          <span class="sc-date">· 26/02/2026</span>
+          <div style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;background:#FFE6E1;color:#DF321F;border-radius:999px;padding:3px 9px;font-size:.75rem;font-weight:700">
+            3 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:middle"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+        </div>
+        <div class="sc-row2">
+          <div class="sc-peer">
+            <div class="sc-avatar" style="background:linear-gradient(135deg,#65A519,#A8E063);position:relative">
+              ST
+              <span style="position:absolute;bottom:0;right:0;width:8px;height:8px;border-radius:50%;background:#05A85A;border:2px solid var(--surface)"></span>
+            </div>
+            <div class="sc-peer-info">
+              <div style="display:flex;align-items:center;gap:5px">
+                <span class="sc-peer-name">Peer #2B90</span>
+                <span style="display:inline-flex;align-items:center;gap:3px;font-size:.78rem;font-weight:700;color:var(--black-75)">🍑 5.0</span>
+              </div>
+              <span class="sc-peer-trades">541 trades</span>
+              <div class="sc-peer-badges">
+                <span class="sc-badge">supertrader ☆</span>
+              </div>
+            </div>
+          </div>
+          <div class="sc-amounts">
+            <div style="display:inline-flex;align-items:center;gap:5px">
+              <svg width="15" height="15" viewBox="0 0 32 32" fill="none" style="display:inline-block;vertical-align:middle;flex-shrink:0"><circle cx="16" cy="16" r="16" fill="#F7931A"/><path d="M22.2 13.8c.3-2-1.2-3.1-3.3-3.8l.7-2.7-1.6-.4-.7 2.6c-.4-.1-.9-.2-1.3-.3l.7-2.6-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.3l-2.1-.5-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8.9l-.8 3.3c.1 0 .2 0 .3.1-.1 0-.2-.1-.3-.1L11.4 20c-.1.3-.4.7-1 .5 0 0-1.2-.3-1.2-.3l-.8 1.8 2 .5c.4.1.7.2 1.1.3l-.7 2.7 1.6.4.7-2.7c.4.1.9.2 1.4.3l-.7 2.7 1.6.4.7-2.7c2.8.5 4.9.3 5.8-2.2.7-2-.03-3.2-1.5-3.9 1.1-.25 1.9-1 2.1-2.5zm-3.8 5.3c-.5 2-3.9.9-5 .6l.9-3.5c1.1.3 4.6.8 4.1 2.9zm.5-5.3c-.45 1.8-3.3.9-4.2.7l.8-3.2c.9.2 3.8.6 3.4 2.5z" fill="white"/></svg>
+              <span style="color:#C4B5AE;font-weight:700;font-size:.95rem">0.00</span>
+              <span style="color:var(--black);font-weight:800;font-size:.95rem">85 000 Sats</span>
+            </div>
+            <span style="font-size:.82rem;font-weight:600;color:var(--black-75)">€74.32</span>
+            <span style="font-size:.75rem;font-weight:700;color:#65A519">-1.20%</span>
+            <span style="font-size:.72rem;color:var(--black-65);display:inline-flex;align-items:center;gap:3px;margin-top:1px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 5h 51m remaining</span>
+          </div>
+        </div>
+        <div class="sc-row3">
+          <span class="sc-tag-method">SEPA</span>
+          <span class="sc-tag-currency">EUR</span>
+        </div>
+        <button class="sc-pill-action" style="background:var(--primary-main);color:white">Make Payment</button>
+      </div>
+
+      <!-- Card 2: BUY B5 · Release Bitcoin (no unread, no badges) -->
+      <div class="sc-card">
+        <div class="sc-row1">
+          <span class="sc-dir-buy">BUY</span>
+          <span class="sc-trade-id">B5</span>
+          <span class="sc-date">· 26/02/2026</span>
+        </div>
+        <div class="sc-row2">
+          <div class="sc-peer">
+            <div class="sc-avatar" style="background:linear-gradient(135deg,#9B5CFF,#D4AAFF);position:relative">
+              NB
+              <span style="position:absolute;bottom:0;right:0;width:8px;height:8px;border-radius:50%;background:#05A85A;border:2px solid var(--surface)"></span>
+            </div>
+            <div class="sc-peer-info">
+              <div style="display:flex;align-items:center;gap:5px">
+                <span class="sc-peer-name">Peer #C73E</span>
+                <span style="display:inline-flex;align-items:center;gap:3px;font-size:.78rem;font-weight:700;color:var(--black-75)">🍑 4.8</span>
+              </div>
+              <span class="sc-peer-trades">156 trades</span>
+            </div>
+          </div>
+          <div class="sc-amounts">
+            <div style="display:inline-flex;align-items:center;gap:5px">
+              <svg width="15" height="15" viewBox="0 0 32 32" fill="none" style="display:inline-block;vertical-align:middle;flex-shrink:0"><circle cx="16" cy="16" r="16" fill="#F7931A"/><path d="M22.2 13.8c.3-2-1.2-3.1-3.3-3.8l.7-2.7-1.6-.4-.7 2.6c-.4-.1-.9-.2-1.3-.3l.7-2.6-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.3l-2.1-.5-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8.9l-.8 3.3c.1 0 .2 0 .3.1-.1 0-.2-.1-.3-.1L11.4 20c-.1.3-.4.7-1 .5 0 0-1.2-.3-1.2-.3l-.8 1.8 2 .5c.4.1.7.2 1.1.3l-.7 2.7 1.6.4.7-2.7c.4.1.9.2 1.4.3l-.7 2.7 1.6.4.7-2.7c2.8.5 4.9.3 5.8-2.2.7-2-.03-3.2-1.5-3.9 1.1-.25 1.9-1 2.1-2.5zm-3.8 5.3c-.5 2-3.9.9-5 .6l.9-3.5c1.1.3 4.6.8 4.1 2.9zm.5-5.3c-.45 1.8-3.3.9-4.2.7l.8-3.2c.9.2 3.8.6 3.4 2.5z" fill="white"/></svg>
+              <span style="color:#C4B5AE;font-weight:700;font-size:.95rem">0.00</span>
+              <span style="color:var(--black);font-weight:800;font-size:.95rem">55 000 Sats</span>
+            </div>
+            <span style="font-size:.82rem;font-weight:600;color:var(--black-75)">€47.88</span>
+            <span style="font-size:.75rem;font-weight:700;color:#65A519">-0.80%</span>
+            <span style="font-size:.72rem;color:var(--black-65);display:inline-flex;align-items:center;gap:3px;margin-top:1px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 8h ago</span>
+          </div>
+        </div>
+        <div class="sc-row3">
+          <span class="sc-tag-method">SEPA</span>
+          <span class="sc-tag-currency">EUR</span>
+        </div>
+        <button class="sc-pill-action" style="background:#65A519;color:white">Release Bitcoin</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- INPUTS -->
+  <div class="section">
+    <div class="section-title">Form Inputs</div>
+    <div class="input-row">
+      <div class="input-group">
+        <div class="input-label">Amount (EUR)</div>
+        <input class="input" type="text" placeholder="100 – 1 000">
+      </div>
+      <div class="input-group">
+        <div class="input-label">Premium (%)</div>
+        <input class="input success" type="text" value="+5%">
+      </div>
+      <div class="input-group">
+        <div class="input-label">Payment Method</div>
+        <input class="input error" type="text" placeholder="Select method">
+      </div>
+    </div>
+  </div>
+
+  <!-- SPACING -->
+  <div class="section">
+    <div class="section-title">Spacing Tokens</div>
+    <div class="spacing-row">
+      <div class="spacing-item"><div class="spacing-box" style="height:4px"></div><div class="spacing-label">4px</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="height:8px"></div><div class="spacing-label">8px</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="height:12px"></div><div class="spacing-label">12px</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="height:16px"></div><div class="spacing-label">16px</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="height:24px"></div><div class="spacing-label">24px</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="height:32px"></div><div class="spacing-label">32px</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="height:48px"></div><div class="spacing-label">48px</div></div>
+    </div>
+  </div>
+
+  <!-- BORDER RADIUS -->
+  <div class="section">
+    <div class="section-title">Border Radius Tokens</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+      <div style="width:48px;height:48px;background:var(--primary-mild1);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:var(--primary-dark1)">4px</div>
+      <div style="width:48px;height:48px;background:var(--primary-mild1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:var(--primary-dark1)">8px</div>
+      <div style="width:48px;height:48px;background:var(--primary-mild1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:var(--primary-dark1)">12px</div>
+      <div style="width:48px;height:48px;background:var(--primary-mild1);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:var(--primary-dark1)">16px</div>
+      <div style="width:48px;height:48px;background:var(--primary-mild1);border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:var(--primary-dark1)">24px</div>
+      <div style="width:80px;height:48px;background:var(--primary-mild1);border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:var(--primary-dark1)">pill/999</div>
+    </div>
+  </div>
+
+</body>
+</html>
