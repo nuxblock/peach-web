@@ -414,6 +414,16 @@ Every screen defines its own local `SideNav` + `NAV_ITEMS` + `NAV_ROUTES` (no sh
 
 ---
 
+## API & CORS
+
+The Peach API (`api.peachbitcoin.com`) does not send `Access-Control-Allow-Origin` headers, so browser `fetch()` calls are silently blocked by CORS policy.
+
+**Development:** `vite.config.js` proxies `/api/*` → `https://api.peachbitcoin.com/v1/*` via the Vite dev server. All API fetch calls in the screen files use `/api/` as the base path for this reason.
+
+**Production (GitHub Pages / static hosting):** A server-side proxy is required — a Cloudflare Worker or platform rewrite rule forwarding `/api/*` to `https://api.peachbitcoin.com/v1/*`. Without it, all API calls fail silently and the app falls back to hardcoded mock values.
+
+---
+
 ## What to read at session start
 
 1. This file (`CLAUDE.md`)
