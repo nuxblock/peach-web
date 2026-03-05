@@ -1,3 +1,5 @@
+import { IcoBtc } from "./BitcoinAmount.jsx";
+
 // ─── TOPBAR PEACH ID (3 states: logged out / mock / regtest) ─────────────────
 export function getTopbarPeachId() {
   const auth = window.__PEACH_AUTH__;
@@ -14,9 +16,9 @@ export const PeachIcon = ({ size = 28 }) => (
     <rect y="0.38" width="352" height="352" rx="58.13" fill="#FFF9F6"/>
     <path d="M151.8 45.5c11.2-1.2 21.1 5.35 24.2 16.02.54 1.88.82 3.89.88 5.86.13 4.2.05 8.41.05 12.62 0 .39-.33.69-.72.7-3.07.11-6.08-.02-9.02-1-9.21-3.03-15.33-11.47-15.42-21.35-.04-4-.01-8.01 0-12.01" fill="#05A85A"/>
     <path d="M205.3 64.23c.99 8.75-5.26 16.21-13.69 16.46-4.77.14-9.15-3.93-7.14-8.26.95-2.06 2.42-3.88 4.47-5.44 2.3-1.76 4.93-2.69 7.82-2.74 2.83-.04 5.66 0 8.54 0" fill="#05A85A"/>
-    <path fillRule="evenodd" clipRule="evenodd" d="M276 155.69c0 49.73-43.64 96.87-97.47 96.87-19.52 0-37.71-6.2-52.95-16.48v49.48c0 12.29-9.96 22.26-22.26 22.26s-22.26-9.97-22.26-22.26V157.39h.02c-.01-.57-.02-1.13-.02-1.7 0-43.02 32.67-72.02 76.33-68.64 14.01 1.09 28.26 1.09 42.27 0 43.67-3.39 76.34 25.62 76.34 68.64zM125.61 163.8v-.39c.1-24.1 19.36-39.92 44.44-36.17 5.13.77 10.37.77 15.49 0 25.15-3.77 44.44 12.15 44.44 36.35 0 26.64-23.36 51.89-52.19 51.89-28.75 0-52.07-25.13-52.18-51.68z" fill="url(#pg_sidebar)"/>
+    <path fillRule="evenodd" clipRule="evenodd" d="M276 155.69c0 49.73-43.64 96.87-97.47 96.87-19.52 0-37.71-6.2-52.95-16.48v49.48c0 12.29-9.96 22.26-22.26 22.26s-22.26-9.97-22.26-22.26V157.39h.02c-.01-.57-.02-1.13-.02-1.7 0-43.02 32.67-72.02 76.33-68.64 14.01 1.09 28.26 1.09 42.27 0 43.67-3.39 76.34 25.62 76.34 68.64zM125.61 163.8v-.39c.1-24.1 19.36-39.92 44.44-36.17 5.13.77 10.37.77 15.49 0 25.15-3.77 44.44 12.15 44.44 36.35 0 26.64-23.36 51.89-52.19 51.89-28.75 0-52.07-25.13-52.18-51.68z" fill="url(#pg_navbar)"/>
     <defs>
-      <radialGradient id="pg_sidebar" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(276 88) rotate(159) scale(220 130)">
+      <radialGradient id="pg_navbar" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(276 88) rotate(159) scale(220 130)">
         <stop stopColor="#FFA24C"/>
         <stop offset=".5" stopColor="#FF7A50"/>
         <stop offset="1" stopColor="#FF4D42"/>
@@ -25,7 +27,7 @@ export const PeachIcon = ({ size = 28 }) => (
   </svg>
 );
 
-// ─── NAV ICONS (private — only used inside SideNav) ───────────────────────────
+// ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconMarket     = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="2,14 7,9 11,12 18,5"/><polyline points="13,5 18,5 18,10"/></svg>;
 const IconTrades     = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 7h10M13 4l3 3-3 3"/><path d="M15 13H5M7 10l-3 3 3 3"/></svg>;
 const IconCreate     = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6.5" x2="10" y2="13.5"/><line x1="6.5" y1="10" x2="13.5" y2="10"/></svg>;
@@ -75,5 +77,72 @@ export function SideNav({ active, collapsed, onToggle, mobileOpen, onClose, onNa
         )}
       </nav>
     </>
+  );
+}
+
+// ─── TOPBAR ───────────────────────────────────────────────────────────────────
+export function Topbar({
+  onBurgerClick,
+  isLoggedIn,
+  handleLogin,
+  handleLogout,
+  showAvatarMenu,
+  setShowAvatarMenu,
+  btcPrice,
+  selectedCurrency,
+  availableCurrencies,
+  onCurrencyChange,
+  showPrice = true,
+}) {
+  const satsPerCur = btcPrice > 0 ? Math.round(100_000_000 / btcPrice) : 0;
+
+  return (
+    <header className="topbar">
+      <button className="burger-btn" onClick={onBurgerClick}><IconBurger/></button>
+      <PeachIcon size={28}/>
+      <span className="logo-wordmark">Peach</span>
+
+      {showPrice && (
+        <div className="topbar-price">
+          <IcoBtc size={18}/>
+          <span className="topbar-price-main">{btcPrice.toLocaleString("fr-FR")} {selectedCurrency}</span>
+          <span className="topbar-price-sats">{satsPerCur.toLocaleString()} sats / {selectedCurrency.toLowerCase()}</span>
+          <div className="topbar-cur-select">
+            <span className="cur-select-label">{selectedCurrency}</span>
+            <svg className="cur-select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{pointerEvents:"none",flexShrink:0}}><polyline points="1,1 5,5 9,1"/></svg>
+            <select value={selectedCurrency} onChange={e => onCurrencyChange(e.target.value)} className="cur-select-inner">
+              {availableCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
+
+      <div className="topbar-right">
+        {isLoggedIn ? (
+          <div className="avatar-menu-wrap">
+            <div className="avatar-peachid" onClick={(e) => { e.stopPropagation(); setShowAvatarMenu(v => !v); }}>
+              <span className="peach-id">{getTopbarPeachId()}</span>
+              <div className="avatar">PW<div className="avatar-badge">2</div></div>
+            </div>
+            {showAvatarMenu && (
+              <div className="avatar-menu">
+                <div className="avatar-menu-peachid">{getTopbarPeachId()}</div>
+                <button className="avatar-menu-item danger" onClick={handleLogout}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 2H3.5A1.5 1.5 0 002 3.5v9A1.5 1.5 0 003.5 14H6"/><path d="M10.5 11.5L14 8l-3.5-3.5"/><path d="M14 8H6"/></svg>
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="avatar-login-btn" onClick={handleLogin}>
+            <div className="avatar" style={{background:"var(--black-10)",color:"var(--black-25)"}}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
+            </div>
+            <span className="avatar-login-label">Log in</span>
+          </div>
+        )}
+      </div>
+    </header>
   );
 }

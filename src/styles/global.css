@@ -59,7 +59,7 @@ body{font-family:var(--font);background:var(--primary-bg);color:var(--black)}
   width:34px;height:34px;border-radius:8px;border:none;
   background:transparent;cursor:pointer;color:var(--black-65);flex-shrink:0;transition:background .14s}
 .burger-btn:hover{background:var(--black-5)}
-@media(max-width:767px){.burger-btn{display:flex}.topbar-price{display:none}.sidenav-price-slot{display:block}}
+@media(max-width:767px){.burger-btn{display:flex}.topbar-price{display:none}.peach-id{display:none}.sidenav-price-slot{display:block}}
 
 /* ── AVATAR DROPDOWN ── */
 .avatar-menu-wrap{position:relative}
@@ -71,6 +71,8 @@ body{font-family:var(--font);background:var(--primary-bg);color:var(--black)}
 .avatar-login-btn{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 10px;border-radius:999px;transition:background .14s}
 .avatar-login-btn:hover{background:var(--black-5)}
 .avatar-login-label{font-size:.78rem;font-weight:700;color:var(--primary);white-space:nowrap}
+.avatar-menu-peachid{display:none;padding:6px 12px 2px;font-size:.7rem;font-weight:800;letter-spacing:.06em;color:var(--black-25);font-family:var(--font);white-space:nowrap}
+@media(max-width:767px){.avatar-menu-peachid{display:block}}
 
 /* ── LOGGED-OUT DISABLED STATES ── */
 .cta-btn-disabled{margin-left:auto;padding:7px 20px;border-radius:999px;background:var(--black-10);

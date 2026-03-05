@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
+import { SideNav, Topbar } from "../components/Navbars.jsx";
 import { IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
@@ -1027,7 +1027,6 @@ const css = `
   @media(max-width:768px){
     .topbar-price{display:none}
     .sidenav-price-slot{display:block}
-    .peach-id{display:none}
     .settings-scroll{padding:24px 16px 80px}
   }
   @media(max-width:767px){
@@ -1254,48 +1253,18 @@ export default function SettingsScreen() {
     <>
       <style>{css}</style>
       <div className="app">
-        <header className="topbar">
-          <button className="burger-btn" onClick={() => setSidebarMobileOpen(o => !o)}><IconBurger/></button>
-          <PeachIcon size={28}/>
-          <span className="logo-wordmark">Peach</span>
-          <div className="topbar-price">
-            <IcoBtc size={18}/>
-            <span className="topbar-price-main">{btcPrice.toLocaleString("fr-FR")} {selectedCurrency}</span>
-            <span className="topbar-price-sats">{satsPerCur.toLocaleString()} sats / {selectedCurrency.toLowerCase()}</span>
-            <div className="topbar-cur-select">
-              <span className="cur-select-label">{selectedCurrency}</span>
-              <svg className="cur-select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{pointerEvents:"none",flexShrink:0}}><polyline points="1,1 5,5 9,1"/></svg>
-              <select value={selectedCurrency} onChange={e => setSelectedCurrency(e.target.value)} className="cur-select-inner">
-                {availableCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="topbar-right">
-            {isLoggedIn ? (
-              <div className="avatar-menu-wrap">
-                <div className="avatar-peachid" onClick={(e) => { e.stopPropagation(); setShowAvatarMenu(v => !v); }}>
-                  <span className="peach-id">{getTopbarPeachId()}</span>
-                  <div className="avatar">PW<div className="avatar-badge">2</div></div>
-                </div>
-                {showAvatarMenu && (
-                  <div className="avatar-menu">
-                    <button className="avatar-menu-item danger" onClick={handleLogout}>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 2H3.5A1.5 1.5 0 002 3.5v9A1.5 1.5 0 003.5 14H6"/><path d="M10.5 11.5L14 8l-3.5-3.5"/><path d="M14 8H6"/></svg>
-                      Log out
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="avatar-login-btn" onClick={handleLogin}>
-                <div className="avatar" style={{background:"var(--black-10)",color:"var(--black-25)"}}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
-                </div>
-                <span className="avatar-login-label">Log in</span>
-              </div>
-            )}
-          </div>
-        </header>
+        <Topbar
+          onBurgerClick={() => setSidebarMobileOpen(o => !o)}
+          isLoggedIn={isLoggedIn}
+          handleLogin={handleLogin}
+          handleLogout={handleLogout}
+          showAvatarMenu={showAvatarMenu}
+          setShowAvatarMenu={setShowAvatarMenu}
+          btcPrice={btcPrice}
+          selectedCurrency={selectedCurrency}
+          availableCurrencies={availableCurrencies}
+          onCurrencyChange={c => setSelectedCurrency(c)}
+        />
 
         <SideNav
           active="settings"

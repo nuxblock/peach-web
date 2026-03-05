@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
+import { SideNav, Topbar } from "../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
@@ -112,28 +112,6 @@ const CSS = `
     flex-shrink:0;transition:background .14s;
   }
   .burger-btn:hover{background:var(--black-5)}
-  .avatar{width:32px;height:32px;border-radius:50%;background:var(--grad);display:flex;
-    align-items:center;justify-content:center;font-size:.72rem;font-weight:800;color:white;
-    cursor:pointer;position:relative}
-  .avatar-badge{position:absolute;top:-3px;right:-3px;background:var(--error);color:white;
-    font-size:.55rem;font-weight:800;width:14px;height:14px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;border:2px solid var(--surface)}
-
-  /* ── AVATAR DROPDOWN ── */
-  .avatar-menu-wrap{position:relative}
-  .avatar-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--black-10);border-radius:12px;box-shadow:0 8px 28px rgba(43,25,17,.12);min-width:160px;padding:6px;z-index:300;animation:fadeIn .12s ease}
-  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-  .avatar-menu-item{width:100%;display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;border:none;background:transparent;cursor:pointer;font-family:var(--font);font-size:.82rem;font-weight:600;color:var(--black);transition:background .1s}
-  .avatar-menu-item:hover{background:var(--black-5)}
-  .avatar-menu-item.danger{color:var(--error)}
-  .avatar-menu-item.danger:hover{background:var(--error-bg)}
-  .avatar-login-btn{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 10px;border-radius:999px;transition:background .14s}
-  .avatar-login-btn:hover{background:var(--black-5)}
-  .avatar-login-label{font-size:.78rem;font-weight:700;color:var(--primary);white-space:nowrap}
-  .peach-id{font-size:.72rem;font-weight:800;letter-spacing:.06em;color:var(--black-75);font-family:var(--font);white-space:nowrap}
-  .avatar-peachid{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 10px;border-radius:999px;transition:background .14s}
-  .avatar-peachid:hover{background:var(--black-5)}
-
   /* ── AUTH POPUP (protected screen — scoped to content area) ── */
   .auth-screen-overlay{
     position:fixed;top:var(--topbar);left:68px;right:0;bottom:0;z-index:100;
@@ -1096,36 +1074,19 @@ export default function OfferCreation({ initialType="buy" }) {
   if(done&&!isSell) return (
     <>
       <style>{CSS}</style>
-      <header className="topbar">
-        <button className="burger-btn" onClick={() => setSidebarMobileOpen(o => !o)}><IconBurger/></button>
-        <PeachIcon size={28}/>
-        <span className="logo-text">Peach</span>
-        <div className="topbar-right">
-          {isLoggedIn ? (
-            <div className="avatar-menu-wrap">
-              <div className="avatar-peachid" onClick={(e) => { e.stopPropagation(); setShowAvatarMenu(v => !v); }}>
-                <span className="peach-id">{getTopbarPeachId()}</span>
-                <div className="avatar">PW<div className="avatar-badge">2</div></div>
-              </div>
-              {showAvatarMenu && (
-                <div className="avatar-menu">
-                  <button className="avatar-menu-item danger" onClick={handleLogout}>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 2H3.5A1.5 1.5 0 002 3.5v9A1.5 1.5 0 003.5 14H6"/><path d="M10.5 11.5L14 8l-3.5-3.5"/><path d="M14 8H6"/></svg>
-                    Log out
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="avatar-login-btn" onClick={handleLogin}>
-              <div className="avatar" style={{background:"var(--black-10)",color:"var(--black-25)"}}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
-              </div>
-              <span className="avatar-login-label">Log in</span>
-            </div>
-          )}
-        </div>
-      </header>
+      <Topbar
+        onBurgerClick={() => setSidebarMobileOpen(o => !o)}
+        isLoggedIn={isLoggedIn}
+        handleLogin={handleLogin}
+        handleLogout={handleLogout}
+        showAvatarMenu={showAvatarMenu}
+        setShowAvatarMenu={setShowAvatarMenu}
+        btcPrice={btcPrice}
+        selectedCurrency={selectedCurrency}
+        availableCurrencies={availableCurrencies}
+        onCurrencyChange={c => setSelectedCurrency(c)}
+        showPrice={false}
+      />
       <SideNav
         active="create"
         collapsed={sidebarCollapsed}
@@ -1188,48 +1149,18 @@ export default function OfferCreation({ initialType="buy" }) {
         <PMModal initialData={editingPM} onSave={handleSavePM}
           onClose={()=>setEditingPM(null)}/>
       )}
-      <header className="topbar">
-        <button className="burger-btn" onClick={() => setSidebarMobileOpen(o => !o)}><IconBurger/></button>
-        <PeachIcon size={28}/>
-        <span className="logo-text">Peach</span>
-        <div className="topbar-price">
-          <IcoBtc size={18}/>
-          <span className="topbar-price-main">{btcPrice.toLocaleString("fr-FR")} {selectedCurrency}</span>
-          <span className="topbar-price-sats">{Math.round(SAT/btcPrice).toLocaleString()} sats / {selectedCurrency.toLowerCase()}</span>
-          <div className="topbar-cur-select">
-            <span className="cur-select-label">{selectedCurrency}</span>
-            <svg className="cur-select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{pointerEvents:"none",flexShrink:0}}><polyline points="1,1 5,5 9,1"/></svg>
-            <select value={selectedCurrency} onChange={e => setSelectedCurrency(e.target.value)} className="cur-select-inner">
-              {availableCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="topbar-right">
-          {isLoggedIn ? (
-            <div className="avatar-menu-wrap">
-              <div className="avatar-peachid" onClick={(e) => { e.stopPropagation(); setShowAvatarMenu(v => !v); }}>
-                <span className="peach-id">{getTopbarPeachId()}</span>
-                <div className="avatar">PW<div className="avatar-badge">2</div></div>
-              </div>
-              {showAvatarMenu && (
-                <div className="avatar-menu">
-                  <button className="avatar-menu-item danger" onClick={handleLogout}>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 2H3.5A1.5 1.5 0 002 3.5v9A1.5 1.5 0 003.5 14H6"/><path d="M10.5 11.5L14 8l-3.5-3.5"/><path d="M14 8H6"/></svg>
-                    Log out
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="avatar-login-btn" onClick={handleLogin}>
-              <div className="avatar" style={{background:"var(--black-10)",color:"var(--black-25)"}}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
-              </div>
-              <span className="avatar-login-label">Log in</span>
-            </div>
-          )}
-        </div>
-      </header>
+      <Topbar
+        onBurgerClick={() => setSidebarMobileOpen(o => !o)}
+        isLoggedIn={isLoggedIn}
+        handleLogin={handleLogin}
+        handleLogout={handleLogout}
+        showAvatarMenu={showAvatarMenu}
+        setShowAvatarMenu={setShowAvatarMenu}
+        btcPrice={btcPrice}
+        selectedCurrency={selectedCurrency}
+        availableCurrencies={availableCurrencies}
+        onCurrencyChange={c => setSelectedCurrency(c)}
+      />
 
       <SideNav
         active="create"

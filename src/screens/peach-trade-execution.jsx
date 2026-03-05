@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
+import { SideNav, Topbar } from "../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
@@ -1705,48 +1705,18 @@ export default function TradeExecution() {
       <style>{CSS}</style>
 
       {/* ── TOPBAR ── */}
-      <header className="topbar">
-        <button className="burger-btn" onClick={() => setMobileOpen(o => !o)}><IconBurger/></button>
-        <PeachIcon size={28}/>
-        <span className="logo-wordmark">Peach</span>
-        <div className="topbar-price">
-          <IcoBtc size={18}/>
-          <span className="topbar-price-main">{btcPrice.toLocaleString("fr-FR")} {selectedCurrency}</span>
-          <span className="topbar-price-sats">{satsPerCur.toLocaleString()} sats / {selectedCurrency.toLowerCase()}</span>
-          <div className="topbar-cur-select">
-            <span className="cur-select-label">{selectedCurrency}</span>
-            <svg className="cur-select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{pointerEvents:"none",flexShrink:0}}><polyline points="1,1 5,5 9,1"/></svg>
-            <select value={selectedCurrency} onChange={e => setSelectedCurrency(e.target.value)} className="cur-select-inner">
-              {availableCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="topbar-right">
-          {isLoggedIn ? (
-            <div className="avatar-menu-wrap" style={{position:"relative"}}>
-              <div className="avatar-peachid" onClick={(e) => { e.stopPropagation(); setShowAvatarMenu(v => !v); }} style={{cursor:"pointer"}}>
-                <span className="peach-id">{getTopbarPeachId()}</span>
-                <div className="avatar">
-                  N
-                  <div className="avatar-badge">{unreadCount}</div>
-                </div>
-              </div>
-              {showAvatarMenu && (
-                <div style={{position:"absolute",top:"110%",right:0,background:"white",borderRadius:12,boxShadow:"0 4px 20px rgba(0,0,0,.12)",padding:6,minWidth:140,zIndex:300}}>
-                  <button className="avatar-menu-item danger" onClick={handleLogout}
-                    style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"10px 14px",border:"none",background:"none",borderRadius:8,cursor:"pointer",fontSize:".82rem",fontWeight:700,color:"#DF321F",fontFamily:"Baloo 2, cursive"}}>
-                    Log out
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="avatar-login-btn" onClick={handleLogin} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:6,padding:"6px 14px",borderRadius:999,background:"linear-gradient(135deg,#F56522,#F5A522)",color:"white",fontWeight:800,fontSize:".78rem",fontFamily:"Baloo 2, cursive"}}>
-              <span>Log in</span>
-            </div>
-          )}
-        </div>
-      </header>
+      <Topbar
+        onBurgerClick={() => setMobileOpen(o => !o)}
+        isLoggedIn={isLoggedIn}
+        handleLogin={handleLogin}
+        handleLogout={handleLogout}
+        showAvatarMenu={showAvatarMenu}
+        setShowAvatarMenu={setShowAvatarMenu}
+        btcPrice={btcPrice}
+        selectedCurrency={selectedCurrency}
+        availableCurrencies={availableCurrencies}
+        onCurrencyChange={c => setSelectedCurrency(c)}
+      />
 
       <SideNav
         active="trades"
