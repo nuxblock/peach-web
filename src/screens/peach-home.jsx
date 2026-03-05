@@ -64,6 +64,10 @@ const css = `
   .welcome-text p{font-size:.82rem;font-weight:500;color:var(--black-65);margin-top:2px}
   .welcome-actions{margin-left:auto;display:flex;gap:10px}
 
+  /* ── LAYOUT ── */
+  .page-wrap{display:flex;flex-direction:column;flex:1}
+  .content{padding:28px 28px 60px;display:flex;flex-direction:column;gap:28px;max-width:1200px;margin:0 auto;width:100%}
+
   /* ── GRID ── */
   .dashboard-grid{display:grid;grid-template-columns:auto auto;gap:18px;justify-content:start}
   .span-2{flex:0 0 auto}
