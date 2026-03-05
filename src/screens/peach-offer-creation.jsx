@@ -56,40 +56,7 @@ function fmt(n)    { return n>=1_000_000?(n/1_000_000).toFixed(2)+"M":n>=1000?(n
 function fmtEur(n) { return n.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&display=swap');
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  :root{
-    --primary:#F56522;--primary-dark:#C45104;--primary-mild:#FEEDE5;--primary-mild2:#FCCCB6;
-    --grad:linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C);
-    --success:#65A519;--success-bg:#F2F9E7;--success-mild:#DDEFC3;
-    --error:#DF321F;--error-bg:#FFE6E1;
-    --black:#2B1911;--black-75:#624D44;--black-65:#7D675E;
-    --black-25:#C4B5AE;--black-10:#EAE3DF;--black-5:#F4EEEB;
-    --surface:#fff;--bg:#FFF9F6;--font:'Baloo 2',cursive;--topbar:56px;
-  }
-  html{font-size:120%}
-  body{font-family:var(--font);background:var(--bg);color:var(--black);min-height:100vh}
-
-  /* Topbar */
-  .topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar);background:var(--surface);
-    border-bottom:1px solid var(--black-10);display:flex;align-items:center;
-    padding:0 20px;gap:12px;z-index:200}
-  .logo-text{font-size:1.22rem;font-weight:800;letter-spacing:-.02em;
-    background:var(--grad);-webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;background-clip:text}
-  .price-pill,.topbar-price{display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,#FFBFA8,#FFD5BF);border-radius:999px;padding:5px 6px 5px 10px;font-size:.78rem;font-weight:600;color:var(--black);flex-shrink:0}
-  .topbar-price-main{font-weight:800;color:var(--black);white-space:nowrap}
-  .topbar-price-sats{font-weight:500;color:var(--black-65);white-space:nowrap}
-  .topbar-cur-select{position:relative;display:flex;align-items:center;gap:4px;background:rgba(255,255,255,0.45);border-radius:999px;padding:2px 9px;cursor:pointer}
-  .cur-select-inner{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:.78rem;width:100%}
-  .cur-select-arrow{display:flex;align-items:center;pointer-events:none;color:var(--black-65);flex-shrink:0}
-  .cur-select-label{font-size:.76rem;font-weight:800;color:var(--black);pointer-events:none}
-  .sidenav-price-slot{display:none;margin-top:auto;padding:12px 8px 8px;width:100%;border-top:1px solid var(--black-10)}
-  .mobile-price-pill{display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,#FFBFA8,#FFD5BF);border-radius:12px;padding:10px 10px 10px 12px}
-  .mobile-price-text{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
-  .mobile-price-main{font-size:.82rem;font-weight:800;color:var(--black);white-space:nowrap}
-  .mobile-price-sats{font-size:.68rem;font-weight:500;color:var(--black-65);white-space:nowrap}
-  .mobile-cur-select{flex-shrink:0}
+  :root{--error-bg:#FFE6E1}
 
   /* Creating offer badge — the prominent label */
   .creating-badge{
