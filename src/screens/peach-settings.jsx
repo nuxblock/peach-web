@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
 import { IcoBtc } from "../components/BitcoinAmount.jsx";
+import { useAuth } from "../hooks/useAuth.js";
 
 // ─── INPUT VALIDATORS (inline for Claude.ai preview; import from peach-validators.js for GitHub build) ──
 
@@ -213,6 +214,13 @@ function Toggle({ checked, onChange }) {
     </button>
   );
 }
+
+// ─── ICONS ────────────────────────────────────────────────────────────────────
+const IconChevronRight = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
 
 // ─── SETTINGS ROW ─────────────────────────────────────────────────────────────
 function SettingsRow({ label, description, icon, right, warning, onClick, noBorder }) {
@@ -1229,13 +1237,8 @@ export default function SettingsScreen() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
-  // ── AUTH STATE (persisted via localStorage) ──
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    try { return localStorage.getItem("peach_logged_in") !== "false"; } catch { return true; }
-  });
-  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
-  const handleLogout = () => { window.__PEACH_AUTH__ = null; setIsLoggedIn(false); setShowAvatarMenu(false); try { localStorage.setItem("peach_logged_in", "false"); } catch {} };
-  const handleLogin = () => { setIsLoggedIn(true); try { localStorage.setItem("peach_logged_in", "true"); } catch {} };
+  // ── AUTH STATE ──
+  const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };

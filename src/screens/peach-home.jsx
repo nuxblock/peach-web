@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
-import { SatsAmount } from "../components/BitcoinAmount.jsx";
+import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
+import { useAuth } from "../hooks/useAuth.js";
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const BTC_PRICE = 87432;
 
@@ -404,8 +405,8 @@ export default function PeachHome() {
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
-  // ── AUTH — read from Dev Login global ──
-  const auth = window.__PEACH_AUTH__ ?? null;
+  // ── AUTH ──
+  const { auth, isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
   const liveProfile = auth?.profile ?? null;
   const user = {
     peachId:             auth?.peachId              ?? MOCK_USER.peachId,
@@ -419,24 +420,6 @@ export default function PeachHome() {
     totalVolumeBtc:      MOCK_USER.totalVolumeBtc,
     lastTradeDaysAgo:    MOCK_USER.lastTradeDaysAgo,
     blockedByCount:      MOCK_USER.blockedByCount,
-  };
-
-  // ── AUTH STATE ──
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    if (window.__PEACH_AUTH__) return true;
-    try { return localStorage.getItem("peach_logged_in") !== "false"; } catch { return true; }
-  });
-  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
-
-  const handleLogout = () => {
-    window.__PEACH_AUTH__ = null;
-    setIsLoggedIn(false);
-    setShowAvatarMenu(false);
-    try { localStorage.setItem("peach_logged_in", "false"); } catch {}
-  };
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    try { localStorage.setItem("peach_logged_in", "true"); } catch {}
   };
 
   // Close avatar menu on outside click

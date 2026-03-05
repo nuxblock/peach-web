@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
-import { SatsAmount } from "../components/BitcoinAmount.jsx";
+import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
+import { useAuth } from "../hooks/useAuth.js";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconSort      = ({ dir }) => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d={dir === "asc" ? "M2 8l4-5 4 5" : dir === "desc" ? "M2 4l4 5 4-5" : "M2 4.5l4-3 4 3M2 7.5l4 3 4-3"}/></svg>;
@@ -1127,13 +1128,7 @@ export default function TradesDashboard() {
   const [liveItems, setLiveItems] = useState(null);   // null = use mock
   const [liveLimit, setLiveLimit] = useState(null);   // null = use mock
 
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    if (window.__PEACH_AUTH__) return true;
-    try { return localStorage.getItem("peach_logged_in") !== "false"; } catch { return true; }
-  });
-  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
-  const handleLogout = () => { window.__PEACH_AUTH__ = null; setIsLoggedIn(false); setShowAvatarMenu(false); try { localStorage.setItem("peach_logged_in", "false"); } catch {} };
-  const handleLogin  = () => { setIsLoggedIn(true); try { localStorage.setItem("peach_logged_in", "true"); } catch {} };
+  const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
-import { SatsAmount } from "../components/BitcoinAmount.jsx";
+import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
+import { useAuth } from "../hooks/useAuth.js";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconBack      = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="10,3 5,8 10,13"/></svg>;
@@ -1644,7 +1645,7 @@ const CSS = `
 export default function TradeExecution() {
   const navigate = useNavigate();
   const { id: routeId } = useParams();
-  const auth = window.__PEACH_AUTH__ ?? null;
+  const { auth, isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
 
   const [demoOpen, setDemoOpen] = useState(false);
   const [scenarioId, setScenarioId]   = useState("buyer_awaiting");
@@ -1656,14 +1657,6 @@ export default function TradeExecution() {
   const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
   const btcPrice = Math.round(allPrices[selectedCurrency] ?? BTC_PRICE);
 
-  // ── AUTH STATE ──
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    if (window.__PEACH_AUTH__) return true;
-    try { return localStorage.getItem("peach_logged_in") !== "false"; } catch { return true; }
-  });
-  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
-  const handleLogout = () => { window.__PEACH_AUTH__ = null; setIsLoggedIn(false); setShowAvatarMenu(false); try { localStorage.setItem("peach_logged_in", "false"); } catch {} };
-  const handleLogin  = () => { setIsLoggedIn(true); try { localStorage.setItem("peach_logged_in", "true"); } catch {} };
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
