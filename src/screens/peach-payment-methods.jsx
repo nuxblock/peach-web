@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
 import { IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
+import { useApi } from "../hooks/useApi.js";
 
 // ─── INPUT VALIDATORS (inline for Claude.ai preview; import from peach-validators.js for GitHub build) ──
 const IBAN_RE = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/;
@@ -635,6 +636,7 @@ export default function PeachPaymentMethods() {
 
   // ── AUTH STATE ──
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
+  const { get, auth } = useApi();
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
@@ -666,7 +668,7 @@ export default function PeachPaymentMethods() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await get('/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -683,7 +685,7 @@ export default function PeachPaymentMethods() {
   useEffect(() => {
     async function fetchMethods() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/info/paymentMethods`);
+        const res = await get('/info/paymentMethods');
         const data = await res.json();
         // The API may return a different shape — we normalise it here.
         // If the response is usable, merge with our category metadata.
@@ -703,17 +705,13 @@ export default function PeachPaymentMethods() {
 
   // Fetch user's saved payment methods (authenticated)
   useEffect(() => {
-    const auth = window.__PEACH_AUTH__;
     if (!auth?.token) return; // not regtest-authenticated — keep mock data
 
     setSavedLoading(true);
-    const baseUrl = auth.baseUrl || "https://api-regtest.peachbitcoin.com/v1";
 
     (async () => {
       try {
-        const res = await fetch(`${baseUrl}/user/me/paymentMethods`, {
-          headers: { "Authorization": `Bearer ${auth.token}` },
-        });
+        const res = await get('/user/me/paymentMethods');
         if (!res.ok) throw new Error(`${res.status}`);
         const data = await res.json();
 

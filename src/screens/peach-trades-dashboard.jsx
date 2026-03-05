@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
+import { useApi } from "../hooks/useApi.js";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconSort      = ({ dir }) => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d={dir === "asc" ? "M2 8l4-5 4 5" : dir === "desc" ? "M2 4l4 5 4-5" : "M2 4.5l4-3 4 3M2 7.5l4 3 4-3"}/></svg>;
@@ -997,8 +998,8 @@ export default function TradesDashboard() {
   const [collapsed, setCollapsed]       = useState(false);
   const [mobileOpen, setMobileOpen]     = useState(false);
 
-  // ── AUTH ──
-  const auth = window.__PEACH_AUTH__ ?? null;
+  // ── AUTH + API ──
+  const { get, auth } = useApi();
   const [liveItems, setLiveItems] = useState(null);   // null = use mock
   const [liveLimit, setLiveLimit] = useState(null);   // null = use mock
 
@@ -1018,7 +1019,7 @@ export default function TradesDashboard() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await get('/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -1034,8 +1035,6 @@ export default function TradesDashboard() {
   // ── LIVE TRADES + LIMITS ──
   useEffect(() => {
     if (!auth) return;
-    const base = auth.baseUrl;
-    const hdrs = { Authorization: `Bearer ${auth.token}` };
     const peachId = auth.peachId;
 
     function normalizeOffer(o) {
@@ -1080,9 +1079,9 @@ export default function TradesDashboard() {
     async function fetchTradesAndLimits() {
       try {
         const [offersRes, contractsRes, limitRes] = await Promise.all([
-          fetch(`${base}/offers/summary`, { headers: hdrs }),
-          fetch(`${base}/contracts/summary`, { headers: hdrs }),
-          fetch(`${base}/user/tradingLimit`, { headers: hdrs }),
+          get('/offers/summary'),
+          get('/contracts/summary'),
+          get('/user/tradingLimit'),
         ]);
         const [offersData, contractsData, limitData] = await Promise.all([
           offersRes.ok ? offersRes.json() : [],

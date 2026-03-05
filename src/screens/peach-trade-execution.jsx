@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
+import { useApi } from "../hooks/useApi.js";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconBack      = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="10,3 5,8 10,13"/></svg>;
@@ -1567,6 +1568,7 @@ export default function TradeExecution() {
   const navigate = useNavigate();
   const { id: routeId } = useParams();
   const { auth, isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
+  const { get } = useApi();
 
   const [demoOpen, setDemoOpen] = useState(false);
   const [scenarioId, setScenarioId]   = useState("buyer_awaiting");
@@ -1601,7 +1603,7 @@ export default function TradeExecution() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await get('/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -1617,13 +1619,11 @@ export default function TradeExecution() {
   // ── FETCH LIVE CONTRACT + CHAT ──
   useEffect(() => {
     if (!auth || !routeId) return;
-    const base = auth.baseUrl;
-    const hdrs = { Authorization: `Bearer ${auth.token}` };
     const peachId = auth.peachId;
 
     async function fetchContract() {
       try {
-        const res = await fetch(`${base}/contract/${routeId}`, { headers: hdrs });
+        const res = await get(`/contract/${routeId}`);
         if (!res.ok) return;
         const c = await res.json();
         const isBuyer = (c.buyer?.id ?? c.buyerId) === peachId;
@@ -1652,7 +1652,7 @@ export default function TradeExecution() {
 
     async function fetchChat() {
       try {
-        const res = await fetch(`${base}/contract/${routeId}/chat?page=0`, { headers: hdrs });
+        const res = await get(`/contract/${routeId}/chat?page=0`);
         if (!res.ok) return;
         const data = await res.json();
         const msgs = Array.isArray(data) ? data : (data?.messages ?? []);

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
 import { IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
+import { useApi } from "../hooks/useApi.js";
 
 // ─── INPUT VALIDATORS (inline for Claude.ai preview; import from peach-validators.js for GitHub build) ──
 
@@ -563,6 +564,7 @@ function BackupsSubScreen({ onBack }) {
 }
 
 function NetworkFeesSubScreen({ onBack }) {
+  const { get } = useApi();
   const [feeRates, setFeeRates] = useState({ fast:1, medium:1, slow:1 });
   const [selected, setSelected] = useState("medium");
   const [customVal, setCustomVal] = useState("");
@@ -573,7 +575,7 @@ function NetworkFeesSubScreen({ onBack }) {
   useEffect(() => {
     async function fetchFees() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/estimateFees`);
+        const res = await get('/estimateFees');
         const data = await res.json();
         if (data) setFeeRates({
           fast:   data.fastestFee  ?? data.fast   ?? 1,
@@ -640,18 +642,14 @@ function NetworkFeesSubScreen({ onBack }) {
 }
 
 function TxBatchingSubScreen({ onBack }) {
+  const { patch, auth } = useApi();
   const [batching, setBatching] = useState(false);
 
   async function handleBatchingChange(value) {
     setBatching(value);
-    const auth = window.__PEACH_AUTH__;
     if (!auth) return;
     try {
-      await fetch(`${auth.baseUrl}/user/batching`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${auth.token}` },
-        body: JSON.stringify({ enable: value }),
-      });
+      await patch('/user/batching', { enable: value });
     } catch {}
   }
 
@@ -681,6 +679,7 @@ function TxBatchingSubScreen({ onBack }) {
 
 // ─── REFUND ADDRESS (multi-step) ──────────────────────────────────────────────
 function RefundAddressSubScreen({ onBack }) {
+  const { patch, auth } = useApi();
   const [step, setStep] = useState(1);
   const [label, setLabel] = useState("");
   const [address, setAddress] = useState("");
@@ -689,7 +688,7 @@ function RefundAddressSubScreen({ onBack }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const handleBlur = makeBlurHandler(setErrors);
-  const peachId = window.__PEACH_AUTH__?.peachId ?? "peach03cf9e9a";
+  const peachId = auth?.peachId ?? "peach03cf9e9a";
   const signMessage = `I confirm that only I, ${peachId}, control the address ${address}`;
 
   function handleAddressBlur() {
@@ -739,14 +738,9 @@ function RefundAddressSubScreen({ onBack }) {
 
         <PrimaryBtn label={submitting ? "SAVING…" : "CONFIRM"} disabled={!signature.trim() || !!errors.sig || !validateBIP322Signature(signature).valid || submitting} onClick={async () => {
           setSubmitting(true);
-          const auth = window.__PEACH_AUTH__;
           try {
             if (auth) {
-              const res = await fetch(`${auth.baseUrl}/user`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${auth.token}` },
-                body: JSON.stringify({ refundAddress: address, refundAddressLabel: label || undefined, refundAddressSignature: signature }),
-              });
+              const res = await patch('/user', { refundAddress: address, refundAddressLabel: label || undefined, refundAddressSignature: signature });
               if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 setErrors(p => ({ ...p, sig: err.message || "Server error — try again" }));
@@ -816,6 +810,7 @@ function RefundAddressSubScreen({ onBack }) {
 
 // ─── CUSTOM PAYOUT WALLET (multi-step) ───────────────────────────────────────
 function PayoutWalletSubScreen({ onBack }) {
+  const { patch, auth } = useApi();
   const [step, setStep] = useState(1);
   const [label, setLabel] = useState("");
   const [address, setAddress] = useState("");
@@ -825,7 +820,7 @@ function PayoutWalletSubScreen({ onBack }) {
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const handleBlur = makeBlurHandler(setErrors);
-  const peachId = window.__PEACH_AUTH__?.peachId ?? "peach03cf9e9a";
+  const peachId = auth?.peachId ?? "peach03cf9e9a";
   const signMessage = `I confirm that only I, ${peachId}, control the address ${address}`;
 
   function handleAddressBlur() {
@@ -842,17 +837,12 @@ function PayoutWalletSubScreen({ onBack }) {
     setSubmitting(true);
     setErrors(p => ({ ...p, sig: null }));
 
-    const auth = window.__PEACH_AUTH__;
     try {
       if (auth) {
-        const res = await fetch(`${auth.baseUrl}/user`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${auth.token}` },
-          body: JSON.stringify({
-            payoutAddress: address,
-            payoutAddressLabel: label || undefined,
-            payoutAddressSignature: signature,
-          }),
+        const res = await patch('/user', {
+          payoutAddress: address,
+          payoutAddressLabel: label || undefined,
+          payoutAddressSignature: signature,
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -1130,6 +1120,7 @@ export default function SettingsScreen() {
 
   // ── AUTH STATE ──
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
+  const { get } = useApi();
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
@@ -1147,7 +1138,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await get('/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);

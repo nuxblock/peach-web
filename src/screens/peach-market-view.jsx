@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
+import { useApi } from "../hooks/useApi.js";
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const MOCK_OFFERS = [
@@ -689,8 +690,8 @@ export default function PeachMarket() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
-  // ── AUTH ──
-  const auth = window.__PEACH_AUTH__ ?? null;
+  // ── AUTH + API ──
+  const { get, post, auth } = useApi();
   const [liveOffers,   setLiveOffers]   = useState(null); // null = use mock
   const [liveUserPMs,  setLiveUserPMs]  = useState(null); // null = use mock
 
@@ -761,7 +762,7 @@ export default function PeachMarket() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await get('/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -778,7 +779,6 @@ export default function PeachMarket() {
 
   // ── LIVE MARKET OFFERS + USER PMs ──
   useEffect(() => {
-    const base = auth?.baseUrl ?? 'https://api.peachbitcoin.com/v1';
     const peachId = auth?.peachId ?? null;
 
     function normalizeOffer(o) {
@@ -805,8 +805,8 @@ export default function PeachMarket() {
     async function fetchMarket() {
       try {
         const [bidsRes, asksRes] = await Promise.all([
-          fetch(`${base}/offer/search`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ type:"bid" }) }),
-          fetch(`${base}/offer/search`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ type:"ask" }) }),
+          post('/offer/search', { type: 'bid' }),
+          post('/offer/search', { type: 'ask' }),
         ]);
         const [bids, asks] = await Promise.all([
           bidsRes.ok ? bidsRes.json() : [],
@@ -822,9 +822,7 @@ export default function PeachMarket() {
     fetchMarket();
 
     if (auth) {
-      fetch(`${base}/user/me/paymentMethods`, {
-        headers: { Authorization: `Bearer ${auth.token}` },
-      })
+      get('/user/me/paymentMethods')
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {

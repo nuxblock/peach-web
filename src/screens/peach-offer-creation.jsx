@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
+import { useApi } from "../hooks/useApi.js";
 
 const BTC_PRICE_INIT = 87432;
 const SAT = 100_000_000;
@@ -993,11 +994,8 @@ export default function OfferCreation({ initialType="buy" }) {
 
   // ── FETCH LIVE SAVED PMs ──
   useEffect(() => {
-    const auth = window.__PEACH_AUTH__;
     if (!auth) return;
-    fetch(`${auth.baseUrl}/user/me/paymentMethods`, {
-      headers: { Authorization: `Bearer ${auth.token}` },
-    })
+    get('/user/me/paymentMethods')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
@@ -1016,6 +1014,7 @@ export default function OfferCreation({ initialType="buy" }) {
 
   // ── AUTH STATE ──
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
+  const { get, auth } = useApi();
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
@@ -1040,7 +1039,7 @@ export default function OfferCreation({ initialType="buy" }) {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await get('/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);

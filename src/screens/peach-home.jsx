@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
+import { useApi } from "../hooks/useApi.js";
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const BTC_PRICE = 87432;
 
@@ -295,6 +296,7 @@ export default function PeachHome() {
 
   // ── AUTH ──
   const { auth, isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
+  const { get } = useApi();
   const liveProfile = auth?.profile ?? null;
   const user = {
     peachId:             auth?.peachId              ?? MOCK_USER.peachId,
@@ -329,7 +331,7 @@ export default function PeachHome() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/market/prices`);
+        const res = await get('/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
