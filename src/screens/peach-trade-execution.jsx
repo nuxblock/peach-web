@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SideNav, getTopbarPeachId, PeachIcon, IconBurger } from "../components/Sidebar.jsx";
+import { SatsAmount } from "../components/BitcoinAmount.jsx";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconBack      = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="10,3 5,8 10,13"/></svg>;
@@ -16,39 +17,6 @@ const IconThumbDown = () => <svg width="18" height="18" viewBox="0 0 18 18" fill
 const IconDispute   = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="8" cy="8" r="6.5"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="11" r=".6" fill="currentColor" stroke="none"/></svg>;
 const IconChevronDown = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3,5 7,9 11,5"/></svg>;
 const IconChevronUp   = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3,9 7,5 11,9"/></svg>;
-
-
-const IcoBtc = ({ size = 15 }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" style={{ display:"inline-block", verticalAlign:"middle", flexShrink:0 }}>
-    <circle cx="16" cy="16" r="16" fill="#F7931A"/>
-    <path d="M22.2 13.8c.3-2-1.2-3.1-3.3-3.8l.7-2.7-1.6-.4-.7 2.6c-.4-.1-.9-.2-1.3-.3l.7-2.6-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.3l-2.1-.5-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8.9l-.8 3.3c.1 0 .2 0 .3.1-.1 0-.2-.1-.3-.1L11.4 20c-.1.3-.4.7-1 .5 0 0-1.2-.3-1.2-.3l-.8 1.8 2 .5c.4.1.7.2 1.1.3l-.7 2.7 1.6.4.7-2.7c.4.1.9.2 1.4.3l-.7 2.7 1.6.4.7-2.7c2.8.5 4.9.3 5.8-2.2.7-2-.03-3.2-1.5-3.9 1.1-.25 1.9-1 2.1-2.5zm-3.8 5.3c-.5 2-3.9.9-5 .6l.9-3.5c1.1.3 4.6.8 4.1 2.9zm.5-5.3c-.45 1.8-3.3.9-4.2.7l.8-3.2c.9.2 3.8.6 3.4 2.5z" fill="white"/>
-  </svg>
-);
-
-function SatsAmount({ sats, size = "md" }) {
-  const satsStr = sats.toLocaleString("fr-FR");
-  const fs = size === "sm" ? ".82rem" : size === "lg" ? "1.2rem" : ".95rem";
-  const ico = size === "sm" ? 13 : size === "lg" ? 18 : 15;
-  if (sats >= 100_000_000) {
-    const btc = (sats / 100_000_000).toFixed(2).replace(".", ",");
-    return (
-      <span style={{ display:"inline-flex", alignItems:"center", gap:5, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
-        <IcoBtc size={ico}/>
-        <span style={{ color:"var(--black)", fontWeight:800, fontSize:fs, whiteSpace:"nowrap" }}>{btc} BTC</span>
-      </span>
-    );
-  }
-  const digits = sats.toString().length;
-  const leadingZeros = 8 - digits;
-  const greyPart = "0," + "0".repeat(leadingZeros);
-  return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:5, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
-      <IcoBtc size={ico}/>
-      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:fs, whiteSpace:"nowrap" }}>{greyPart}</span>
-      <span style={{ color:"var(--black)", fontWeight:800, fontSize:fs, whiteSpace:"nowrap" }}>{satsStr} Sats</span>
-    </span>
-  );
-}
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const BTC_PRICE = 87432;

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SatsAmount } from "../components/BitcoinAmount.jsx";
 
 // ─── DESIGN TOKENS (from Peach design system) ────────────────────────────────
 const STYLE = `
@@ -259,37 +260,8 @@ const STYLE = `
 
 // ─── SVG ICONS ───────────────────────────────────────────────────────────────
 const IcoClock  = ({ size = 12 }) => <svg width={size} height={size} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="ico"><circle cx="6" cy="6" r="4.5"/><path d="M6 3.2v2.8l1.8 1.3"/></svg>;
-// Standard Bitcoin logo — orange circle, white ₿ with double crossbar and characteristic bump sizes
-const IcoBtc = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" className="ico">
-    <circle cx="16" cy="16" r="16" fill="#F7931A"/>
-    <path d="M22.2 13.8c.3-2-1.2-3.1-3.3-3.8l.7-2.7-1.6-.4-.7 2.6c-.4-.1-.9-.2-1.3-.3l.7-2.6-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.3l-2.1-.5-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8.9l-.8 3.3c.1 0 .2 0 .3.1-.1 0-.2-.1-.3-.1L11.4 20c-.1.3-.4.7-1 .5 0 0-1.2-.3-1.2-.3l-.8 1.8 2 .5c.4.1.7.2 1.1.3l-.7 2.7 1.6.4.7-2.7c.4.1.9.2 1.4.3l-.7 2.7 1.6.4.7-2.7c2.8.5 4.9.3 5.8-2.2.7-2-.03-3.2-1.5-3.9 1.1-.25 1.9-1 2.1-2.5zm-3.8 5.3c-.5 2-3.9.9-5 .6l.9-3.5c1.1.3 4.6.8 4.1 2.9zm.5-5.3c-.45 1.8-3.3.9-4.2.7l.8-3.2c.9.2 3.8.6 3.4 2.5z" fill="white"/>
-  </svg>
-);
 const IcoWallet = ({ size = 14 }) => <svg width={size} height={size} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="ico"><rect x="1.5" y="3.5" width="11" height="8" rx="1.5"/><path d="M1.5 6h11"/><circle cx="9.5" cy="8" r=".8" fill="currentColor" stroke="none"/></svg>;
 const IcoWait   = ({ size = 14 }) => <svg width={size} height={size} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="ico"><circle cx="7" cy="7" r="5.5"/><path d="M7 4v3l2 1.5"/></svg>;
-
-// ─── SATS AMOUNT — standardized display: ₿ icon · 0.00 grey · sats black ───
-function SatsAmount({ sats, size = "md" }) {
-  const btcInt  = Math.floor(sats / 100_000_000);
-  const btcGrey = btcInt === 0 ? "0.00" : btcInt.toFixed(2);
-  const satsStr = sats.toLocaleString("fr-FR");
-
-  const sizes = {
-    sm: { icon: 13, fs: ".82rem" },
-    md: { icon: 15, fs: ".95rem" },
-    lg: { icon: 17, fs: "1.05rem" },
-  };
-  const s = sizes[size] || sizes.md;
-
-  return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:5 }}>
-      <IcoBtc size={s.icon}/>
-      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:s.fs }}>{btcGrey}</span>
-      <span style={{ color:"var(--black)", fontWeight:800, fontSize:s.fs }}>{satsStr} Sats</span>
-    </span>
-  );
-}
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const WAIT_FOR_BUYER = {

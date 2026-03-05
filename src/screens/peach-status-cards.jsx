@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SatsAmount } from "../components/BitcoinAmount.jsx";
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const STYLE = `
@@ -175,7 +176,6 @@ const STYLE = `
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IcoClock  = ({ s = 12 }) => <svg width={s} height={s} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="ico"><circle cx="6" cy="6" r="4.5"/><path d="M6 3.2v2.8l1.8 1.3"/></svg>;
 const IcoMsg    = ({ s = 14 }) => <svg width={s} height={s} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="ico"><path d="M2 2h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H8l-3 2V10H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/></svg>;
-const IcoBtc    = ({ s = 14 }) => <svg width={s} height={s} viewBox="0 0 32 32" fill="none" className="ico"><circle cx="16" cy="16" r="16" fill="#F7931A"/><path d="M22.2 13.8c.3-2-1.2-3.1-3.3-3.8l.7-2.7-1.6-.4-.7 2.6c-.4-.1-.9-.2-1.3-.3l.7-2.6-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.3l-2.1-.5-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8.9l-.8 3.3c.1 0 .2 0 .3.1-.1 0-.2-.1-.3-.1L11.4 20c-.1.3-.4.7-1 .5 0 0-1.2-.3-1.2-.3l-.8 1.8 2 .5c.4.1.7.2 1.1.3l-.7 2.7 1.6.4.7-2.7c.4.1.9.2 1.4.3l-.7 2.7 1.6.4.7-2.7c2.8.5 4.9.3 5.8-2.2.7-2-.03-3.2-1.5-3.9 1.1-.25 1.9-1 2.1-2.5zm-3.8 5.3c-.5 2-3.9.9-5 .6l.9-3.5c1.1.3 4.6.8 4.1 2.9zm.5-5.3c-.45 1.8-3.3.9-4.2.7l.8-3.2c.9.2 3.8.6 3.4 2.5z" fill="white"/></svg>;
 const IcoSearch = ({ s = 13 }) => <svg width={s} height={s} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="ico"><circle cx="6" cy="6" r="4"/><path d="M10 10l2.5 2.5"/></svg>;
 const IcoSync   = ({ s = 13 }) => <svg width={s} height={s} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="ico"><path d="M2 7A5 5 0 0 1 12 5M12 7A5 5 0 0 1 2 9"/><path d="M10 3l2 2-2 2"/><path d="M4 11l-2-2 2-2"/></svg>;
 const IcoUpload = ({ s = 13 }) => <svg width={s} height={s} viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="ico"><path d="M7 2v8M4 5l3-3 3 3"/><path d="M2 11h10"/></svg>;
@@ -189,17 +189,6 @@ const IcoMempool= ({ s = 13 }) => <svg width={s} height={s} viewBox="0 0 14 14" 
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function fmt(n) { return n.toLocaleString("fr-FR"); }
-
-function SatsAmount({ sats }) {
-  const grey = Math.floor(sats / 100_000_000) === 0 ? "0.00" : (sats/100_000_000).toFixed(2);
-  return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
-      <IcoBtc s={14}/>
-      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:".88rem" }}>{grey}</span>
-      <span style={{ color:"var(--black)", fontWeight:800, fontSize:".88rem" }}>{fmt(sats)} Sats</span>
-    </span>
-  );
-}
 
 function PeachRating({ rep }) {
   const pct = Math.max(0, Math.min(1, rep / 5));
