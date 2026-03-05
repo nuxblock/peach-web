@@ -26,6 +26,11 @@ function validatePhone(raw, expectedPrefix) {
   }
   return { valid: true, error: null };
 }
+function validateHolder(raw) {
+  if (!raw || !raw.trim()) return { valid: false, error: "Account holder name is required" };
+  if (raw.trim().split(/\s+/).length < 2) return { valid: false, error: "Fill out your full name as per your bank details" };
+  return { valid: true, error: null };
+}
 function makeBlurHandler(setErrors) {
   return (fieldKey, value, validatorFn, ...extraArgs) => {
     const result = validatorFn(value, ...extraArgs);
@@ -316,6 +321,9 @@ function AddPMFlow({ methods, onSave, onClose, editData }) {
       } else if (f.key === "phone") {
         const r = validatePhone(details[f.key], PHONE_PREFIX_MAP[selMethodId]);
         if (!r.valid) newErrors[f.key] = r.error;
+      } else if (f.key === "holder") {
+        const r = validateHolder(details[f.key]);
+        if (!r.valid) newErrors[f.key] = r.error;
       }
     });
     if (Object.keys(newErrors).length > 0) {
@@ -480,6 +488,7 @@ function AddPMFlow({ methods, onSave, onClose, editData }) {
                 // Determine if this field needs validation
                 const isIBAN = f.key === "iban";
                 const isPhone = f.key === "phone";
+                const isHolder = f.key === "holder";
                 const phonePrefix = isPhone ? PHONE_PREFIX_MAP[selMethodId] : null;
 
                 function handleFieldBlur() {
@@ -487,6 +496,7 @@ function AddPMFlow({ methods, onSave, onClose, editData }) {
                   if (!val && f.optional) { setErrors(p => ({ ...p, [f.key]: null })); return; }
                   if (isIBAN) handleBlur(f.key, details[f.key], validateIBAN);
                   else if (isPhone) handleBlur(f.key, details[f.key], validatePhone, phonePrefix);
+                  else if (isHolder) handleBlur(f.key, details[f.key], validateHolder);
                 }
 
                 return (
@@ -500,10 +510,10 @@ function AddPMFlow({ methods, onSave, onClose, editData }) {
                       placeholder={f.placeholder}
                       value={details[f.key] || ""}
                       onChange={e => { setDetails(prev => ({ ...prev, [f.key]: e.target.value })); if (errors[f.key]) setErrors(p => ({ ...p, [f.key]: null })); }}
-                      onBlur={(isIBAN || isPhone) ? handleFieldBlur : undefined}
+                      onBlur={(isIBAN || isPhone || isHolder) ? handleFieldBlur : undefined}
                       style={errors[f.key] ? { borderColor:"#DF321F" } : {}}
                     />
-                    {(isIBAN || isPhone) && <FieldError error={errors[f.key]}/>}
+                    {(isIBAN || isPhone || isHolder) && <FieldError error={errors[f.key]}/>}
                   </div>
                 );
               })}

@@ -59,27 +59,6 @@ function fmtEur(n) { return n.toLocaleString("de-DE",{minimumFractionDigits:2,ma
 const CSS = `
   :root{--error-bg:#FFE6E1}
 
-  /* Creating offer badge — the prominent label */
-  .creating-badge{
-    display:flex;align-items:center;gap:8px;
-    padding:5px 16px 5px 6px;
-    border-radius:999px;
-    font-size:.82rem;font-weight:800;letter-spacing:.01em;
-    color:white;
-    background:var(--grad);
-    box-shadow:0 2px 10px rgba(245,101,34,.3);
-  }
-  .creating-badge-dot{width:8px;height:8px;border-radius:50%;
-    background:rgba(255,255,255,.6);animation:blink 1.4s ease-in-out infinite}
-  @keyframes blink{0%,100%{opacity:.5}50%{opacity:1}}
-  .creating-badge.sell-badge{
-    background:linear-gradient(90deg,#B01807,#DF321F);
-    box-shadow:0 2px 10px rgba(223,50,31,.3);
-  }
-  .creating-badge.buy-badge{
-    background:linear-gradient(90deg,#4F910C,#65A519);
-    box-shadow:0 2px 10px rgba(101,165,25,.3);
-  }
 
   .back-btn{display:flex;align-items:center;gap:6px;font-size:.82rem;font-weight:700;
     color:var(--black-65);cursor:pointer;padding:6px 12px;border-radius:8px;
@@ -821,7 +800,10 @@ function PMModal({ onSave, onClose, initialData }) {
 
   const fields   = METHOD_FIELDS[selType] || [];
   const step1Ok  = selType && selCurrs.length > 0;
-  const step2Ok  = fields.every(f => (details[f.key]||"").trim().length > 0);
+  const [holderError, setHolderError] = useState(null);
+  const holderOk = !fields.some(f => f.key === "holder") ||
+    (details["holder"]||"").trim().split(/\s+/).filter(Boolean).length >= 2;
+  const step2Ok  = fields.every(f => (details[f.key]||"").trim().length > 0) && holderOk;
 
   function handleSave() {
     const pm = {
@@ -916,7 +898,15 @@ function PMModal({ onSave, onClose, initialData }) {
                   <input className="field-input" type="text"
                     placeholder={f.placeholder}
                     value={details[f.key]||""}
-                    onChange={e=>setDetails(d=>({...d,[f.key]:e.target.value}))}/>
+                    onChange={e=>{setDetails(d=>({...d,[f.key]:e.target.value}));if(f.key==="holder")setHolderError(null);}}
+                    onBlur={f.key==="holder"?()=>{
+                      const words=(details["holder"]||"").trim().split(/\s+/).filter(Boolean);
+                      setHolderError(words.length<2?"Fill out your full name as per your bank details":null);
+                    }:undefined}
+                    style={f.key==="holder"&&holderError?{borderColor:"#DF321F"}:{}}/>
+                  {f.key==="holder"&&holderError&&(
+                    <div style={{fontSize:".75rem",color:"#DF321F",marginTop:3,paddingLeft:2}}>{holderError}</div>
+                  )}
                 </div>
               ))}
               <div style={{fontSize:".72rem",color:"var(--black-65)",fontWeight:500,lineHeight:1.55}}>
@@ -1213,11 +1203,6 @@ export default function OfferCreation({ initialType="buy" }) {
               {availableCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-        </div>
-        {/* ← THE "CREATING OFFER" BADGE IN THE TOPBAR */}
-        <div className={`creating-badge ${isSell?"sell-badge":"buy-badge"}`}>
-          <span className="creating-badge-dot"/>
-          Creating {isSell?"sell":"buy"} offer
         </div>
         <div className="topbar-right">
           {isLoggedIn ? (
@@ -1761,7 +1746,7 @@ export default function OfferCreation({ initialType="buy" }) {
                 : <div/>}
               {step===0&&(
                 <button className="btn-next" onClick={handleNext} disabled={!configOk}>
-                  Review offer →
+                  Review {isSell?"sell":"buy"} offer →
                 </button>
               )}
               {step===1&&(

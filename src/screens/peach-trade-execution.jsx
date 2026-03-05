@@ -501,7 +501,8 @@ function DisputeFlow({ tradeId, onClose }) {
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  const canConfirm = email.trim().length > 0 && message.trim().length > 0;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const canConfirm = email.trim().length > 0 && emailValid && message.trim().length > 0;
 
   if (submitted) {
     return (
@@ -647,7 +648,8 @@ function DisputeFlow({ tradeId, onClose }) {
           <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:24 }}>
             <input
               style={{
-                border:"1.5px solid #C4B5AE", borderRadius:12, background:"white",
+                border:`1.5px solid ${email.trim().length > 0 && !emailValid ? "#DF321F" : "#C4B5AE"}`,
+                borderRadius:12, background:"white",
                 fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"#2B1911",
                 padding:"12px 16px", outline:"none",
               }}
@@ -655,8 +657,13 @@ function DisputeFlow({ tradeId, onClose }) {
               value={email}
               onChange={e => setEmail(e.target.value)}
               onFocus={e => e.target.style.borderColor="#DF321F"}
-              onBlur={e => e.target.style.borderColor="#C4B5AE"}
+              onBlur={e => e.target.style.borderColor = (email.trim().length > 0 && !emailValid) ? "#DF321F" : "#C4B5AE"}
             />
+            {email.trim().length > 0 && !emailValid && (
+              <div style={{ fontSize:".78rem", color:"#DF321F", marginTop:-4, paddingLeft:4 }}>
+                Please enter a valid email address
+              </div>
+            )}
             <input
               style={{
                 border:"1.5px solid #C4B5AE", borderRadius:12, background:"white",
