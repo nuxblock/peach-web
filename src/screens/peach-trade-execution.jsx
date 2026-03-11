@@ -4,6 +4,7 @@ import { SideNav, Topbar } from "../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
+import { decryptPGPMessage, decryptSymmetric } from "../utils/pgp.js";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconBack      = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="10,3 5,8 10,13"/></svg>;
@@ -42,33 +43,45 @@ function relTime(ts) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-// Trade lifecycle states in order
+// Trade lifecycle states in order (using real API TradeStatus values)
 const LIFECYCLE = [
-  { id:"matched",            label:"Matched",             desc:"Offers paired, awaiting escrow" },
-  { id:"escrow_funded",      label:"Escrow Funded",       desc:"Bitcoin locked in escrow" },
-  { id:"payment_in_transit", label:"Payment Sent",        desc:"Buyer marked fiat as sent — seller reviewing" },
-  { id:"completed",          label:"Completed",           desc:"Bitcoin released, trade closed" },
+  { id:"fundEscrow",              label:"Matched",        desc:"Offers paired, awaiting escrow" },
+  { id:"paymentRequired",         label:"Escrow Funded",  desc:"Bitcoin locked in escrow" },
+  { id:"confirmPaymentRequired",  label:"Payment Sent",   desc:"Buyer marked fiat as sent — seller reviewing" },
+  { id:"tradeCompleted",          label:"Completed",      desc:"Bitcoin released, trade closed" },
 ];
 
 const STATUS_CONFIG = {
-  matched:             { label:"Matched",            bg:"#FEFCE5", color:"#9A7000" },
-  escrow_funded:       { label:"Escrow Funded",      bg:"#FEFCE5", color:"#9A7000" },
-  awaiting_payment:    { label:"Awaiting Payment",   bg:"#FEEDE5", color:"#C45104" },
-  payment_in_transit:  { label:"Payment Sent",       bg:"#FEEDE5", color:"#C45104" },
-  payment_confirmed:   { label:"Payment Confirmed",  bg:"#F2F9E7", color:"#65A519" },
-  completed:           { label:"Completed",          bg:"#F2F9E7", color:"#65A519" },
-  dispute:             { label:"Dispute",            bg:"#FFE6E1", color:"#DF321F" },
-  cancellation_pending:{ label:"Cancellation Req.",  bg:"#FFE6E1", color:"#DF321F" },
-  cancelled:           { label:"Cancelled",          bg:"#F4EEEB", color:"#7D675E" },
+  createEscrow:        { label:"Create Escrow",        bg:"#FEFCE5", color:"#9A7000" },
+  fundEscrow:          { label:"Fund Escrow",          bg:"#FEFCE5", color:"#9A7000" },
+  waitingForFunding:   { label:"Waiting for Funding",  bg:"#F4EEEB", color:"#7D675E" },
+  escrowWaitingForConfirmation: { label:"Escrow Confirming", bg:"#F4EEEB", color:"#7D675E" },
+  fundingAmountDifferent: { label:"Wrong Funding",     bg:"#FEFCE5", color:"#9A7000" },
+  paymentRequired:     { label:"Send Payment",         bg:"#FEEDE5", color:"#C45104" },
+  confirmPaymentRequired:{ label:"Confirm Payment",    bg:"#FEEDE5", color:"#C45104" },
+  releaseEscrow:       { label:"Release Escrow",       bg:"#FEEDE5", color:"#C45104" },
+  paymentTooLate:      { label:"Not Paid in Time",     bg:"#FEFCE5", color:"#9A7000" },
+  payoutPending:       { label:"Payout Pending",       bg:"#F4EEEB", color:"#7D675E" },
+  rateUser:            { label:"Rate Counterparty",    bg:"#FEEDE5", color:"#C45104" },
+  tradeCompleted:      { label:"Completed",            bg:"#F2F9E7", color:"#65A519" },
+  dispute:             { label:"Dispute",              bg:"#FFE6E1", color:"#DF321F" },
+  disputeWithoutEscrowFunded: { label:"Dispute",       bg:"#FFE6E1", color:"#DF321F" },
+  confirmCancelation:  { label:"Confirm Cancel",       bg:"#FFE6E1", color:"#DF321F" },
+  tradeCanceled:       { label:"Cancelled",            bg:"#F4EEEB", color:"#7D675E" },
+  offerCanceled:       { label:"Offer Cancelled",      bg:"#F4EEEB", color:"#7D675E" },
+  refundAddressRequired:     { label:"Refund Address Needed", bg:"#FEEDE5", color:"#C45104" },
+  refundOrReviveRequired:    { label:"Refund or Revive",      bg:"#FEEDE5", color:"#C45104" },
+  refundTxSignatureRequired: { label:"Sign Refund",           bg:"#FEEDE5", color:"#C45104" },
 };
 
 // Demo scenarios — switch between them to preview different states
+// Uses real API TradeStatus values
 const DEMO_SCENARIOS = [
   {
     id:"buyer_escrow_pending",
     label:"Buyer — Awaiting Escrow",
     role:"buyer",
-    tradeStatus:"matched",
+    tradeStatus:"fundEscrow",
     lifecycleStep: 0,
     instantTrade: false,
     contract: {
@@ -90,7 +103,7 @@ const DEMO_SCENARIOS = [
     id:"seller_escrow_pending",
     label:"Seller — Fund Escrow",
     role:"seller",
-    tradeStatus:"matched",
+    tradeStatus:"fundEscrow",
     lifecycleStep: 0,
     instantTrade: true,
     contract: {
@@ -110,9 +123,9 @@ const DEMO_SCENARIOS = [
   },
   {
     id:"buyer_awaiting",
-    label:"Buyer — Awaiting Payment",
+    label:"Buyer — Send Payment",
     role:"buyer",
-    tradeStatus:"escrow_funded",
+    tradeStatus:"paymentRequired",
     lifecycleStep: 1,
     instantTrade: false,
     contract: {
@@ -141,7 +154,7 @@ const DEMO_SCENARIOS = [
     id:"seller_awaiting",
     label:"Seller — Awaiting Payment",
     role:"seller",
-    tradeStatus:"awaiting_payment",
+    tradeStatus:"paymentRequired",
     lifecycleStep: 1,
     instantTrade: false,
     contract: {
@@ -160,10 +173,10 @@ const DEMO_SCENARIOS = [
     paymentDetails:null,
   },
   {
-    id:"payment_in_transit",
+    id:"confirm_payment",
     label:"Seller — Confirm Payment",
     role:"seller",
-    tradeStatus:"payment_in_transit",
+    tradeStatus:"confirmPaymentRequired",
     lifecycleStep: 2,
     instantTrade: false,
     contract: {
@@ -182,10 +195,10 @@ const DEMO_SCENARIOS = [
     paymentDetails:null,
   },
   {
-    id:"completed",
+    id:"rate_user",
     label:"Completed — Rate Counterparty",
     role:"buyer",
-    tradeStatus:"completed",
+    tradeStatus:"rateUser",
     lifecycleStep: 3,
     instantTrade: false,
     contract: {
@@ -240,19 +253,13 @@ const MOCK_MESSAGES = {
     { id:2, from:"counterparty", text:"Hi, on it. My bank might take a little longer, is that ok?", ts: Date.now() - 55 * 60_000 },
     { id:3, from:"me",           text:"That's fine, you have plenty of time. Let me know if you need anything.", ts: Date.now() - 50 * 60_000 },
   ],
-  payment_in_transit: [
+  confirm_payment: [
     { id:1, from:"me",           text:"Escrow is set, waiting on your payment.", ts: Date.now() - 5 * 3600_000 },
     { id:2, from:"counterparty", text:"Just sent it via SEPA. Reference: PEACH-CT-00150", ts: Date.now() - 4 * 3600_000 },
     { id:3, from:"counterparty", text:"Please confirm once you see it arrive.", ts: Date.now() - 4 * 3600_000 + 2 * 60_000 },
     { id:4, from:"me",           text:"Checking my account now…", ts: Date.now() - 30 * 60_000 },
   ],
-  payment_confirmed: [
-    { id:1, from:"counterparty", text:"I've sent the payment. Check your Wise account.", ts: Date.now() - 7 * 3600_000 },
-    { id:2, from:"me",           text:"Got it, payment received! Releasing the bitcoin now.", ts: Date.now() - 6 * 3600_000 },
-    { id:3, from:"counterparty", text:"Great, thanks! Was a pleasure trading with you.", ts: Date.now() - 5 * 3600_000 },
-    { id:4, from:"me",           text:"Same here 🤝 Bitcoin released!", ts: Date.now() - 4 * 3600_000 },
-  ],
-  completed: [
+  rate_user: [
     { id:1, from:"counterparty", text:"Payment sent, please confirm.", ts: Date.now() - 25 * 3600_000 },
     { id:2, from:"me",           text:"Confirmed! Releasing now.", ts: Date.now() - 24 * 3600_000 },
     { id:3, from:"counterparty", text:"Bitcoin arrived, thank you!", ts: Date.now() - 23 * 3600_000 },
@@ -305,12 +312,20 @@ function StatusChip({ status, large }) {
 // ─── HORIZONTAL STEPPER (bottom bar) ─────────────────────────────────────────
 function HorizontalStepper({ status }) {
   const stepMap = {
-    matched:0, escrow_funded:1, awaiting_payment:1,
-    payment_in_transit:2, payment_confirmed:2, completed:3,
-    dispute:2, cancellation_pending:2, cancelled:2,
+    createEscrow:0, fundEscrow:0, waitingForFunding:0, escrowWaitingForConfirmation:0,
+    fundingAmountDifferent:0,
+    paymentRequired:1, paymentTooLate:1,
+    confirmPaymentRequired:2, releaseEscrow:2,
+    payoutPending:3, rateUser:3, tradeCompleted:3,
+    dispute:2, disputeWithoutEscrowFunded:0, confirmCancelation:2,
+    tradeCanceled:2, offerCanceled:0,
+    refundAddressRequired:2, refundOrReviveRequired:2, refundTxSignatureRequired:2,
+    wrongAmountFundedOnContract:0, wrongAmountFundedOnContractRefundWaiting:0,
+    fundingExpired:0,
   };
   const activeStep = stepMap[status] ?? 0;
-  const isAborted = status === "dispute" || status === "cancelled" || status === "cancellation_pending";
+  const isAborted = status === "dispute" || status === "disputeWithoutEscrowFunded"
+    || status === "tradeCanceled" || status === "confirmCancelation" || status === "offerCanceled";
 
   return (
     <div className="h-stepper">
@@ -347,8 +362,8 @@ function HorizontalStepper({ status }) {
         <div className="h-stepper-alert">
           <IconAlert/>
           <span>
-            {status === "dispute" ? "Dispute open — mediator assigned" :
-             status === "cancellation_pending" ? "Cancellation requested" :
+            {(status === "dispute" || status === "disputeWithoutEscrowFunded") ? "Dispute open — mediator assigned" :
+             status === "confirmCancelation" ? "Cancellation requested" :
              "Cancelled"}
           </span>
         </div>
@@ -1104,7 +1119,8 @@ function ActionPanel({ scenario, onAction }) {
       )}
 
       <div className="action-panel">
-        {status === "matched" && role === "buyer" && (
+        {/* Buyer waiting for seller to fund escrow */}
+        {(status === "fundEscrow" || status === "createEscrow" || status === "waitingForFunding") && role === "buyer" && (
           <div style={{
             display:"flex", flexDirection:"column", alignItems:"center",
             gap:12, padding:"20px 0", textAlign:"center",
@@ -1123,14 +1139,35 @@ function ActionPanel({ scenario, onAction }) {
           </div>
         )}
 
-        {status === "escrow_funded" && role === "buyer" && <>
+        {/* Escrow tx broadcast, waiting for confirmations */}
+        {status === "escrowWaitingForConfirmation" && (
+          <div style={{
+            display:"flex", flexDirection:"column", alignItems:"center",
+            gap:12, padding:"20px 0", textAlign:"center",
+          }}>
+            <div style={{
+              width:48, height:48, borderRadius:"50%",
+              background:"#FEFCE5", border:"2px solid #F5CE22",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:"1.4rem",
+            }}>⛏️</div>
+            <div style={{ fontWeight:700, fontSize:".95rem" }}>Escrow confirming</div>
+            <div style={{ fontSize:".83rem", color:"#7D675E", lineHeight:1.6, maxWidth:280 }}>
+              The escrow funding transaction has been broadcast. Waiting for blockchain confirmations.
+            </div>
+          </div>
+        )}
+
+        {/* Buyer: send payment */}
+        {status === "paymentRequired" && role === "buyer" && <>
           <SlideToConfirm
             label="I've sent the payment"
             onConfirm={() => onAction("payment_sent")}
           />
         </>}
 
-        {status === "awaiting_payment" && role === "seller" && (() => {
+        {/* Seller: waiting for buyer to send payment */}
+        {status === "paymentRequired" && role === "seller" && (() => {
           const deadline = scenario.contract.paymentExpectedBy;
           const hoursLeft = deadline ? Math.floor((deadline - Date.now()) / 3600_000) : null;
           const nearDeadline = hoursLeft !== null && hoursLeft < 3;
@@ -1157,7 +1194,7 @@ function ActionPanel({ scenario, onAction }) {
         })()}
 
         {/* Seller: confirm receipt → releases bitcoin */}
-        {(status === "payment_in_transit" || status === "payment_confirmed") && role === "seller" && <>
+        {(status === "confirmPaymentRequired" || status === "releaseEscrow") && role === "seller" && <>
           <div className="action-hint">The buyer has marked the payment as sent. Check your account and confirm once the funds have arrived.</div>
           <SlideToConfirm
             label="I've received the payment"
@@ -1166,16 +1203,32 @@ function ActionPanel({ scenario, onAction }) {
           <Btn label="Open Dispute" bg="#FFF0EE" color="#DF321F" onClick={() => onAction("dispute")}/>
         </>}
 
-        {status === "payment_in_transit" && role === "buyer" && <>
+        {/* Buyer: waiting for seller to confirm payment */}
+        {status === "confirmPaymentRequired" && role === "buyer" && <>
           <div className="action-hint">You've sent payment. Waiting for the seller to confirm.</div>
           <Btn label="Open Dispute" bg="#FFF0EE" color="#DF321F" onClick={() => onAction("dispute")}/>
         </>}
 
-        {status === "payment_confirmed" && role === "buyer" && (
-          <div className="action-hint">Payment confirmed. Waiting for the seller to release the Bitcoin.</div>
+        {/* Payout pending — bitcoin being released */}
+        {status === "payoutPending" && (
+          <div className="action-hint">Bitcoin is being released. This may take a few minutes.</div>
         )}
 
-        {status === "dispute" && (
+        {/* Payment too late */}
+        {status === "paymentTooLate" && (
+          <div style={{
+            display:"flex", alignItems:"center", gap:8,
+            background:"#FEFCE5", border:"1px solid rgba(154,112,0,.15)",
+            borderRadius:8, padding:"10px 12px",
+            fontSize:".83rem", color:"#9A7000", fontWeight:600, lineHeight:1.5,
+          }}>
+            <IconClock/>
+            <span>The payment deadline has passed. The buyer did not pay in time.</span>
+          </div>
+        )}
+
+        {/* Dispute */}
+        {(status === "dispute" || status === "disputeWithoutEscrowFunded") && (
           <div style={{
             background:"#FFF0EE", border:"1px solid rgba(223,50,31,.2)",
             borderRadius:10, padding:"10px 14px", fontSize:".82rem",
@@ -1246,7 +1299,7 @@ function RatingPanel({ counterparty, onRate }) {
 
 // ─── CHAT PANEL ───────────────────────────────────────────────────────────────
 function ChatPanel({ messages, tradeId, disabled, status }) {
-  const disputeOpen = status === "dispute";
+  const disputeOpen = status === "dispute" || status === "disputeWithoutEscrowFunded";
   const [text, setText] = useState("");
   const [localMsgs, setLocalMsgs] = useState(messages);
   const [showDispute, setShowDispute] = useState(false);
@@ -1597,15 +1650,16 @@ export default function TradeExecution() {
   // ── LIVE CONTRACT DATA ──
   const [liveContract, setLiveContract] = useState(null);
   const [liveMessages, setLiveMessages] = useState(null);
+  const [contractLoading, setContractLoading] = useState(!!auth && !!routeId);
 
   const demoScenario = DEMO_SCENARIOS.find(s => s.id === scenarioId) || DEMO_SCENARIOS[0];
   const demoMessages = MOCK_MESSAGES[scenarioId] || [];
 
-  // Use live data if available, fall back to demo scenario
+  // Use live data if available, fall back to demo scenario (mock mode only)
   const activeLive = !!liveContract;
   const scenario = activeLive ? liveContract : demoScenario;
   const messages = activeLive ? (liveMessages ?? []) : demoMessages;
-  const { contract, counterparty: rawCounterparty, tradeStatus: status, role, paymentDetails } = scenario;
+  const { contract, counterparty: rawCounterparty, tradeStatus: status, role, paymentDetails, paymentDetailsError } = scenario;
   const counterparty = rawCounterparty ?? { initials: "??", color: "#7D675E", name: "Unknown", rep: 0, trades: 0, badges: [], online: false };
 
   useEffect(() => {
@@ -1638,7 +1692,7 @@ export default function TradeExecution() {
         setLiveContract({
           id: c.id,
           role: isBuyer ? "buyer" : "seller",
-          tradeStatus: c.status ?? "matched",
+          tradeStatus: c.tradeStatus ?? c.status ?? "fundEscrow",
           instantTrade: c.instantTrade ?? false,
           contract: {
             id: c.id,
@@ -1648,28 +1702,69 @@ export default function TradeExecution() {
             currency: c.currency ?? "EUR",
             premium: c.premium ?? 0,
             method: c.paymentMethod ?? "",
-            creationDate: c.creationDate ?? Date.now(),
-            paymentExpectedBy: c.paymentExpectedBy ?? null,
+            creationDate: c.creationDate ? new Date(c.creationDate).getTime() : Date.now(),
+            paymentExpectedBy: c.paymentExpectedBy ? new Date(c.paymentExpectedBy).getTime() : null,
             escrow: c.escrow ?? null,
           },
           counterparty: (() => {
-            const cpId = isBuyer
-              ? (c.seller?.id ?? c.sellerId ?? "unknown")
-              : (c.buyer?.id ?? c.buyerId ?? "unknown");
-            const short = cpId.length > 8 ? "Peach" + cpId.slice(-4).toUpperCase() : cpId;
+            const cp = isBuyer ? (c.seller ?? {}) : (c.buyer ?? {});
+            const cpId = cp.id ?? "unknown";
+            const shortHex = cpId.length > 8 ? cpId.slice(0, 8).toUpperCase() : cpId.toUpperCase();
+            const short = "Peach" + shortHex;
             return {
-              initials: short.slice(-2).toUpperCase(),
+              initials: shortHex.slice(0, 2),
               color: "#7D675E",
               name: short,
-              rep: c.ratingBuyer ?? c.ratingSeller ?? 0,
-              trades: 0,
-              badges: [],
+              rep: cp.rating ?? cp.peachRating ?? 0,
+              trades: cp.trades ?? 0,
+              badges: (cp.medals ?? []).map(m =>
+                m === "fastTrader" ? "fast" : m === "superTrader" ? "supertrader" : m
+              ),
               online: false,
             };
           })(),
-          paymentDetails: c.paymentData ?? null,
+          paymentDetails: null, // will be populated below after decryption
+          paymentDetailsError: false,
         });
+
+        // Decrypt payment data if available
+        // As buyer: need seller's payment details (paymentDataEncrypted)
+        // As seller: need buyer's payment details (buyerPaymentDataEncrypted)
+        const encryptedPM = isBuyer ? c.paymentDataEncrypted : c.buyerPaymentDataEncrypted;
+        const symKeyEnc = c.symmetricKeyEncrypted;
+        if (encryptedPM && symKeyEnc && auth.pgpPrivKey) {
+          try {
+            // Step 1: decrypt the symmetric key with our PGP private key
+            const symKey = await decryptPGPMessage(symKeyEnc, auth.pgpPrivKey);
+            if (symKey) {
+              // Step 2: decrypt the payment data with the symmetric key
+              const pmJson = await decryptSymmetric(encryptedPM, symKey);
+              if (pmJson) {
+                const pmData = JSON.parse(pmJson);
+                // Map API field names to PaymentDetailsCard expected shape
+                setLiveContract(prev => prev ? { ...prev, paymentDetails: {
+                  type: pmData.type ?? c.paymentMethod ?? "",
+                  bank: pmData.bank ?? pmData.beneficiary ?? "",
+                  iban: pmData.iban ?? "",
+                  bic: pmData.bic ?? "",
+                  name: pmData.userName ?? pmData.beneficiary ?? pmData.name ?? "",
+                  email: pmData.email ?? "",
+                  phone: pmData.phone ?? "",
+                  reference: pmData.reference ?? `PEACH-${c.id}`,
+                }} : prev);
+              } else {
+                setLiveContract(prev => prev ? { ...prev, paymentDetailsError: true } : prev);
+              }
+            } else {
+              setLiveContract(prev => prev ? { ...prev, paymentDetailsError: true } : prev);
+            }
+          } catch (err) {
+            console.warn("[Trade] PM decryption failed:", err.message);
+            setLiveContract(prev => prev ? { ...prev, paymentDetailsError: true } : prev);
+          }
+        }
       } catch {}
+      setContractLoading(false);
     }
 
     async function fetchChat() {
@@ -1687,6 +1782,7 @@ export default function TradeExecution() {
       } catch {}
     }
 
+    setContractLoading(true);
     fetchContract();
     fetchChat();
   }, [routeId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1760,9 +1856,20 @@ export default function TradeExecution() {
 
       <div className="page-wrap">
 
-        {/* ── Demo scenario switcher ── */}
+        {/* ── Loading state (logged in, fetching contract) ── */}
+        {contractLoading && (
+          <div style={{
+            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+            flex:1, gap:16, padding:"80px 0",
+          }}>
+            <div className="spinner" style={{ width:32, height:32, border:"3px solid #EAE3DF", borderTopColor:"var(--primary)", borderRadius:"50%" }}/>
+            <span style={{ fontSize:".85rem", color:"#7D675E", fontWeight:600 }}>Loading trade…</span>
+          </div>
+        )}
+
+        {/* ── Demo scenario switcher (mock mode only) ── */}
+        {!auth && (
         <div style={{ position:"relative", flexShrink:0 }}>
-          {/* Toggle bubble — always visible */}
           <button
             onClick={() => setDemoOpen(o => !o)}
             style={{
@@ -1784,7 +1891,6 @@ export default function TradeExecution() {
             </svg>
           </button>
 
-          {/* Expandable panel */}
           {demoOpen && (
             <div className="demo-bar" style={{ paddingLeft:90 }}>
               {DEMO_SCENARIOS.map(s => (
@@ -1797,10 +1903,12 @@ export default function TradeExecution() {
             </div>
           )}
 
-          {/* Collapsed spacer — just enough height for the bubble */}
           {!demoOpen && <div style={{ height:34 }}/>}
         </div>
+        )}
 
+        {!contractLoading && (
+        <>
         {/* ── Trade sub-topbar ── */}
         <div className="trade-topbar">
           <button className="trade-topbar-back" title="Back to Trades" onClick={() => navigate("/trades")}><IconBack/></button>
@@ -1895,8 +2003,8 @@ export default function TradeExecution() {
               <div className="panel-section-title">Actions</div>
 
               {/* Payment deadline — inside actions */}
-              {/* Payment deadline pill — not shown for seller awaiting payment (has its own merged bar) */}
-              {deadlineStr && !(status === "awaiting_payment" && role === "seller") && (
+              {/* Payment deadline pill — not shown for seller when paymentRequired (has its own merged bar) */}
+              {deadlineStr && !(status === "paymentRequired" && role === "seller") && (
                 <div style={{
                   display:"flex", alignItems:"center", gap:12,
                   background:"#FEEDE5", border:"1.5px solid rgba(196,81,4,.2)",
@@ -1911,7 +2019,7 @@ export default function TradeExecution() {
               )}
 
               {/* Escrow funding card — inside actions for seller */}
-              {role === "seller" && status === "matched" && (
+              {role === "seller" && (status === "fundEscrow" || status === "createEscrow" || status === "waitingForFunding") && (
                 <EscrowFundingCard
                   address={contract.escrow}
                   sats={contract.amount}
@@ -1920,7 +2028,7 @@ export default function TradeExecution() {
               )}
 
               {/* Buyer awaiting escrow */}
-              {status === "matched" && role === "buyer" && (
+              {(status === "fundEscrow" || status === "createEscrow" || status === "waitingForFunding") && role === "buyer" && (
                 <>
                   <div style={{
                     display:"flex", flexDirection:"column", alignItems:"center",
@@ -1942,16 +2050,17 @@ export default function TradeExecution() {
               )}
 
               {/* All other action states */}
-              {status !== "completed" && status !== "matched" && (
+              {status !== "tradeCompleted" && status !== "rateUser"
+                && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding" && (
                 <ActionPanel scenario={scenario} onAction={(action) => console.log("action:", action)}/>
               )}
             </div>
 
-            {/* Payment details (buyer sees seller's payment info) */}
-            {paymentDetails && role === "buyer" && (
+            {/* Payment details (buyer sees seller's payment info, or vice versa) */}
+            {paymentDetails && (
               <div className="panel-section">
                 <div className="panel-section-title">Payment Details</div>
-                {status === "escrow_funded" && (
+                {status === "paymentRequired" && role === "buyer" && (
                   <p style={{ fontSize:".83rem", color:"#7D675E", marginBottom:10 }}>
                     Send the exact fiat amount to the payment details below, then confirm using the slider.
                   </p>
@@ -1963,16 +2072,32 @@ export default function TradeExecution() {
               </div>
             )}
 
-            {/* Escrow address (seller, non-matched states — matched already shows full funding card above) */}
-            {role === "seller" && status !== "matched" && (
+            {/* Payment details decryption failed — fallback message */}
+            {!paymentDetails && paymentDetailsError && (
+              <div className="panel-section">
+                <div className="panel-section-title">Payment Details</div>
+                <div style={{
+                  display:"flex", alignItems:"center", gap:10,
+                  background:"#FFE6E1", borderRadius:10, padding:"12px 14px",
+                }}>
+                  <IconAlert/>
+                  <span style={{ fontSize:".83rem", color:"#DF321F", fontWeight:600, lineHeight:1.5 }}>
+                    Could not decrypt payment data, ask for details in the chat if needed
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Escrow address (seller, non-escrow-funding states — funding states show full funding card above) */}
+            {role === "seller" && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding" && (
               <div className="panel-section">
                 <div className="panel-section-title">Escrow</div>
                 <EscrowAddressCard address={contract.escrow}/>
               </div>
             )}
 
-            {/* Rating panel (completed only) */}
-            {status === "completed" && (
+            {/* Rating panel */}
+            {(status === "rateUser" || status === "tradeCompleted") && (
               <div className="panel-section">
                 <RatingPanel counterparty={counterparty} onRate={(r) => console.log("rated:", r)}/>
               </div>
@@ -1981,16 +2106,20 @@ export default function TradeExecution() {
 
           {/* ── RIGHT: Chat ── */}
           <div className={`split-right${mobileTab === "chat" ? " mobile-active" : ""}`}>
-            <ChatPanel messages={messages} tradeId={contract.id} disabled={status === "matched"} status={status}/>
+            <ChatPanel messages={messages} tradeId={contract.id} disabled={status === "fundEscrow" || status === "createEscrow" || status === "waitingForFunding"} status={status}/>
           </div>
 
         </div>
+        </>
+        )}
       </div>
 
       {/* ── HORIZONTAL STEPPER (fixed bottom) ── */}
+      {!contractLoading && (
       <div className="h-stepper-wrap">
         <HorizontalStepper status={status}/>
       </div>
+      )}
     </>
   );
 }

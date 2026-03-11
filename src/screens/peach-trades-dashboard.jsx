@@ -38,47 +38,57 @@ function fmt(n) {
 //   Yellow (#FEFCE5 / #9A7000) = warning, attention requested
 //   Grey   (#F4EEEB / #7D675E) = pending, no action required
 // Plus: green for completed, red for disputes/cancellation
+// All values from mobile app TradeStatus type — no invented statuses
 const STATUS_CONFIG = {
-  open_offer:          { label: "Open Offer",          bg: "#F4EEEB", color: "#7D675E", action: false },
-  pending_match:       { label: "Pending Match",       bg: "#F4EEEB", color: "#7D675E", action: false },
-  accept_trade_request:{ label: "Accept Trade Request", bg: "#FEEDE5", color: "#C45104", action: true  },
-  acceptTradeRequest:  { label: "Accept Trade Request", bg: "#FEEDE5", color: "#C45104", action: true  },
-  matched:             { label: "Matched",             bg: "#FEFCE5", color: "#9A7000", action: true  },
-  escrow_funded:       { label: "Escrow Funded",       bg: "#FEFCE5", color: "#9A7000", action: true  },
-  payment_in_transit:  { label: "Payment Sent",        bg: "#F4EEEB", color: "#7D675E", action: false },
-  awaiting_payment:    { label: "Awaiting Payment",    bg: "#FEEDE5", color: "#C45104", action: true  },
-  payment_confirmed:   { label: "Payment Confirmed",   bg: "#F2F9E7", color: "#65A519", action: false },
-  dispute:             { label: "Dispute",             bg: "#FFE6E1", color: "#DF321F", action: true  },
-  cancellation_pending:{ label: "Cancellation Req.",  bg: "#FFE6E1", color: "#DF321F", action: true  },
-  completed:           { label: "Completed",           bg: "#F2F9E7", color: "#65A519", action: false },
-  cancelled:           { label: "Cancelled",           bg: "#F4EEEB", color: "#7D675E", action: false },
-  paymentRequired:     { label: "Payment Required",     bg: "#FEEDE5", color: "#C45104", action: true  },
-  confirmPaymentRequired:{ label: "Confirm Payment",   bg: "#FEEDE5", color: "#C45104", action: true  },
-  paymentTooLate:      { label: "Not Paid in Time",    bg: "#FEFCE5", color: "#9A7000", action: true  },
-  hasMatchesAvailable: { label: "Matches Available",   bg: "#FEEDE5", color: "#C45104", action: true  },
-  waitingForTradeRequest:{ label: "Waiting for Match", bg: "#F4EEEB", color: "#7D675E", action: false },
-  searchingForPeer:    { label: "Waiting for Match",   bg: "#F4EEEB", color: "#7D675E", action: false },
-  offerPublished:      { label: "Published",           bg: "#F4EEEB", color: "#7D675E", action: false },
-  fundEscrow:          { label: "Fund Escrow",         bg: "#FEFCE5", color: "#9A7000", action: true  },
-  fundingAmountDifferent:{ label: "Wrong Funding",     bg: "#FEFCE5", color: "#9A7000", action: true  },
-  offerCanceled:       { label: "Offer Cancelled",     bg: "#F4EEEB", color: "#7D675E", action: false },
-  tradeCanceled:       { label: "Trade Cancelled",     bg: "#F4EEEB", color: "#7D675E", action: false },
-  tradeCompleted:      { label: "Trade Completed",     bg: "#F2F9E7", color: "#65A519", action: false },
-  wrongAmountFundedOnContract: { label: "Wrong Amount", bg: "#FEFCE5", color: "#9A7000", action: false },
+  // ── Pending (offer stage) ──
+  searchingForPeer:    { label: "Waiting for Match",     bg: "#F4EEEB", color: "#7D675E", action: false },
+  waitingForTradeRequest:{ label: "Waiting for Match",   bg: "#F4EEEB", color: "#7D675E", action: false },
+  offerHidden:         { label: "Offer Hidden",          bg: "#F4EEEB", color: "#7D675E", action: false },
+  offerHiddenWithMatchesAvailable: { label: "Hidden (Matches)", bg: "#FEEDE5", color: "#C45104", action: true },
+  hasMatchesAvailable: { label: "Matches Available",     bg: "#FEEDE5", color: "#C45104", action: true  },
+  acceptTradeRequest:  { label: "Accept Trade Request",  bg: "#FEEDE5", color: "#C45104", action: true  },
+
+  // ── Active (contract stage) ──
+  createEscrow:        { label: "Create Escrow",         bg: "#FEFCE5", color: "#9A7000", action: true  },
+  fundEscrow:          { label: "Fund Escrow",           bg: "#FEFCE5", color: "#9A7000", action: true  },
+  waitingForFunding:   { label: "Waiting for Funding",   bg: "#F4EEEB", color: "#7D675E", action: false },
+  escrowWaitingForConfirmation: { label: "Escrow Confirming", bg: "#F4EEEB", color: "#7D675E", action: false },
+  fundingAmountDifferent:{ label: "Wrong Funding",       bg: "#FEFCE5", color: "#9A7000", action: true  },
+  paymentRequired:     { label: "Send Payment",          bg: "#FEEDE5", color: "#C45104", action: true  },
+  confirmPaymentRequired:{ label: "Confirm Payment",     bg: "#FEEDE5", color: "#C45104", action: true  },
+  releaseEscrow:       { label: "Release Escrow",        bg: "#FEEDE5", color: "#C45104", action: true  },
+  paymentTooLate:      { label: "Not Paid in Time",      bg: "#FEFCE5", color: "#9A7000", action: true  },
+  payoutPending:       { label: "Payout Pending",        bg: "#F4EEEB", color: "#7D675E", action: false },
+  rateUser:            { label: "Rate Counterparty",     bg: "#FEEDE5", color: "#C45104", action: true  },
+  dispute:             { label: "Dispute",               bg: "#FFE6E1", color: "#DF321F", action: true  },
+  disputeWithoutEscrowFunded: { label: "Dispute",        bg: "#FFE6E1", color: "#DF321F", action: true  },
+  confirmCancelation:  { label: "Confirm Cancel",        bg: "#FFE6E1", color: "#DF321F", action: true  },
+
+  // ── Finished ──
+  tradeCompleted:      { label: "Completed",             bg: "#F2F9E7", color: "#65A519", action: false },
+  offerCanceled:       { label: "Offer Cancelled",       bg: "#F4EEEB", color: "#7D675E", action: false },
+  tradeCanceled:       { label: "Trade Cancelled",       bg: "#F4EEEB", color: "#7D675E", action: false },
+  fundingExpired:      { label: "Funding Expired",       bg: "#F4EEEB", color: "#7D675E", action: false },
+  wrongAmountFundedOnContract: { label: "Wrong Amount",  bg: "#FEFCE5", color: "#9A7000", action: false },
+  wrongAmountFundedOnContractRefundWaiting: { label: "Refund Pending", bg: "#F4EEEB", color: "#7D675E", action: false },
+
+  // ── Refund-related ──
+  refundAddressRequired:     { label: "Refund Address Needed", bg: "#FEEDE5", color: "#C45104", action: true  },
+  refundOrReviveRequired:    { label: "Refund or Revive",      bg: "#FEEDE5", color: "#C45104", action: true  },
+  refundTxSignatureRequired: { label: "Sign Refund",           bg: "#FEEDE5", color: "#C45104", action: true  },
 };
 
 // Statuses that represent a finished state → Trade History
 const FINISHED_STATUSES = new Set([
-  "completed", "cancelled", "offerCanceled", "tradeCanceled",
-  "tradeCompleted", "wrongAmountFundedOnContract",
+  "tradeCompleted", "offerCanceled", "tradeCanceled", "fundingExpired",
+  "wrongAmountFundedOnContract", "wrongAmountFundedOnContractRefundWaiting",
 ]);
 
 // Statuses that represent a pending/open offer → Pending Offers tab
 const PENDING_STATUSES = new Set([
-  "hasMatchesAvailable", "waitingForTradeRequest", "searchingForPeer",
-  "offerPublished", "fundEscrow", "fundingAmountDifferent",
-  "acceptTradeRequest",
-  "open_offer", "pending_match",
+  "searchingForPeer", "waitingForTradeRequest",
+  "hasMatchesAvailable", "acceptTradeRequest",
+  "offerHidden", "offerHiddenWithMatchesAvailable",
 ]);
 
 // Mock avatars by initials + color
@@ -147,13 +157,13 @@ const MOCK_TRADES = [
   {
     id: "1345", tradeId: "PC\u20111345", kind: "offer", direction: "sell",
     amount: 120000, premium: 1.8, fiatAmount: "106.81", currency: "EUR",
-    tradeStatus: "escrow_funded",
+    tradeStatus: "paymentRequired",
     createdAt: new Date(Date.now() - 2 * 3600_000),
   },
   {
     id: "1342", tradeId: "PC\u20111342", kind: "contract", direction: "sell",
     amount: 95000, premium: 1.5, fiatAmount: "82.79", currency: "EUR",
-    tradeStatus: "payment_in_transit",
+    tradeStatus: "confirmPaymentRequired",
     createdAt: new Date(Date.now() - 30 * 60_000),
   },
   // ── HISTORY — COMPLETED (3 buy, 3 sell) ──
@@ -210,7 +220,7 @@ const MOCK_TRADES = [
 
 const ALL_METHODS = ["SEPA","Revolut","Wise","PayPal","Strike"];
 const ALL_CURRENCIES = ["EUR","CHF","GBP"];
-const ALL_STATUSES = Object.keys(STATUS_CONFIG).filter(s => !["completed","cancelled"].includes(s));
+const ALL_STATUSES = Object.keys(STATUS_CONFIG);
 
 function relativeTime(ts) {
   const diff = Date.now() - ts;
@@ -309,19 +319,45 @@ function Avatar({ initials, color, size = 36, online }) {
 }
 
 // ─── PILL CONFIG — maps every status to pill appearance + label ──────────────
+// Uses real API TradeStatus values
 const PILL_CONFIG = {
-  open_offer:          { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Waiting for a match",   passive:true  },
-  pending_match:       { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Waiting for seller",    passive:true  },
-  accept_trade_request:{ bg:"var(--primary)",    color:"white",              label:"Accept trade request",  passive:false },
-  payment_in_transit:  { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Payment sent · awaiting confirmation", passive:true },
-  completed:           { bg:"#F2F9E7", color:"#65A519", label:"Completed",             passive:true  },
-  cancelled:           { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Cancelled",             passive:true  },
-  matched:             { bg:"var(--primary)", color:"white", label:"Fund Escrow",       passive:false },
-  not_paid_in_time:    { bg:"#FEFCE5",        color:"#7A5C00", label:"Not paid in time!", passive:false },
-  awaiting_payment:    { bg:"var(--primary)", color:"white", label:"Make Payment",     passive:false },
-  payment_confirmed:   { bg:"#65A519",        color:"white", label:"Release Bitcoin",  passive:false },
-  confirm_payment:     { bg:"var(--primary)", color:"white", label:"Confirm Payment",  passive:false },
-  dispute:             { bg:"#DF321F",        color:"white", label:"View Dispute",     passive:false },
+  // Pending / no action
+  searchingForPeer:    { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Waiting for a match",   passive:true  },
+  waitingForTradeRequest:{ bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Waiting for a match", passive:true  },
+  offerHidden:         { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Offer hidden",          passive:true  },
+  // Action required
+  hasMatchesAvailable: { bg:"var(--primary)",    color:"white",              label:"View matches",          passive:false },
+  acceptTradeRequest:  { bg:"var(--primary)",    color:"white",              label:"Accept trade request",  passive:false },
+  offerHiddenWithMatchesAvailable: { bg:"var(--primary)", color:"white",    label:"View matches",          passive:false },
+  // Escrow stage
+  createEscrow:        { bg:"var(--primary)", color:"white", label:"Create Escrow",      passive:false },
+  fundEscrow:          { bg:"var(--primary)", color:"white", label:"Fund Escrow",        passive:false },
+  waitingForFunding:   { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Waiting for funding",  passive:true  },
+  escrowWaitingForConfirmation: { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Escrow confirming", passive:true },
+  fundingAmountDifferent: { bg:"#FEFCE5", color:"#7A5C00", label:"Wrong funding amount", passive:false },
+  // Payment stage
+  paymentRequired:     { bg:"var(--primary)", color:"white", label:"Send Payment",       passive:false },
+  confirmPaymentRequired:{ bg:"var(--primary)", color:"white", label:"Confirm Payment",  passive:false },
+  releaseEscrow:       { bg:"#65A519",        color:"white", label:"Release Bitcoin",    passive:false },
+  paymentTooLate:      { bg:"#FEFCE5",        color:"#7A5C00", label:"Not paid in time", passive:false },
+  // Post-trade
+  payoutPending:       { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Payout pending",       passive:true  },
+  rateUser:            { bg:"var(--primary)",    color:"white", label:"Rate counterparty", passive:false },
+  tradeCompleted:      { bg:"#F2F9E7", color:"#65A519", label:"Completed",               passive:true  },
+  // Dispute / cancel
+  dispute:             { bg:"#DF321F",        color:"white", label:"View Dispute",       passive:false },
+  disputeWithoutEscrowFunded: { bg:"#DF321F", color:"white", label:"View Dispute",       passive:false },
+  confirmCancelation:  { bg:"#DF321F",        color:"white", label:"Confirm Cancel",     passive:false },
+  // Finished
+  offerCanceled:       { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Offer cancelled",      passive:true  },
+  tradeCanceled:       { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Cancelled",             passive:true  },
+  fundingExpired:      { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Funding expired",       passive:true  },
+  wrongAmountFundedOnContract: { bg:"#FEFCE5", color:"#7A5C00", label:"Wrong amount",     passive:false },
+  wrongAmountFundedOnContractRefundWaiting: { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Refund pending", passive:true },
+  // Refund
+  refundAddressRequired:     { bg:"var(--primary)", color:"white", label:"Refund address needed", passive:false },
+  refundOrReviveRequired:    { bg:"var(--primary)", color:"white", label:"Refund or revive",      passive:false },
+  refundTxSignatureRequired: { bg:"var(--primary)", color:"white", label:"Sign refund",           passive:false },
 };
 
 // ─── PEACH RATING — fills proportionally like a cup ──────────────────────────
@@ -372,9 +408,8 @@ function Badge({ label, icon }) {
 
 // ─── TRADE CARD — Variant C ───────────────────────────────────────────────────
 function TradeCard({ trade, onSelect, layout = "grid" }) {
-  const hasMatches = trade.kind === "pending_match" && trade.matchCount > 0;
-  const statusKey = hasMatches ? "accept_trade_request" : (trade.kind === "contract" ? trade.tradeStatus : trade.kind);
-  const pill = PILL_CONFIG[statusKey] || PILL_CONFIG.open_offer;
+  const statusKey = trade.tradeStatus ?? "searchingForPeer";
+  const pill = PILL_CONFIG[statusKey] || PILL_CONFIG.searchingForPeer;
   const isBuy = trade.direction === "buy";
   const hasSatsRange = Array.isArray(trade.amount);
 
@@ -385,8 +420,6 @@ function TradeCard({ trade, onSelect, layout = "grid" }) {
   }
 
   function timeStr() {
-    if (trade.kind === "open_offer")    return `Expires in ${trade.expiresIn}`;
-    if (trade.kind === "pending_match") return `Matched ${relativeTime(trade.matchedAt)}`;
     if (trade.paymentExpectedBy) {
       const left = trade.paymentExpectedBy - Date.now();
       const h = Math.floor(left / 3600_000);
@@ -603,8 +636,8 @@ function HistoryTable({ rows, onTradeSelect, selectedCurrency, tab }) {
   // Status grouping for the filter: "completed" covers all completion-like statuses,
   // "cancelled" covers all cancellation-like statuses
   function statusGroup(s) {
-    if (["completed", "tradeCompleted"].includes(s)) return "completed";
-    if (["cancelled", "offerCanceled", "tradeCanceled"].includes(s)) return "cancelled";
+    if (["tradeCompleted"].includes(s)) return "completed";
+    if (["offerCanceled", "tradeCanceled", "fundingExpired"].includes(s)) return "cancelled";
     return "other";
   }
 
@@ -1201,8 +1234,8 @@ export default function TradesDashboard() {
     // Format a raw peach ID (hex public key) into a short display name
     function formatPeachName(rawId) {
       if (!rawId || rawId === "unknown") return "Unknown";
-      // "03c292c382..." → "Peach82C3" (last 4 hex chars, uppercase)
-      return "Peach" + rawId.slice(-4).toUpperCase();
+      // "03c292c382..." → "Peach03C292C3" (first 8 hex chars, uppercase)
+      return "Peach" + rawId.slice(0, 8).toUpperCase();
     }
 
     // Transform an API Match object into the shape the popup expects
@@ -1550,8 +1583,7 @@ export default function TradesDashboard() {
   const [acceptedTrades, setAcceptedTrades] = useState(new Set()); // trade ids accepted
 
   function resolveStatusKey(t) {
-    if (t.kind === "pending_match" && t.matchCount > 0 && !acceptedTrades.has(t.id)) return "accept_trade_request";
-    return t.kind === "contract" ? t.tradeStatus : t.kind;
+    return t.tradeStatus ?? "unknown";
   }
 
   // Sort: action-required first, then by time
