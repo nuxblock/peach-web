@@ -4,7 +4,7 @@ import { SideNav, Topbar } from "../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
-import { extractPMsFromProfile, isApiError } from "../utils/pgp.js";
+import { extractPMsFromProfile, isApiError, hashPaymentFields } from "../utils/pgp.js";
 
 const BTC_PRICE_INIT = 87432;
 const SAT = 100_000_000;
@@ -962,6 +962,8 @@ export default function OfferCreation({ initialType="buy" }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPM,    setEditingPM]    = useState(null); // PM object being edited
   const [pmError,      setPmError]      = useState(false);
+  const [publishing,   setPublishing]   = useState(false);
+  const [publishError, setPublishError] = useState(null);
 
   // ── FETCH LIVE SAVED PMs ──
   useEffect(() => {
@@ -1029,7 +1031,7 @@ export default function OfferCreation({ initialType="buy" }) {
 
   // ── AUTH STATE ──
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
-  const { get, auth } = useApi();
+  const { get, post, auth } = useApi();
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
@@ -1069,7 +1071,7 @@ export default function OfferCreation({ initialType="buy" }) {
 
   function setF(k,v){ setForm(f=>({...f,[k]:v})); }
   function reset(){
-    setStep(0);setDone(false);setEscrowFunded(false);setForm(initForm());
+    setStep(0);setDone(false);setEscrowFunded(false);setPublishError(null);setForm(initForm());
   }
   function switchType(t){ setType(t); reset(); }
 
@@ -1106,11 +1108,72 @@ export default function OfferCreation({ initialType="buy" }) {
   const premOk = form.premium!=="";
   const configOk = amtOk&&payOk&&premOk;
 
-  function handleNext(){
-    if(step===0){ setStep(1); return; }
+  async function handleNext(){
+    if(step===0){ setStep(1); setPublishError(null); return; }
     if(step===1){
-      if(!isSell){ setDone(true); return; }
-      setStep(2); return;
+      if(isSell){ setStep(2); return; }
+
+      // ── BUY OFFER SUBMISSION ──
+      if(!auth){
+        // Not logged in — just show success (mock mode)
+        setDone(true); return;
+      }
+
+      setPublishing(true);
+      setPublishError(null);
+      try{
+        // 1. Build meansOfPayment: { "EUR": ["revolut","sepa"], "GBP": ["revolut"] }
+        const meansOfPayment = {};
+        for(const pm of selectedSaved){
+          const methodType = (pm.type||"").toLowerCase();
+          for(const cur of (pm.currencies||[])){
+            if(!meansOfPayment[cur]) meansOfPayment[cur] = [];
+            if(!meansOfPayment[cur].includes(methodType)) meansOfPayment[cur].push(methodType);
+          }
+        }
+
+        // 2. Build paymentData (hashed PM fields per method type)
+        const paymentData = {};
+        for(const pm of selectedSaved){
+          const methodType = (pm.type||"").toLowerCase();
+          if(paymentData[methodType]) continue; // already hashed this type
+          const details = pm.details || {};
+          const hashed = await hashPaymentFields(methodType, details, details.country);
+          Object.assign(paymentData, hashed);
+        }
+
+        // 3. POST to v069/buyOffer
+        const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
+        const res = await fetch(`${v069Base}/buyOffer`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${auth.token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: form.amtFixed,
+            meansOfPayment,
+            paymentData,
+            premium: parseFloat(form.premium) || 0,
+          }),
+        });
+
+        const data = await res.json().catch(()=>null);
+
+        if(!res.ok){
+          const msg = data?.error || data?.message || `Server error ${res.status}`;
+          throw new Error(msg);
+        }
+
+        console.log("[OfferCreation] Buy offer created:", data);
+        setDone(true);
+      }catch(err){
+        console.error("[OfferCreation] Buy offer failed:", err);
+        setPublishError(err.message || "Failed to publish offer");
+      }finally{
+        setPublishing(false);
+      }
+      return;
     }
   }
   function handleBack(){ setStep(s=>s-1); }
@@ -1734,11 +1797,17 @@ export default function OfferCreation({ initialType="buy" }) {
                   Review {isSell?"sell":"buy"} offer →
                 </button>
               )}
-              {step===1&&(
-                <button className={`btn-next btn-publish-${type}`} onClick={handleNext}>
-                  {isSell?"Publish & get escrow →":"Publish offer →"}
+              {step===1&&(<>
+                {publishError&&(
+                  <div style={{color:"var(--error)",fontSize:".82rem",fontWeight:600,
+                    background:"var(--error-bg)",padding:"8px 14px",borderRadius:10,maxWidth:340}}>
+                    {publishError}
+                  </div>
+                )}
+                <button className={`btn-next btn-publish-${type}`} onClick={handleNext} disabled={publishing}>
+                  {publishing ? "Publishing…" : isSell?"Publish & get escrow →":"Publish offer →"}
                 </button>
-              )}
+              </>)}
               {step===2&&!escrowFunded&&<div/>}
             </div>
           )}

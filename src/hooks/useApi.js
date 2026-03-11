@@ -13,6 +13,25 @@
  *   const res = await patch('/user', { payoutAddress: addr });
  *   const res = await del('/offer/match', { matchOfferId: '...' });
  */
+
+// ── In-memory cache (survives navigation, cleared on page refresh) ──
+if (!window.__PEACH_CACHE__) window.__PEACH_CACHE__ = {};
+
+/** Get cached entry. Returns { data, ts } or null. */
+export function getCached(key) {
+  return window.__PEACH_CACHE__[key] ?? null;
+}
+
+/** Store data with current timestamp. */
+export function setCache(key, data) {
+  window.__PEACH_CACHE__[key] = { data, ts: Date.now() };
+}
+
+/** Clear one key or the entire cache. */
+export function clearCache(key) {
+  if (key) delete window.__PEACH_CACHE__[key];
+  else window.__PEACH_CACHE__ = {};
+}
 export function useApi() {
   const auth = window.__PEACH_AUTH__ ?? null;
   const base = auth?.baseUrl ?? import.meta.env.VITE_API_BASE;

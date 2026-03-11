@@ -136,6 +136,32 @@ These rows exist in the Settings screen but navigate to placeholder/empty views.
 
 ---
 
+## Wiring gaps — making trades work on regtest
+
+These are the remaining API integrations needed to complete a full trade lifecycle from the web app. Ordered by the trade lifecycle: offer → match → contract → completion.
+
+### Offer submission (`peach-offer-creation.jsx`)
+- **Wire buy offer submission** — `POST /v069/buyOffer` with amount, payment methods, currencies, premium. The "Publish offer" button currently just calls `setDone(true)` with no API call. Buy offers don't need `escrowPublicKey`, so this can be wired without Bitcoin key management.
+- **Wire sell offer submission** — `POST /v069/sellOffer` — same as above but requires `escrowPublicKey` and `releaseAddress` (Bitcoin key management dependency).
+- **Escrow funding (sell offers)** — the escrow step currently has a "Simulate funding (demo)" button. Needs real escrow address display + funding status polling.
+
+### Match acceptance (`peach-trades-dashboard.jsx`)
+- ✅ **Match popup + accept/skip** — wired. Fetches matches via `GET /v1/offer/:id/matches`, displays in popup, sends `POST /v1/offer/:id/match` with correct payload. Navigates to `/trade/:contractId` on success.
+- 🟡 **Payment data encryption in accept payload** — PGP crypto helpers exist in `pgp.js` (`encryptSymmetric`, `encryptForRecipients`, `hashPaymentFields`) but are not yet called from `handleConfirmAccept()`. May be required by the server — test against regtest to confirm.
+
+### Trade execution (`peach-trade-execution.jsx`)
+- **Payment confirmation (buyer)** — "I sent the payment" action logs to console. Wire to the appropriate `PATCH /contract/:id` endpoint.
+- **Payment confirmation / release (seller)** — "Release Bitcoin" action logs to console. Wire to the release endpoint.
+- **Chat send** — optimistic UI update only, no `POST /contract/:id/chat` call. Requires PGP encryption per message.
+- **Rating submit** — logs to console. Wire to the rating endpoint.
+- **Extend deadline** — logs to console. Wire to the extend endpoint.
+
+### Not blocking basic trades
+- Dispute submission — component rendered but no encryption/API call
+- Refund flow — requires client-side PSBT signing (separate engineering spike)
+
+---
+
 ## Engineering dependencies (flag before building)
 
 These are not UI screens but are blockers for specific features:

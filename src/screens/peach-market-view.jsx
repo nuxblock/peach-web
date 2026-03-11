@@ -5,6 +5,7 @@ import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
 import { extractPMsFromProfile, isApiError } from "../utils/pgp.js";
+import { getCached, setCache, clearCache } from "../hooks/useApi.js";
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 const MOCK_OFFERS = [
@@ -91,6 +92,7 @@ const css = `
     box-shadow:0 4px 20px rgba(43,25,17,.12);min-width:160px;overflow:hidden;
     animation:dropIn .12s ease
   }
+  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
   @keyframes dropIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
   .ms-option{
     display:flex;align-items:center;gap:9px;padding:8px 12px;
@@ -692,9 +694,10 @@ export default function PeachMarket() {
 
   // ── AUTH + API ──
   const { get, post, auth } = useApi();
-  const [liveOffers,   setLiveOffers]   = useState(null); // null = use mock
+  const [liveOffers,   setLiveOffers]   = useState(() => getCached("market-offers")?.data ?? null);
   const [liveUserPMs,  setLiveUserPMs]  = useState(null); // null = use mock
   const [pmError,      setPmError]      = useState(false);
+  const [offersLoading, setOffersLoading] = useState(() => !!auth && !getCached("market-offers"));
 
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
   useEffect(() => {
@@ -778,50 +781,108 @@ export default function PeachMarket() {
     return () => clearInterval(iv);
   }, []);
 
+  // ── Offer normalizers (stable references, used by fetchMarket + refresh) ──
+  const peachId = auth?.peachId ?? null;
+
+  function normalizeOffer(o) {
+    const methods = o.meansOfPayment ? Object.keys(o.meansOfPayment) : [];
+    const currencies = o.meansOfPayment
+      ? [...new Set(Object.values(o.meansOfPayment).flat())]
+      : [];
+    return {
+      id: o.id,
+      type: o.type,
+      amount: Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0),
+      premium: o.premium ?? 0,
+      methods,
+      currencies,
+      rep: o.user?.rating ?? 0,
+      trades: o.user?.trades ?? 0,
+      badges: o.user?.medals ?? o.user?.badges ?? [],
+      auto: false,
+      online: o.user?.online ?? false,
+      isOwn: !!peachId && o.user?.id === peachId,
+    };
+  }
+
+  function normalizeOwnOffer(o, type) {
+    const methods = o.meansOfPayment ? Object.values(o.meansOfPayment).flat() : [];
+    const currencies = o.meansOfPayment ? Object.keys(o.meansOfPayment) : [];
+    return {
+      id: o.id,
+      type,
+      amount: Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0),
+      premium: o.premium ?? 0,
+      methods: [...new Set(methods)],
+      currencies,
+      rep: auth?.profile?.rating ?? 0,
+      trades: auth?.profile?.trades ?? 0,
+      badges: auth?.profile?.medals ?? [],
+      auto: false,
+      online: true,
+      isOwn: true,
+    };
+  }
+
+  async function fetchMarket() {
+    try {
+      const [bidsRes, asksRes] = await Promise.all([
+        post('/offer/search', { type: 'bid', size: 50 }),
+        post('/offer/search', { type: 'ask', size: 50 }),
+      ]);
+      const [bids, asks] = await Promise.all([
+        bidsRes.ok ? bidsRes.json() : [],
+        asksRes.ok ? asksRes.json() : [],
+      ]);
+      const bidsArr = Array.isArray(bids) ? bids : bids?.offers ?? [];
+      const asksArr = Array.isArray(asks) ? asks : asks?.offers ?? [];
+      const all = [
+        ...bidsArr.map(normalizeOffer),
+        ...asksArr.map(normalizeOffer),
+      ];
+
+      // Fetch own active offers from v069 (when authenticated)
+      if (auth) {
+        try {
+          const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
+          const hdrs = { Authorization: `Bearer ${auth.token}` };
+          const [ownBuysRes, ownSellsRes] = await Promise.all([
+            fetch(`${v069Base}/buyOffer?ownOffers=true`, { headers: hdrs }),
+            fetch(`${v069Base}/sellOffer?ownOffers=true`, { headers: hdrs }),
+          ]);
+          const ownBuys  = ownBuysRes.ok  ? await ownBuysRes.json()  : [];
+          const ownSells = ownSellsRes.ok ? await ownSellsRes.json() : [];
+          const ownBuysArr  = Array.isArray(ownBuys)  ? ownBuys  : [];
+          const ownSellsArr = Array.isArray(ownSells) ? ownSells : [];
+          const ownOffers = [
+            ...ownBuysArr.map(o => normalizeOwnOffer(o, "bid")),
+            ...ownSellsArr.map(o => normalizeOwnOffer(o, "ask")),
+          ];
+          // Deduplicate: own offers take priority
+          const ownIds = new Set(ownOffers.map(o => o.id));
+          const deduped = all.filter(o => !ownIds.has(o.id));
+          all.splice(0, all.length, ...deduped, ...ownOffers);
+        } catch (err) {
+          console.warn("[MarketView] Own offers fetch failed:", err.message);
+        }
+      }
+
+      setCache("market-offers", all);
+      setLiveOffers(all);
+    } catch {} finally {
+      setOffersLoading(false);
+    }
+  }
+
+  function handleRefreshOffers() {
+    clearCache("market-offers");
+    setLiveOffers(null);
+    setOffersLoading(true);
+    fetchMarket();
+  }
+
   // ── LIVE MARKET OFFERS + USER PMs ──
   useEffect(() => {
-    const peachId = auth?.peachId ?? null;
-
-    function normalizeOffer(o) {
-      const methods = o.meansOfPayment ? Object.keys(o.meansOfPayment) : [];
-      const currencies = o.meansOfPayment
-        ? [...new Set(Object.values(o.meansOfPayment).flat())]
-        : [];
-      return {
-        id: o.id,
-        type: o.type,
-        amount: Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0),
-        premium: o.premium ?? 0,
-        methods,
-        currencies,
-        rep: o.user?.rating ?? 0,
-        trades: o.user?.trades ?? 0,
-        badges: o.user?.medals ?? o.user?.badges ?? [],
-        auto: false,
-        online: o.user?.online ?? false,
-        isOwn: !!peachId && o.user?.id === peachId,
-      };
-    }
-
-    async function fetchMarket() {
-      try {
-        const [bidsRes, asksRes] = await Promise.all([
-          post('/offer/search', { type: 'bid', size: 50 }),
-          post('/offer/search', { type: 'ask', size: 50 }),
-        ]);
-        const [bids, asks] = await Promise.all([
-          bidsRes.ok ? bidsRes.json() : [],
-          asksRes.ok ? asksRes.json() : [],
-        ]);
-        const bidsArr = Array.isArray(bids) ? bids : bids?.offers ?? [];
-        const asksArr = Array.isArray(asks) ? asks : asks?.offers ?? [];
-        const all = [
-          ...bidsArr.map(normalizeOffer),
-          ...asksArr.map(normalizeOffer),
-        ];
-        setLiveOffers(all);
-      } catch {}
-    }
     fetchMarket();
 
     if (auth) {
@@ -883,7 +944,7 @@ export default function PeachMarket() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const marketOffers = liveOffers ?? MOCK_OFFERS;
+  const marketOffers = liveOffers ?? (auth ? [] : MOCK_OFFERS);
   const userPMs = liveUserPMs ?? (auth ? [] : USER_PMS);
 
   const offerType = isSellTab ? "bid" : "ask";
@@ -1333,6 +1394,15 @@ export default function PeachMarket() {
             >
               My Offers{myOffersOnly && isLoggedIn ? " ✕" : ""}
             </button>
+            <button
+              className="my-offers-btn"
+              onClick={handleRefreshOffers}
+              title="Refresh offers"
+              disabled={offersLoading}
+              style={{padding:"6px 10px",minWidth:0,fontSize:"1rem",opacity:offersLoading?0.5:1}}
+            >
+              ↻
+            </button>
             <div className="cta-wrap">
               {isLoggedIn
                 ? <button className="cta-btn" onClick={() => navigate("/offer/new")}>+ Create Offer</button>
@@ -1345,9 +1415,14 @@ export default function PeachMarket() {
           {/* ── DESKTOP TABLE ── */}
           <div className="table-wrap">
             <div className="info-sentence">
-              Request as many trades as you want. You'll enter a trade with the first {isSellTab ? "buyer" : "seller"} who accepts your request.
+              Request as many trades as you want. You'll enter a trade with the first {isSellTab ? "buyer" : "seller"} who accepts your request, and your other requests will be automatically cancelled.
             </div>
-            {displayOffers.length === 0 ? (
+            {offersLoading && auth ? (
+              <div className="empty">
+                <div className="empty-icon" style={{animation:"spin 1s linear infinite"}}>↻</div>
+                <div className="empty-title">Loading offers…</div>
+              </div>
+            ) : displayOffers.length === 0 ? (
               <div className="empty">
                 <div className="empty-icon">🍑</div>
                 <div className="empty-title">No offers match your filters</div>
@@ -1411,9 +1486,14 @@ export default function PeachMarket() {
           {/* ── MOBILE CARDS ── */}
           <div className="cards">
             <div className="info-sentence" style={{margin:"0 0 4px"}}>
-              Request as many trades as you want. You'll enter a trade with the first {isSellTab ? "buyer" : "seller"} who accepts your request.
+              Request as many trades as you want. You'll enter a trade with the first {isSellTab ? "buyer" : "seller"} who accepts your request, and your other requests will be automatically cancelled.
             </div>
-            {displayOffers.length === 0 ? (
+            {offersLoading && auth ? (
+              <div className="empty">
+                <div className="empty-icon" style={{animation:"spin 1s linear infinite"}}>↻</div>
+                <div className="empty-title">Loading offers…</div>
+              </div>
+            ) : displayOffers.length === 0 ? (
               <div className="empty">
                 <div className="empty-icon">🍑</div>
                 <div className="empty-title">No offers found</div>

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, Topbar } from "../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
-import { useApi } from "../hooks/useApi.js";
+import { useApi, getCached, setCache, clearCache } from "../hooks/useApi.js";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconSort      = ({ dir }) => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d={dir === "asc" ? "M2 8l4-5 4 5" : dir === "desc" ? "M2 4l4 5 4-5" : "M2 4.5l4-3 4 3M2 7.5l4 3 4-3"}/></svg>;
@@ -43,7 +43,7 @@ const STATUS_CONFIG = {
   cancelled:           { label: "Cancelled",           bg: "#F4EEEB", color: "#7D675E", action: false },
   paymentRequired:     { label: "Payment Required",     bg: "#FEEDE5", color: "#C45104", action: true  },
   confirmPaymentRequired:{ label: "Confirm Payment",   bg: "#FEFCE5", color: "#9A7000", action: true  },
-  hasMatchesAvailable: { label: "Matches Available",   bg: "#D7F2FE", color: "#037DB5", action: true  },
+  hasMatchesAvailable: { label: "Matches Available",   bg: "#FEEDE5", color: "#C45104", action: true  },
   waitingForTradeRequest:{ label: "Waiting for Match", bg: "#F4EEEB", color: "#7D675E", action: false },
   searchingForPeer:    { label: "Searching",           bg: "#F4EEEB", color: "#7D675E", action: false },
   offerPublished:      { label: "Published",           bg: "#D7F2FE", color: "#037DB5", action: false },
@@ -418,6 +418,7 @@ function TradeCard({ trade, onSelect, layout = "grid" }) {
           <span></span>
         )}
         <span className="trade-row-pill" style={{ background: pill.bg, color: pill.color }}>
+          {!pill.passive && <span style={{ width:6, height:6, borderRadius:"50%", background:pill.color, display:"inline-block", flexShrink:0 }}/>}
           {pill.label}
         </span>
       </div>
@@ -519,6 +520,7 @@ function TradeCard({ trade, onSelect, layout = "grid" }) {
       {/* ── ROW 4: status pill ── */}
       <button className={`v3c-pill${pill.passive ? " v3c-pill-passive" : ""}`}
         style={{ background: pill.bg, color: pill.color }}>
+        {!pill.passive && <span style={{ width:6, height:6, borderRadius:"50%", background:pill.color, display:"inline-block", flexShrink:0 }}/>}
         {pill.label}
       </button>
 
@@ -855,7 +857,7 @@ const CSS = `
   .v3c-pill{
     margin:0 10px 10px;border-radius:12px;
     padding:11px 14px;
-    display:flex;align-items:center;justify-content:center;
+    display:flex;align-items:center;justify-content:center;gap:6px;
     border:none;font-family:var(--font);font-size:.85rem;font-weight:800;
     cursor:pointer;width:calc(100% - 20px);transition:filter .15s;
   }
@@ -901,6 +903,7 @@ const CSS = `
   .trade-row-pill{
     font-size:.7rem;font-weight:800;font-family:var(--font);
     padding:5px 10px;border-radius:999px;text-align:center;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:4px;
   }
   @media(max-width:900px){
     .list-header{display:none}
@@ -1010,6 +1013,7 @@ const CSS = `
     padding:20px;
     animation:matchesFadeIn .2s ease;
   }
+  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
   @keyframes matchesFadeIn{from{opacity:0}to{opacity:1}}
   .matches-popup{
     background:var(--surface);border-radius:20px;
@@ -1086,9 +1090,11 @@ export default function TradesDashboard() {
 
   // ── AUTH + API ──
   const { get, post, del, auth } = useApi();
-  const [liveItems, setLiveItems] = useState(null);    // null = use mock
-  const [livePending, setLivePending] = useState(null); // null = use mock
+  const [liveItems, setLiveItems] = useState(() => getCached("trades-items")?.data ?? null);
+  const [livePending, setLivePending] = useState(() => getCached("trades-pending")?.data ?? null);
   const [liveLimit, setLiveLimit] = useState(null);    // null = use mock
+  const [tradesLoading, setTradesLoading] = useState(() => !!auth && !getCached("trades-items"));
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
   useEffect(() => {
@@ -1238,9 +1244,12 @@ export default function TradesDashboard() {
           ...offersArr.map(normalizeOffer),
           ...contractsArr.map(normalizeContract),
         ];
+        setCache("trades-items", items);
         setLiveItems(items);
         if (limitData) setLiveLimit(limitData);
-      } catch {}
+      } catch {} finally {
+        setTradesLoading(false);
+      }
     }
 
     // Fetch pending offers from both V1 and V069
@@ -1298,8 +1307,10 @@ export default function TradesDashboard() {
             if (m) return { ...o, matchCount: m.totalMatches, matches: m.matches };
             return o;
           });
+          setCache("trades-pending", enriched);
           setLivePending(enriched);
         } else {
+          setCache("trades-pending", pending);
           setLivePending(pending);
         }
       } catch {}
@@ -1307,15 +1318,34 @@ export default function TradesDashboard() {
 
     fetchTradesAndLimits();
     fetchPendingOffers();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const trades = liveItems ?? MOCK_TRADES;
+  function handleRefreshTrades() {
+    clearCache("trades-items");
+    clearCache("trades-pending");
+    setLiveItems(null);
+    setLivePending(null);
+    setTradesLoading(true);
+    setRefreshKey(k => k + 1);
+  }
+
+  const trades = liveItems ?? (auth ? [] : MOCK_TRADES);
 
   // Split items into active (unfinished) vs history (finished)
-  const allItems = liveItems ?? MOCK_TRADES;
+  const allItems = liveItems ?? (auth ? [] : MOCK_TRADES);
   const activeItems = allItems.filter(i => !FINISHED_STATUSES.has(i.tradeStatus) && !PENDING_STATUSES.has(i.tradeStatus));
   const historyItems = allItems.filter(i => FINISHED_STATUSES.has(i.tradeStatus));
-  const pendingItems = livePending ?? MOCK_PENDING;
+  const pendingItems = livePending ?? (auth ? [] : MOCK_PENDING);
+
+  // Auto-select the best default tab: Active > Pending > History
+  // Only runs after data has loaded (tradesLoading === false)
+  const [autoTabDone, setAutoTabDone] = useState(false);
+  useEffect(() => {
+    if (autoTabDone || tradesLoading) return;
+    if (activeItems.length > 0) { setMainTab("active"); setAutoTabDone(true); }
+    else if (pendingItems.length > 0) { setMainTab("pending"); setAutoTabDone(true); }
+    else { setMainTab("history"); setAutoTabDone(true); }
+  }, [activeItems.length, pendingItems.length, autoTabDone, tradesLoading]);
 
   const satsPerCur  = Math.round(SAT / btcPrice);
 
@@ -1633,7 +1663,17 @@ export default function TradesDashboard() {
               Active Trades {activeItems.length > 0 && <span style={{ background:"var(--primary)", color:"white", borderRadius:999, padding:"0 7px", fontSize:".7rem", fontWeight:800, marginLeft:6 }}>{activeItems.length}</span>}
             </button>
             <button className={`main-tab${mainTab === "history" ? " active" : ""}`} onClick={() => setMainTab("history")}>
-              Trade History {historyItems.length > 0 && <span style={{ background:"var(--primary)", color:"white", borderRadius:999, padding:"0 7px", fontSize:".7rem", fontWeight:800, marginLeft:6 }}>{historyItems.length}</span>}
+              Trade History {historyItems.length > 0 && <span style={{ background:"var(--black-10)", color:"var(--black-65)", borderRadius:999, padding:"0 7px", fontSize:".7rem", fontWeight:800, marginLeft:6 }}>{historyItems.length}</span>}
+            </button>
+            <button
+              onClick={handleRefreshTrades}
+              disabled={tradesLoading}
+              title="Refresh trades"
+              style={{border:"1.5px solid var(--black-10)",borderRadius:8,background:"var(--surface)",
+                padding:"6px 10px",cursor:"pointer",fontSize:"1rem",fontFamily:"var(--font)",
+                color:"var(--black-65)",opacity:tradesLoading?0.5:1,flexShrink:0}}
+            >
+              ↻
             </button>
           </div>
           {urgentCount > 0 && (
@@ -1646,6 +1686,12 @@ export default function TradesDashboard() {
         </div>
 
         {/* ── PENDING OFFERS ── */}
+        {tradesLoading && auth ? (
+          <div className="empty-state">
+            <div style={{fontSize:"2rem",animation:"spin 1s linear infinite",display:"inline-block"}}>↻</div>
+            <p>Loading trades…</p>
+          </div>
+        ) : (<>
         {mainTab === "pending" && (
           pendingItems.length === 0 ? (
             <div className="empty-state">
@@ -1673,6 +1719,7 @@ export default function TradesDashboard() {
         {mainTab === "history" && (
           <HistoryTable rows={historyItems}/>
         )}
+        </>)}
       </main>
 
       {/* ── MATCHES POPUP ── */}

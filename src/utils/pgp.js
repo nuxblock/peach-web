@@ -10,11 +10,20 @@ import * as openpgp from "openpgp";
 
 const PGP_HEADER = "-----BEGIN PGP MESSAGE-----";
 
-// ── Sensitive PM fields that get SHA-256 hashed (not sent in plaintext) ──
-const HASH_FIELDS = new Set([
-  "iban", "accountNumber", "email", "phone", "userName",
-  "walletAddress", "ukSortCode", "routingNumber",
-]);
+// ── All PM detail fields the server knows about (matches mobile app's PaymentDataInfoFields) ──
+const ALL_PAYMENT_FIELDS = [
+  "accountNumber", "accountType", "alias", "aliasType", "bankAccountNumber",
+  "bankBranch", "bankCode", "bankName", "beneficiary", "beneficiaryAddress",
+  "bic", "branchCode", "branchName", "bsbNumber", "cedulaID", "DNI", "email",
+  "iban", "lnurlAddress", "mobileMoneyIdentifier", "name", "nameTag", "phone",
+  "pixAlias", "postePayNumber", "receiveAddress", "receiveAddressEthereum",
+  "receiveAddressSolana", "receiveAddressTron", "reference", "residentialAddress",
+  "routingDetails", "RUT", "steamFriendCode", "ukBankAccount", "ukSortCode",
+  "userId", "userName", "wallet", "mpesa_name", "mpesa_phone", "mpesa_finalCurrency",
+];
+
+// Fields that must NOT be hashed (mobile app's doNotHash list)
+const DO_NOT_HASH = new Set(["beneficiary", "bic", "name", "reference", "ukSortCode"]);
 
 function isPGPString(val) {
   return typeof val === "string" && val.trimStart().startsWith(PGP_HEADER);
@@ -102,73 +111,74 @@ export async function encryptForRecipients(plaintext, armoredPubKeys, armoredPri
 }
 
 /**
- * Encrypt plaintext with AES-256-GCM using a hex-encoded key.
- * Returns a base64 string containing IV (12 bytes) + ciphertext.
+ * Encrypt plaintext with OpenPGP symmetric encryption using a passphrase.
+ * Matches the mobile app's `OpenPGP.encryptSymmetric(plaintext, passphrase, { cipher: 2 })`
+ * which uses AES-256 inside the PGP message format.
+ *
+ * Returns an armored PGP message string, or null on failure.
+ *
+ * @param {string} plaintext - The text to encrypt
+ * @param {string} passphrase - The symmetric key (hex string from generateSymmetricKey())
  */
-export async function encryptAES256(plaintext, hexKey) {
+export async function encryptSymmetric(plaintext, passphrase) {
   try {
-    const keyBytes = hexToBytes(hexKey);
-    const key = await crypto.subtle.importKey(
-      'raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt']
-    );
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encoded = new TextEncoder().encode(plaintext);
-    const ciphertext = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv }, key, encoded
-    );
-    // Prepend IV to ciphertext and base64-encode
-    const combined = new Uint8Array(iv.length + ciphertext.byteLength);
-    combined.set(iv);
-    combined.set(new Uint8Array(ciphertext), iv.length);
-    return btoa(String.fromCharCode(...combined));
+    const message = await openpgp.createMessage({ text: plaintext });
+    const encrypted = await openpgp.encrypt({
+      message,
+      passwords: [passphrase],
+      config: { preferredSymmetricAlgorithm: openpgp.enums.symmetric.aes256 },
+    });
+    return encrypted;
   } catch (err) {
-    console.warn("[PGP] encryptAES256 failed:", err.message);
+    console.warn("[PGP] encryptSymmetric failed:", err.message);
     return null;
   }
 }
 
 /**
- * Decrypt an AES-256-GCM encrypted base64 string using a hex-encoded key.
- * Expects the first 12 bytes to be the IV.
+ * Decrypt an OpenPGP symmetrically-encrypted armored message using a passphrase.
+ * Counterpart to encryptSymmetric().
+ *
+ * Returns the decrypted plaintext string, or null on failure.
+ *
+ * @param {string} armoredMessage - The PGP-armored encrypted message
+ * @param {string} passphrase - The symmetric key used to encrypt
  */
-export async function decryptAES256(base64Ciphertext, hexKey) {
+export async function decryptSymmetric(armoredMessage, passphrase) {
   try {
-    const keyBytes = hexToBytes(hexKey);
-    const key = await crypto.subtle.importKey(
-      'raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']
-    );
-    const combined = Uint8Array.from(atob(base64Ciphertext), c => c.charCodeAt(0));
-    const iv = combined.slice(0, 12);
-    const ciphertext = combined.slice(12);
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv }, key, ciphertext
-    );
-    return new TextDecoder().decode(decrypted);
+    const message = await openpgp.readMessage({ armoredMessage });
+    const { data } = await openpgp.decrypt({
+      message,
+      passwords: [passphrase],
+    });
+    return data;
   } catch (err) {
-    console.warn("[PGP] decryptAES256 failed:", err.message);
+    console.warn("[PGP] decryptSymmetric failed:", err.message);
     return null;
   }
 }
 
 /**
- * Hash sensitive payment method fields with SHA-256.
+ * Hash payment method fields with SHA-256.
+ * Matches the mobile app's hashPaymentData() — iterates ALL_PAYMENT_FIELDS,
+ * skips DO_NOT_HASH fields and empty values, lowercases before hashing.
+ *
  * Returns an object like: { "sepa": { hashes: ["abc123...", "def456..."], country: "DE" } }
  *
  * @param {string} methodType - e.g. "sepa", "wise", "revolut"
- * @param {object} pmData - Payment method details (iban, email, etc.)
+ * @param {object} pmData - Payment method details (iban, email, userName, etc.)
  * @param {string} [country] - Optional country code
  */
 export async function hashPaymentFields(methodType, pmData, country) {
   try {
     const hashes = [];
-    for (const [key, val] of Object.entries(pmData)) {
+    for (const field of ALL_PAYMENT_FIELDS) {
+      if (DO_NOT_HASH.has(field)) continue;
+      const val = pmData[field];
       if (!val || typeof val !== "string") continue;
-      if (HASH_FIELDS.has(key)) {
-        const encoded = new TextEncoder().encode(val.toLowerCase().trim());
-        const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
-        const hashHex = bytesToHex(new Uint8Array(hashBuffer));
-        hashes.push(hashHex);
-      }
+      const encoded = new TextEncoder().encode(val.toLowerCase());
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+      hashes.push(bytesToHex(new Uint8Array(hashBuffer)));
     }
     const result = { hashes };
     if (country) result.country = country;
