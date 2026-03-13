@@ -192,10 +192,17 @@ export default function MatchesPopup({
                 <span className="match-detail-label">Amount</span>
                 <SatsAmount sats={m.amount}/>
               </div>
-              <div className="match-detail-row">
-                <span className="match-detail-label">Fiat</span>
-                <span style={{fontWeight:700}}>≈ €{satsToFiat(m.amount)}</span>
-              </div>
+              {(() => {
+                const cur = m.currencies[0] ?? "EUR";
+                const sym = cur === "CHF" ? "₣" : cur === "GBP" ? "£" : "€";
+                const matchedPrice = m._raw.matchedPrice;
+                return (
+                  <div className="match-detail-row">
+                    <span className="match-detail-label">You pay</span>
+                    <span style={{fontWeight:700}}>{sym}{matchedPrice != null ? Number(matchedPrice).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : satsToFiat(m.amount)}</span>
+                  </div>
+                );
+              })()}
               <div className="match-detail-row">
                 <span className="match-detail-label">Premium</span>
                 <span style={{fontWeight:700,color:m.premium < 0 ? "#65A519" : m.premium > 0 ? "#DF321F" : "var(--black)"}}>

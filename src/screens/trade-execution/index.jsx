@@ -336,6 +336,11 @@ export default function TradeExecution() {
           paymentDataEncrypted: c.paymentDataEncrypted ?? null,
           buyerPaymentDataEncrypted: c.buyerPaymentDataEncrypted ?? null,
           // Dispute fields
+          // Cancellation fields
+          cancelationRequested: c.cancelationRequested ?? false,
+          canceled: c.canceled ?? false,
+          canceledBy: c.canceledBy ?? null,
+          // Dispute fields
           disputeActive: c.disputeActive ?? false,
           disputeReason: c.disputeReason ?? null,
           disputeInitiator: c.disputeInitiator ?? null,
@@ -735,7 +740,7 @@ export default function TradeExecution() {
 
               {/* Payment deadline — inside actions */}
               {/* Payment deadline pill — not shown for seller when paymentRequired (has its own merged bar) */}
-              {deadlineStr && !(status === "paymentRequired" && role === "seller") && status !== "dispute" && status !== "disputeWithoutEscrowFunded" && (
+              {deadlineStr && !(status === "paymentRequired" && role === "seller") && status !== "dispute" && status !== "disputeWithoutEscrowFunded" && status !== "tradeCanceled" && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding" && status !== "escrowWaitingForConfirmation" && (
                 <div style={{
                   display:"flex", alignItems:"center", gap:12,
                   background:"#FEEDE5", border:"1.5px solid rgba(196,81,4,.2)",
@@ -818,10 +823,17 @@ export default function TradeExecution() {
                     try {
                       const res = await post('/contract/' + contract.id + '/cancel');
                       if (res.ok) {
-                        setShowPostCancel(true);
+                        // Cancel is immediate — re-fetch to get real status
+                        const fresh = await get('/contract/' + contract.id);
+                        if (fresh.ok) {
+                          const c = await fresh.json();
+                          setLiveContract(prev => prev ? { ...prev, canceled: true, tradeStatus: c.tradeStatus ?? "tradeCanceled" } : prev);
+                        } else {
+                          setLiveContract(prev => prev ? { ...prev, canceled: true, tradeStatus: "tradeCanceled" } : prev);
+                        }
                       } else {
                         const err = await res.json().catch(() => ({}));
-                        console.warn("[Trade] Cancel trade failed:", err.error || res.status);
+                        setActionError("Cancel trade failed: " + (err.error || res.status));
                       }
                     } catch (e) {
                       console.warn("[Trade] Cancel trade error:", e.message);

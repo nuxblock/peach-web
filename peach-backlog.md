@@ -111,6 +111,12 @@ These are completed and kept for reference.
 - **File**: `src/screens/peach-offer-creation.jsx`
 - Currently has a "Simulate funding (demo)" button. Needs real escrow address display + funding status polling.
 
+### 3.8 Create Multiple Offers
+- **File**: `src/screens/offer-creation/index.jsx`
+- **Scope**: Add a "create multiple offers" option at the offer creation stage for both buy and sell flows.
+- **UI**: Allow the user to batch-create several offers at once (e.g. different amounts, currencies, or PM combinations) rather than submitting one at a time.
+- **Endpoints**: Same as single offer — `POST /v069/buyOffer` / `POST /v069/sellOffer` — called once per offer in the batch.
+
 ---
 
 ## Phase 4: Settings & Secondary Features
@@ -247,6 +253,9 @@ Items that don't add new API wiring but improve existing screens.
 ### Home (`peach-home.jsx`)
 - **My Profile card improvements** — distinguish public info (trade count, rating, badges) from private info (referral, daily limits). Use Peach standard Bitcoin format for all amounts. Details TBD.
 - **Peach Bitcoin price card** — average and highest Bitcoin price on Peach over 24h, 7d, 30d, and all time.
+
+### Trades Dashboard (`trades-dashboard/MatchesPopup.jsx`)
+- **MatchesPopup — avatars, reputation & trades not wired** — match cards currently show placeholder/missing data for counterparty avatars, reputation scores, and trade counts. Wire these from the match/user data returned by the API.
 
 ### Market View (`peach-market-view.jsx`)
 - **Filter parity with mobile app** — implement same filter set as mobile. Exact filter list TBD.

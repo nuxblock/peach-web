@@ -985,6 +985,7 @@ function DisputeBanner({ scenario, onAction }) {
 export function ActionPanel({ scenario, onAction, showPostCancel = false }) {
   const { tradeStatus: status, role } = scenario;
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const Btn = ({ label, bg, color, onClick }) => (
     <button
@@ -1009,6 +1010,16 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false }) {
           confirmLabel="Yes, release Bitcoin"
           onConfirm={() => { setShowConfirm(false); onAction("release_bitcoin"); }}
           onCancel={() => setShowConfirm(false)}
+        />
+      )}
+
+      {showCancelConfirm && (
+        <ConfirmModal
+          title="cancel trade"
+          body="Are you sure? The seller has already matched you back, so canceling now will impact your reputation in a major way."
+          confirmLabel="cancel trade"
+          onConfirm={() => { setShowCancelConfirm(false); onAction("cancel_trade"); }}
+          onCancel={() => setShowCancelConfirm(false)}
         />
       )}
 
@@ -1163,9 +1174,28 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false }) {
           </div>
         )}
 
+        {/* Trade cancelled — final state */}
+        {(status === "tradeCanceled" || status === "confirmCancelation") && (
+          <div style={{
+            display:"flex", alignItems:"center", gap:8,
+            background:"#FFF0EE", border:"1px solid rgba(223,50,31,.2)",
+            borderRadius:8, padding:"12px 14px",
+            fontSize:".83rem", color:"#DF321F", fontWeight:600, lineHeight:1.5,
+          }}>
+            <IconAlert/>
+            <span>This trade has been cancelled. Your reputation has been affected.</span>
+          </div>
+        )}
+
         {/* Dispute states */}
         {(status === "dispute" || status === "disputeWithoutEscrowFunded") && (
           <DisputeBanner scenario={scenario} onAction={onAction} />
+        )}
+
+        {/* Cancel trade — available during active trade phases (not during dispute/cancel/completed) */}
+        {["paymentRequired", "confirmPaymentRequired", "fundEscrow", "createEscrow", "waitingForFunding", "escrowWaitingForConfirmation"].includes(status)
+          && !scenario.disputeActive && (
+          <Btn label="Cancel Trade" bg="#FFF0EE" color="#DF321F" onClick={() => setShowCancelConfirm(true)}/>
         )}
       </div>
     </>
