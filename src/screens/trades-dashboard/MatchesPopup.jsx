@@ -14,8 +14,10 @@ import { PeachRating, Badge, satsToFiat } from "./components.jsx";
 
 export function formatTradeId(id) {
   const s = String(id);
-  // "1239-1238" → "PC‑1239‑1238", "1257" → "PC‑1257"
-  return "PC\u2011" + s.replace(/-/g, "\u2011");
+  // Convert decimal IDs to hex (matching mobile app's contractIdToHex / offerIdToHex)
+  // "1361-1360" → "PC‑551‑550", "1257" → "PC‑4E9"
+  const parts = s.split("-").map(n => parseInt(n, 10).toString(16).toUpperCase());
+  return "PC\u2011" + parts.join("\u2011");
 }
 
 export function formatPeachName(rawId) {
@@ -68,13 +70,19 @@ export function transformMatch(apiMatch) {
   };
 }
 
-export function transformTradeRequest(tr, offer) {
+export function transformTradeRequest(tr, offer, userProfile) {
   const peachId = tr.userId ?? "unknown";
   const displayName = formatPeachName(peachId);
   const initials = displayName.slice(-2).toUpperCase();
   const color = AVATAR_COLORS[
     peachId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % AVATAR_COLORS.length
   ];
+  const u = userProfile ?? {};
+  const badges = (u.medals ?? []).map(m => {
+    if (m === "fastTrader") return "fast";
+    if (m === "superTrader") return "supertrader";
+    return m;
+  });
   return {
     offerId: String(tr.id), // trade request ID
     requestedAt: new Date(tr.creationDate ?? Date.now()).getTime(),
@@ -82,9 +90,9 @@ export function transformTradeRequest(tr, offer) {
       name: displayName,
       initials,
       color,
-      rep: 0, // v069 trade requests don't include reputation
-      trades: 0,
-      badges: [],
+      rep: u.peachRating ?? u.rating ?? 0,
+      trades: u.trades ?? 0,
+      badges,
     },
     amount: offer.amount ?? 0,
     premium: offer.premium ?? 0,

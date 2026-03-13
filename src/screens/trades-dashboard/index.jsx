@@ -14,7 +14,7 @@ import {
   encryptSymmetric, signPGPMessage, hashPaymentFields,
 } from "../../utils/pgp.js";
 import { MOCK_PENDING, MOCK_TRADES, AVATAR_COLORS } from "../../data/mockData.js";
-import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE, satsToFiatRaw } from "../../utils/format.js";
+import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE } from "../../utils/format.js";
 import { STATUS_CONFIG, FINISHED_STATUSES, PENDING_STATUSES } from "../../data/statusConfig.js";
 
 // Local sub-components
@@ -498,6 +498,7 @@ export default function TradesDashboard() {
         currency: c.currency ?? "",
         tradeStatus: c.tradeStatus ?? c.status ?? "unknown",
         createdAt: new Date(c.creationDate ?? Date.now()),
+        unread: c.unreadMessages ?? 0,
       };
     }
 
@@ -577,9 +578,17 @@ export default function TradesDashboard() {
                   const data = await res.json();
                   const requests = Array.isArray(data) ? data : (data?.tradeRequests ?? []);
                   console.log("[Trades] Trade requests for", offer.id, ":", requests);
+                  // Fetch public profiles for each requester
+                  const userProfiles = await Promise.all(
+                    requests.map(tr =>
+                      tr.userId
+                        ? get(`/user/${tr.userId}`).then(r => r.ok ? r.json() : null).catch(() => null)
+                        : Promise.resolve(null)
+                    )
+                  );
                   return {
                     offerId: offer.id,
-                    matches: requests.map(tr => transformTradeRequest(tr, offer)),
+                    matches: requests.map((tr, i) => transformTradeRequest(tr, offer, userProfiles[i])),
                     totalMatches: requests.length,
                   };
                 } else {
@@ -666,16 +675,22 @@ export default function TradesDashboard() {
 
   const satsPerCur  = Math.round(SAT / btcPrice);
 
-  // Trading limits — live if available, mock fallback
-  const LIMIT_TOTAL  = liveLimit?.dailyAmount              ?? liveLimit?.daily?.amount              ?? 1000;
-  const LIMIT_USED   = liveLimit?.dailyAmountTraded        ?? liveLimit?.daily?.amountTraded        ?? 340;
-  const ANON_TOTAL   = liveLimit?.monthlyAnonymousAmount   ?? liveLimit?.monthlyAnon?.amount        ?? 1000;
-  const ANON_USED    = liveLimit?.monthlyAnonymousTraded   ?? liveLimit?.monthlyAnon?.amountTraded  ?? 620;
-  const ANNUAL_TOTAL = liveLimit?.yearlyAmount             ?? liveLimit?.yearly?.amount             ?? 100000;
-  const ANNUAL_USED  = liveLimit?.yearlyAmountTraded       ?? liveLimit?.yearly?.amountTraded       ?? 8740;
-  const limitPct  = Math.min(100, (LIMIT_USED  / LIMIT_TOTAL)  * 100);
-  const anonPct   = Math.min(100, (ANON_USED   / ANON_TOTAL)   * 100);
-  const annualPct = Math.min(100, (ANNUAL_USED / ANNUAL_TOTAL) * 100);
+  // Trading limits — API returns CHF: { daily, dailyAmount, yearly, yearlyAmount, monthlyAnonymous, monthlyAnonymousAmount }
+  // "daily" = ceiling (CHF), "dailyAmount" = already used (CHF)
+  const chfToDisplay = (chf) => {
+    const rate = allPrices[selectedCurrency] && allPrices.CHF
+      ? allPrices[selectedCurrency] / allPrices.CHF : 1;
+    return Math.round(chf * rate);
+  };
+  const LIMIT_TOTAL  = liveLimit?.daily              ?? 1000;
+  const LIMIT_USED   = liveLimit?.dailyAmount        ?? 0;
+  const ANON_TOTAL   = liveLimit?.monthlyAnonymous       ?? 1000;
+  const ANON_USED    = liveLimit?.monthlyAnonymousAmount  ?? 0;
+  const ANNUAL_TOTAL = liveLimit?.yearly             ?? 100000;
+  const ANNUAL_USED  = liveLimit?.yearlyAmount       ?? 0;
+  const limitPct  = LIMIT_TOTAL  ? Math.min(100, (LIMIT_USED  / LIMIT_TOTAL)  * 100) : 0;
+  const anonPct   = ANON_TOTAL   ? Math.min(100, (ANON_USED   / ANON_TOTAL)   * 100) : 0;
+  const annualPct = ANNUAL_TOTAL ? Math.min(100, (ANNUAL_USED / ANNUAL_TOTAL) * 100) : 0;
 
   // Filter active trades
   const filtered = trades.filter(t => {
@@ -759,7 +774,14 @@ export default function TradesDashboard() {
               const data = await res.json();
               const requests = Array.isArray(data) ? data : (data?.tradeRequests ?? []);
               console.log("[Trades] On-demand trade requests for", trade.id, ":", requests);
-              transformed = requests.map(tr => transformTradeRequest(tr, trade));
+              const userProfiles = await Promise.all(
+                requests.map(tr =>
+                  tr.userId
+                    ? get(`/user/${tr.userId}`).then(r => r.ok ? r.json() : null).catch(() => null)
+                    : Promise.resolve(null)
+                )
+              );
+              transformed = requests.map((tr, i) => transformTradeRequest(tr, trade, userProfiles[i]));
             }
           } else {
             // v1: fetch system matches
@@ -1040,7 +1062,7 @@ export default function TradesDashboard() {
             {/* Daily */}
             <div className="limit-bar-top">
               <span className="limit-bar-label">Daily Limit</span>
-              <span className="limit-bar-val">€{LIMIT_USED} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{LIMIT_TOTAL}</span></span>
+              <span className="limit-bar-val">{chfToDisplay(LIMIT_USED).toLocaleString()} {selectedCurrency} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ {chfToDisplay(LIMIT_TOTAL).toLocaleString()} {selectedCurrency}</span></span>
             </div>
             <div className="limit-bar-track">
               <div className="limit-bar-fill" style={{ width:`${limitPct}%` }}/>
@@ -1050,7 +1072,7 @@ export default function TradesDashboard() {
               <span className="limit-bar-label">
                 <span className="limit-anon-dot"/>Anonymous · Monthly
               </span>
-              <span className="limit-bar-val">€{ANON_USED} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{ANON_TOTAL}</span></span>
+              <span className="limit-bar-val">{chfToDisplay(ANON_USED).toLocaleString()} {selectedCurrency} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ {chfToDisplay(ANON_TOTAL).toLocaleString()} {selectedCurrency}</span></span>
             </div>
             <div className="limit-bar-track">
               <div className="limit-bar-fill limit-bar-fill-anon" style={{ width:`${anonPct}%` }}/>
@@ -1058,7 +1080,7 @@ export default function TradesDashboard() {
             {/* Annual */}
             <div className="limit-bar-top" style={{ marginTop:10 }}>
               <span className="limit-bar-label">Annual Limit</span>
-              <span className="limit-bar-val">€{ANNUAL_USED.toLocaleString()} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ €{ANNUAL_TOTAL.toLocaleString()}</span></span>
+              <span className="limit-bar-val">{chfToDisplay(ANNUAL_USED).toLocaleString()} {selectedCurrency} <span style={{ fontWeight:400, color:"var(--black-65)" }}>/ {chfToDisplay(ANNUAL_TOTAL).toLocaleString()} {selectedCurrency}</span></span>
             </div>
             <div className="limit-bar-track">
               <div className="limit-bar-fill limit-bar-fill-annual" style={{ width:`${annualPct}%` }}/>
@@ -1080,7 +1102,7 @@ export default function TradesDashboard() {
             </button>
             <button className={`main-tab${mainTab === "history" ? " active" : ""}`} onClick={() => setMainTab("history")}>
               <span className="tab-label-full">Trade History</span><span className="tab-label-short">History</span>
-              {historyItems.length > 0 && <span className="tab-badge">{historyItems.length}</span>}
+              {historyItems.length > 0 && <span className="tab-badge" data-has-action={historyItems.some(i => i.unread > 0)}>{historyItems.length}</span>}
             </button>
             <button
               onClick={handleRefreshTrades}

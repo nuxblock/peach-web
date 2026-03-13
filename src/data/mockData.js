@@ -266,13 +266,13 @@ export const MOCK_TRADES = [
   {
     id: "1350", tradeId: "PC\u20111350", kind: "contract", direction: "buy",
     amount: 85000, premium: -1.2, fiatAmount: "74.32", currency: "EUR",
-    tradeStatus: "paymentRequired",
+    tradeStatus: "paymentRequired", unread: 2,
     createdAt: new Date(Date.now() - 4 * 3600_000),
   },
   {
     id: "1348", tradeId: "PC\u20111348", kind: "contract", direction: "buy",
     amount: 42000, premium: 0.5, fiatAmount: "38.14", currency: "CHF",
-    tradeStatus: "confirmPaymentRequired",
+    tradeStatus: "confirmPaymentRequired", unread: 0,
     createdAt: new Date(Date.now() - 26 * 3600_000),
   },
   // ── ACTIVE — SELL ──
@@ -285,7 +285,7 @@ export const MOCK_TRADES = [
   {
     id: "1342", tradeId: "PC\u20111342", kind: "contract", direction: "sell",
     amount: 95000, premium: 1.5, fiatAmount: "82.79", currency: "EUR",
-    tradeStatus: "confirmPaymentRequired",
+    tradeStatus: "confirmPaymentRequired", unread: 1,
     createdAt: new Date(Date.now() - 30 * 60_000),
   },
   // ── HISTORY — COMPLETED (3 buy, 3 sell) ──

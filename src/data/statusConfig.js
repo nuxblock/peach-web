@@ -13,20 +13,20 @@
 
 export const STATUS_CONFIG = {
   // ── Pending (offer stage) ──
-  searchingForPeer:    { label: "Waiting for Match",     bg: "#F4EEEB", color: "#7D675E", action: false },
+  searchingForPeer:    { label: "Looking for Match",     bg: "#F4EEEB", color: "#7D675E", action: false },
   waitingForTradeRequest:{ label: "Waiting for Match",   bg: "#F4EEEB", color: "#7D675E", action: false },
   offerHidden:         { label: "Offer Hidden",          bg: "#F4EEEB", color: "#7D675E", action: false },
   offerHiddenWithMatchesAvailable: { label: "Hidden (Matches)", bg: "#FEEDE5", color: "#C45104", action: true },
-  hasMatchesAvailable: { label: "Matches Available",     bg: "#FEEDE5", color: "#C45104", action: true  },
+  hasMatchesAvailable: { label: "Select Match",           bg: "#FEEDE5", color: "#C45104", action: true  },
   acceptTradeRequest:  { label: "Accept Trade Request",  bg: "#FEEDE5", color: "#C45104", action: true  },
 
   // ── Active (contract stage) ──
   createEscrow:        { label: "Create Escrow",         bg: "#FEFCE5", color: "#9A7000", action: true  },
   fundEscrow:          { label: "Fund Escrow",           bg: "#FEFCE5", color: "#9A7000", action: true  },
   waitingForFunding:   { label: "Waiting for Funding",   bg: "#F4EEEB", color: "#7D675E", action: false },
-  escrowWaitingForConfirmation: { label: "Escrow Confirming", bg: "#F4EEEB", color: "#7D675E", action: false },
-  fundingAmountDifferent:{ label: "Wrong Funding",       bg: "#FEFCE5", color: "#9A7000", action: true  },
-  paymentRequired:     { label: "Send Payment",          bg: "#FEEDE5", color: "#C45104", action: true  },
+  escrowWaitingForConfirmation: { label: "Transaction Pending", bg: "#F4EEEB", color: "#7D675E", action: false },
+  fundingAmountDifferent:{ label: "Wrong Amount Funded",  bg: "#FEFCE5", color: "#9A7000", action: true  },
+  paymentRequired:     { label: "Make Payment",           bg: "#FEEDE5", color: "#C45104", action: true  },
   confirmPaymentRequired:{ label: "Confirm Payment",     bg: "#FEEDE5", color: "#C45104", action: true  },
   releaseEscrow:       { label: "Release Escrow",        bg: "#FEEDE5", color: "#C45104", action: true  },
   paymentTooLate:      { label: "Not Paid in Time",      bg: "#FEFCE5", color: "#9A7000", action: true  },
@@ -34,7 +34,7 @@ export const STATUS_CONFIG = {
   rateUser:            { label: "Rate Counterparty",     bg: "#FEEDE5", color: "#C45104", action: true  },
   dispute:             { label: "Dispute",               bg: "#FFE6E1", color: "#DF321F", action: true  },
   disputeWithoutEscrowFunded: { label: "Dispute",        bg: "#FFE6E1", color: "#DF321F", action: true  },
-  confirmCancelation:  { label: "Confirm Cancel",        bg: "#FFE6E1", color: "#DF321F", action: true  },
+  confirmCancelation:  { label: "Cancel Requested",       bg: "#FFE6E1", color: "#DF321F", action: true  },
 
   // ── Finished ──
   tradeCompleted:      { label: "Completed",             bg: "#F2F9E7", color: "#65A519", action: false },

@@ -14,6 +14,7 @@ import {
   HorizontalStepper, PaymentDetailsCard, EscrowAddressCard,
   EscrowFundingCard, ActionPanel, RatingPanel, ChatPanel,
 } from "./components.jsx";
+import { formatTradeId } from "../trades-dashboard/MatchesPopup.jsx";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -648,7 +649,7 @@ export default function TradeExecution() {
         {/* ── Trade sub-topbar ── */}
         <div className="trade-topbar">
           <button className="trade-topbar-back" title="Back to Trades" onClick={() => navigate("/trades")}><IconBack/></button>
-          <span className="trade-topbar-id">{contract.id}</span>
+          <span className="trade-topbar-id">{formatTradeId(contract.id)}</span>
           <span className="trade-topbar-sep">·</span>
           <span className={role === "buyer" ? "dir-buy" : "dir-sell"}>{role === "buyer" ? "BUY" : "SELL"}</span>
           <span className="trade-topbar-sep">·</span>

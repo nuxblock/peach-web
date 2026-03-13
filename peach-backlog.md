@@ -100,7 +100,8 @@ These are completed and kept for reference.
 - **Endpoints**:
   - `GET /v069/buyOffer/:id/tradeRequestPerformed/chat`
   - `POST /v069/buyOffer/:id/tradeRequestPerformed/chat`
-- **UI**: Chat panel in trade request view (before contract is created)
+- **UI**: Display chat history in the **MatchesPopup** (trade request acceptance stage, `trades-dashboard/MatchesPopup.jsx`) so the user can see messages exchanged before the match happened. Also add a chat panel in the trade request view for sending/receiving messages before a contract is created.
+- **Files**: `src/screens/trades-dashboard/MatchesPopup.jsx`, `src/screens/trades-dashboard/index.jsx`
 
 ### 3.6 Sell Offer Submission
 - **File**: `src/screens/peach-offer-creation.jsx`
