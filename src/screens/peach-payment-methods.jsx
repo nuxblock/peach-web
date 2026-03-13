@@ -5,6 +5,8 @@ import { IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
 import { decryptPaymentMethods, extractPMsFromProfile, encryptPGPMessage, signPGPMessage, isApiError } from "../utils/pgp.js";
+import { MOCK_SAVED_PMS as MOCK_SAVED } from "../data/mockData.js";
+import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE } from "../utils/format.js";
 
 // ─── INPUT VALIDATORS (inline for Claude.ai preview; import from peach-validators.js for GitHub build) ──
 const IBAN_RE = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/;
@@ -183,11 +185,7 @@ function methodLabel(pm) {
 
 // Mock saved PMs — used as fallback when not regtest-authenticated.
 // When window.__PEACH_AUTH__ is set, replaced by GET /v069/selfUser on mount.
-const MOCK_SAVED = [
-  { id:"pm1", methodId:"sepa",    name:"SEPA",    currencies:["EUR","CHF"], details:{ holder:"Peter Weber", iban:"DE89 3704 0044 0532 0130 00" }},
-  { id:"pm2", methodId:"revolut", name:"Revolut",  currencies:["EUR","GBP"], details:{ username:"@peterweber" }},
-  { id:"pm3", methodId:"twint",   name:"Twint",    currencies:["CHF"],       details:{ phone:"+41 79 123 45 67" }},
-];
+// Imported from src/data/mockData.js
 
 // ─── PROGRESS BAR ─────────────────────────────────────────────────────────────
 const STEP_LABELS = ["Currency", "Category", "Method", "Details"];
@@ -637,8 +635,6 @@ function DeleteModal({ pm, onConfirm, onCancel }) {
 }
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
-const SAT = 100_000_000;
-const BTC_PRICE = 87432;
 
 export default function PeachPaymentMethods() {
   const navigate = useNavigate();

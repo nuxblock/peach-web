@@ -9,6 +9,9 @@ import {
   generateSymmetricKey, encryptForRecipients,
   encryptSymmetric, signPGPMessage, hashPaymentFields,
 } from "../utils/pgp.js";
+import { MOCK_PENDING, MOCK_TRADES, AVATARS, AVATAR_COLORS } from "../data/mockData.js";
+import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE, fmt, satsToFiatRaw, relTime, relTime as relativeTime, formatDate } from "../utils/format.js";
+import { STATUS_CONFIG, FINISHED_STATUSES, PENDING_STATUSES } from "../data/statusConfig.js";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconSort      = ({ dir }) => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d={dir === "asc" ? "M2 8l4-5 4 5" : dir === "desc" ? "M2 4l4 5 4-5" : "M2 4.5l4-3 4 3M2 7.5l4 3 4-3"}/></svg>;
@@ -19,221 +22,15 @@ const IconAlert     = () => <svg width="14" height="14" viewBox="0 0 14 14" fill
 const IconEmpty     = () => <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#C4B5AE" strokeWidth="1.5" strokeLinecap="round"><rect x="8" y="12" width="32" height="28" rx="4"/><path d="M16 12V9a8 8 0 0 1 16 0v3"/><line x1="19" y1="24" x2="29" y2="24"/><line x1="19" y1="30" x2="25" y2="30"/></svg>;
 
 
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-const BTC_PRICE = 87432;
-const SAT = 100_000_000;
-
+// satsToFiat for dashboard: whole euros (no decimals) for compact display
 function satsToFiat(sats, price = BTC_PRICE) {
-  return ((sats / SAT) * price).toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return Math.round(satsToFiatRaw(sats, price)).toLocaleString("de-DE");
 }
-function fmt(n) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M";
-  if (n >= 1_000)     return (n / 1_000).toFixed(0) + "k";
-  return String(n);
-}
-
-// Status config: label, chip color, text color, whether action is required
-// Status chip colors — 3 categories:
-//   Orange (#FEEDE5 / #C45104) = action required
-//   Yellow (#FEFCE5 / #9A7000) = warning, attention requested
-//   Grey   (#F4EEEB / #7D675E) = pending, no action required
-// Plus: green for completed, red for disputes/cancellation
-// All values from mobile app TradeStatus type — no invented statuses
-const STATUS_CONFIG = {
-  // ── Pending (offer stage) ──
-  searchingForPeer:    { label: "Waiting for Match",     bg: "#F4EEEB", color: "#7D675E", action: false },
-  waitingForTradeRequest:{ label: "Waiting for Match",   bg: "#F4EEEB", color: "#7D675E", action: false },
-  offerHidden:         { label: "Offer Hidden",          bg: "#F4EEEB", color: "#7D675E", action: false },
-  offerHiddenWithMatchesAvailable: { label: "Hidden (Matches)", bg: "#FEEDE5", color: "#C45104", action: true },
-  hasMatchesAvailable: { label: "Matches Available",     bg: "#FEEDE5", color: "#C45104", action: true  },
-  acceptTradeRequest:  { label: "Accept Trade Request",  bg: "#FEEDE5", color: "#C45104", action: true  },
-
-  // ── Active (contract stage) ──
-  createEscrow:        { label: "Create Escrow",         bg: "#FEFCE5", color: "#9A7000", action: true  },
-  fundEscrow:          { label: "Fund Escrow",           bg: "#FEFCE5", color: "#9A7000", action: true  },
-  waitingForFunding:   { label: "Waiting for Funding",   bg: "#F4EEEB", color: "#7D675E", action: false },
-  escrowWaitingForConfirmation: { label: "Escrow Confirming", bg: "#F4EEEB", color: "#7D675E", action: false },
-  fundingAmountDifferent:{ label: "Wrong Funding",       bg: "#FEFCE5", color: "#9A7000", action: true  },
-  paymentRequired:     { label: "Send Payment",          bg: "#FEEDE5", color: "#C45104", action: true  },
-  confirmPaymentRequired:{ label: "Confirm Payment",     bg: "#FEEDE5", color: "#C45104", action: true  },
-  releaseEscrow:       { label: "Release Escrow",        bg: "#FEEDE5", color: "#C45104", action: true  },
-  paymentTooLate:      { label: "Not Paid in Time",      bg: "#FEFCE5", color: "#9A7000", action: true  },
-  payoutPending:       { label: "Payout Pending",        bg: "#F4EEEB", color: "#7D675E", action: false },
-  rateUser:            { label: "Rate Counterparty",     bg: "#FEEDE5", color: "#C45104", action: true  },
-  dispute:             { label: "Dispute",               bg: "#FFE6E1", color: "#DF321F", action: true  },
-  disputeWithoutEscrowFunded: { label: "Dispute",        bg: "#FFE6E1", color: "#DF321F", action: true  },
-  confirmCancelation:  { label: "Confirm Cancel",        bg: "#FFE6E1", color: "#DF321F", action: true  },
-
-  // ── Finished ──
-  tradeCompleted:      { label: "Completed",             bg: "#F2F9E7", color: "#65A519", action: false },
-  offerCanceled:       { label: "Offer Cancelled",       bg: "#F4EEEB", color: "#7D675E", action: false },
-  tradeCanceled:       { label: "Trade Cancelled",       bg: "#F4EEEB", color: "#7D675E", action: false },
-  fundingExpired:      { label: "Funding Expired",       bg: "#F4EEEB", color: "#7D675E", action: false },
-  wrongAmountFundedOnContract: { label: "Wrong Amount",  bg: "#FEFCE5", color: "#9A7000", action: false },
-  wrongAmountFundedOnContractRefundWaiting: { label: "Refund Pending", bg: "#F4EEEB", color: "#7D675E", action: false },
-
-  // ── Refund-related ──
-  refundAddressRequired:     { label: "Refund Address Needed", bg: "#FEEDE5", color: "#C45104", action: true  },
-  refundOrReviveRequired:    { label: "Refund or Revive",      bg: "#FEEDE5", color: "#C45104", action: true  },
-  refundTxSignatureRequired: { label: "Sign Refund",           bg: "#FEEDE5", color: "#C45104", action: true  },
-};
-
-// Statuses that represent a finished state → Trade History
-const FINISHED_STATUSES = new Set([
-  "tradeCompleted", "offerCanceled", "tradeCanceled", "fundingExpired",
-  "wrongAmountFundedOnContract", "wrongAmountFundedOnContractRefundWaiting",
-]);
-
-// Statuses that represent a pending/open offer → Pending Offers tab
-const PENDING_STATUSES = new Set([
-  "searchingForPeer", "waitingForTradeRequest",
-  "hasMatchesAvailable", "acceptTradeRequest",
-  "offerHidden", "offerHiddenWithMatchesAvailable",
-]);
-
-// Mock avatars by initials + color
-const AVATARS = ["KL","MR","ST","DV","NB","FR","PW","JC","EH","OT"];
-const AVATAR_COLORS = ["#FF7A50","#037DB5","#65A519","#F56522","#9B5CFF","#DF321F","#F5CE22","#05A85A"];
-
-// ── MOCK TRADES (normalized format — used when API data is unavailable) ──
-// 3 pending + 4 active + 8 history = 15 total
-const MOCK_PENDING = [
-  {
-    id: "1360", tradeId: "PC\u20111360", kind: "offer", direction: "buy",
-    amount: 100000, premium: -1.0, fiatAmount: "87.43", currency: "EUR",
-    tradeStatus: "hasMatchesAvailable",
-    createdAt: new Date(Date.now() - 1 * 3600_000),
-    methods: ["SEPA", "Revolut"], currencies: ["EUR"],
-    matchCount: 3,
-    matches: [
-      {
-        offerId: "mock-match-1", requestedAt: Date.now() - 20 * 60_000,
-        user: { name: "Peach4E9F", initials: "PE", color: "#FF7A50", rep: 4.2, trades: 47, badges: ["supertrader"] },
-        amount: 100000, premium: -1.0, methods: ["SEPA"], currencies: ["EUR"], _raw: {},
-      },
-      {
-        offerId: "mock-match-2", requestedAt: Date.now() - 45 * 60_000,
-        user: { name: "PeachB3A1", initials: "PB", color: "#037DB5", rep: 3.8, trades: 22, badges: ["fast"] },
-        amount: 100000, premium: -0.8, methods: ["Revolut"], currencies: ["EUR"], _raw: {},
-      },
-      {
-        offerId: "mock-match-3", requestedAt: Date.now() - 2 * 3600_000,
-        user: { name: "PeachF712", initials: "PF", color: "#65A519", rep: 2.5, trades: 8, badges: [] },
-        amount: 100000, premium: -1.2, methods: ["SEPA"], currencies: ["EUR"], _raw: {},
-      },
-    ],
-  },
-  {
-    id: "1358", tradeId: "PC\u20111358", kind: "offer", direction: "buy",
-    amount: 55000, premium: -0.5, fiatAmount: "48.09", currency: "EUR",
-    tradeStatus: "waitingForTradeRequest",
-    createdAt: new Date(Date.now() - 6 * 3600_000),
-    methods: ["SEPA"], currencies: ["EUR"],
-  },
-  {
-    id: "1355", tradeId: "PC\u20111355", kind: "offer", direction: "sell",
-    amount: 200000, premium: 2.0, fiatAmount: "174.86", currency: "EUR",
-    tradeStatus: "fundEscrow",
-    createdAt: new Date(Date.now() - 12 * 3600_000),
-    methods: ["Wise", "SEPA"], currencies: ["EUR", "CHF"],
-  },
-];
-
-const MOCK_TRADES = [
-  // ── ACTIVE — BUY ──
-  {
-    id: "1350", tradeId: "PC\u20111350", kind: "contract", direction: "buy",
-    amount: 85000, premium: -1.2, fiatAmount: "74.32", currency: "EUR",
-    tradeStatus: "paymentRequired",
-    createdAt: new Date(Date.now() - 4 * 3600_000),
-  },
-  {
-    id: "1348", tradeId: "PC\u20111348", kind: "contract", direction: "buy",
-    amount: 42000, premium: 0.5, fiatAmount: "38.14", currency: "CHF",
-    tradeStatus: "confirmPaymentRequired",
-    createdAt: new Date(Date.now() - 26 * 3600_000),
-  },
-  // ── ACTIVE — SELL ──
-  {
-    id: "1345", tradeId: "PC\u20111345", kind: "offer", direction: "sell",
-    amount: 120000, premium: 1.8, fiatAmount: "106.81", currency: "EUR",
-    tradeStatus: "paymentRequired",
-    createdAt: new Date(Date.now() - 2 * 3600_000),
-  },
-  {
-    id: "1342", tradeId: "PC\u20111342", kind: "contract", direction: "sell",
-    amount: 95000, premium: 1.5, fiatAmount: "82.79", currency: "EUR",
-    tradeStatus: "confirmPaymentRequired",
-    createdAt: new Date(Date.now() - 30 * 60_000),
-  },
-  // ── HISTORY — COMPLETED (3 buy, 3 sell) ──
-  {
-    id: "1330-1329", tradeId: "PC\u20111330\u20111329", kind: "contract", direction: "buy",
-    amount: 100000, premium: -1.5, fiatAmount: "87.43", currency: "EUR",
-    tradeStatus: "tradeCompleted",
-    createdAt: new Date(Date.now() - 2 * 86400_000),
-  },
-  {
-    id: "1325-1324", tradeId: "PC\u20111325\u20111324", kind: "contract", direction: "sell",
-    amount: 50000, premium: 0.8, fiatAmount: "44.21", currency: "EUR",
-    tradeStatus: "tradeCompleted",
-    createdAt: new Date(Date.now() - 5 * 86400_000),
-  },
-  {
-    id: "1318-1317", tradeId: "PC\u20111318\u20111317", kind: "contract", direction: "buy",
-    amount: 45000, premium: -2.1, fiatAmount: "39.34", currency: "CHF",
-    tradeStatus: "tradeCompleted",
-    createdAt: new Date(Date.now() - 12 * 86400_000),
-  },
-  {
-    id: "1312-1311", tradeId: "PC\u20111312\u20111311", kind: "contract", direction: "sell",
-    amount: 200000, premium: 1.2, fiatAmount: "174.86", currency: "EUR",
-    tradeStatus: "tradeCompleted",
-    createdAt: new Date(Date.now() - 14 * 86400_000),
-  },
-  {
-    id: "1305-1304", tradeId: "PC\u20111305\u20111304", kind: "contract", direction: "buy",
-    amount: 75000, premium: -0.5, fiatAmount: "65.57", currency: "EUR",
-    tradeStatus: "tradeCompleted",
-    createdAt: new Date(Date.now() - 21 * 86400_000),
-  },
-  {
-    id: "1298-1297", tradeId: "PC\u20111298\u20111297", kind: "contract", direction: "sell",
-    amount: 350000, premium: 0.3, fiatAmount: "306.01", currency: "EUR",
-    tradeStatus: "tradeCompleted",
-    createdAt: new Date(Date.now() - 30 * 86400_000),
-  },
-  // ── HISTORY — CANCELLED (1 buy, 1 sell) ──
-  {
-    id: "1290", tradeId: "PC\u20111290", kind: "offer", direction: "buy",
-    amount: 60000, premium: -0.8, fiatAmount: "52.46", currency: "EUR",
-    tradeStatus: "offerCanceled",
-    createdAt: new Date(Date.now() - 8 * 86400_000),
-  },
-  {
-    id: "1285-1284", tradeId: "PC\u20111285\u20111284", kind: "contract", direction: "sell",
-    amount: 65000, premium: 1.0, fiatAmount: "56.73", currency: "EUR",
-    tradeStatus: "tradeCanceled",
-    createdAt: new Date(Date.now() - 18 * 86400_000),
-  },
-];
 
 const ALL_METHODS = ["SEPA","Revolut","Wise","PayPal","Strike"];
 const ALL_CURRENCIES = ["EUR","CHF","GBP"];
 const ALL_STATUSES = Object.keys(STATUS_CONFIG);
 
-function relativeTime(ts) {
-  const diff = Date.now() - ts;
-  const m = Math.floor(diff / 60_000);
-  if (m < 1)  return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-function formatDate(date) {
-  return date.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
-}
 
 // ─── DROPDOWN FILTER ─────────────────────────────────────────────────────────
 function FilterDropdown({ label, options, selected, onChange }) {

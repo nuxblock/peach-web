@@ -5,9 +5,8 @@ import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
 import { extractPMsFromProfile, isApiError, hashPaymentFields } from "../utils/pgp.js";
-
-const BTC_PRICE_INIT = 87432;
-const SAT = 100_000_000;
+import { MOCK_SAVED_OFFER_PMS as MOCK_SAVED, MOCK_ESCROW } from "../data/mockData.js";
+import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE_INIT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur } from "../utils/format.js";
 
 // Which currencies each method type supports
 const METHOD_CURRENCIES = {
@@ -44,19 +43,11 @@ function methodLabel(pm) {
   return pm.type;
 }
 
-// Mock pre-seeded saved PMs (replaced by GET /v069/selfUser when authenticated)
-const MOCK_SAVED = [
-  {id:"pm1",type:"SEPA",    currencies:["EUR","CHF"],details:{holder:"Peter Weber",iban:"DE89370400440532013000"}},
-  {id:"pm2",type:"Revolut", currencies:["EUR","GBP"],details:{username:"@peterweber"}},
-];
 const CHF_EUR = 0.96;           // mock CHF/EUR rate
 const LIMIT_EUR = 1000 * CHF_EUR; // ≈ 960 EUR — daily trading limit
 const MIN_SATS  = 20_000;
 const maxSatsAtPrice = (price) => Math.floor((LIMIT_EUR / price) * SAT);
 
-function satsToFiat(sats, p) { return (sats / SAT) * p; }
-function fmt(n)    { return n>=1_000_000?(n/1_000_000).toFixed(2)+"M":n>=1000?(n/1000).toFixed(0)+"k":String(n); }
-function fmtEur(n) { return n.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
 const CSS = `
   :root{--error-bg:#FFE6E1}
@@ -510,7 +501,6 @@ const CSS = `
   }
 `;
 
-const MOCK_ESCROW = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
 
 // Steps: 0 = Configure, 1 = Review, 2 = Escrow (sell only)
 function getSteps(type) {

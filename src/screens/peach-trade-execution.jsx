@@ -4,7 +4,10 @@ import { SideNav, Topbar } from "../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
-import { decryptPGPMessage, decryptSymmetric } from "../utils/pgp.js";
+import { decryptPGPMessage, decryptSymmetric, encryptSymmetric, signPGPMessage, encryptForPublicKey } from "../utils/pgp.js";
+import { DEMO_SCENARIOS, MOCK_MESSAGES } from "../data/mockData.js";
+import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE, fmt, satsToFiat, relTime } from "../utils/format.js";
+import { STATUS_CONFIG, LIFECYCLE } from "../data/statusConfig.js";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconBack      = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="10,3 5,8 10,13"/></svg>;
@@ -20,258 +23,6 @@ const IconThumbDown = () => <svg width="18" height="18" viewBox="0 0 18 18" fill
 const IconDispute   = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="8" cy="8" r="6.5"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="11" r=".6" fill="currentColor" stroke="none"/></svg>;
 const IconChevronDown = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3,5 7,9 11,5"/></svg>;
 const IconChevronUp   = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3,9 7,5 11,9"/></svg>;
-
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-const BTC_PRICE = 87432;
-const SAT = 100_000_000;
-
-function satsToFiat(sats, price = BTC_PRICE) {
-  return ((sats / SAT) * price).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function fmt(n) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M";
-  if (n >= 1_000)     return (n / 1_000).toFixed(0) + "k";
-  return String(n);
-}
-function relTime(ts) {
-  const diff = Date.now() - ts;
-  const m = Math.floor(diff / 60_000);
-  if (m < 1)  return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-// Trade lifecycle states in order (using real API TradeStatus values)
-const LIFECYCLE = [
-  { id:"fundEscrow",              label:"Matched",        desc:"Offers paired, awaiting escrow" },
-  { id:"paymentRequired",         label:"Escrow Funded",  desc:"Bitcoin locked in escrow" },
-  { id:"confirmPaymentRequired",  label:"Payment Sent",   desc:"Buyer marked fiat as sent — seller reviewing" },
-  { id:"tradeCompleted",          label:"Completed",      desc:"Bitcoin released, trade closed" },
-];
-
-const STATUS_CONFIG = {
-  createEscrow:        { label:"Create Escrow",        bg:"#FEFCE5", color:"#9A7000" },
-  fundEscrow:          { label:"Fund Escrow",          bg:"#FEFCE5", color:"#9A7000" },
-  waitingForFunding:   { label:"Waiting for Funding",  bg:"#F4EEEB", color:"#7D675E" },
-  escrowWaitingForConfirmation: { label:"Escrow Confirming", bg:"#F4EEEB", color:"#7D675E" },
-  fundingAmountDifferent: { label:"Wrong Funding",     bg:"#FEFCE5", color:"#9A7000" },
-  paymentRequired:     { label:"Send Payment",         bg:"#FEEDE5", color:"#C45104" },
-  confirmPaymentRequired:{ label:"Confirm Payment",    bg:"#FEEDE5", color:"#C45104" },
-  releaseEscrow:       { label:"Release Escrow",       bg:"#FEEDE5", color:"#C45104" },
-  paymentTooLate:      { label:"Not Paid in Time",     bg:"#FEFCE5", color:"#9A7000" },
-  payoutPending:       { label:"Payout Pending",       bg:"#F4EEEB", color:"#7D675E" },
-  rateUser:            { label:"Rate Counterparty",    bg:"#FEEDE5", color:"#C45104" },
-  tradeCompleted:      { label:"Completed",            bg:"#F2F9E7", color:"#65A519" },
-  dispute:             { label:"Dispute",              bg:"#FFE6E1", color:"#DF321F" },
-  disputeWithoutEscrowFunded: { label:"Dispute",       bg:"#FFE6E1", color:"#DF321F" },
-  confirmCancelation:  { label:"Confirm Cancel",       bg:"#FFE6E1", color:"#DF321F" },
-  tradeCanceled:       { label:"Cancelled",            bg:"#F4EEEB", color:"#7D675E" },
-  offerCanceled:       { label:"Offer Cancelled",      bg:"#F4EEEB", color:"#7D675E" },
-  refundAddressRequired:     { label:"Refund Address Needed", bg:"#FEEDE5", color:"#C45104" },
-  refundOrReviveRequired:    { label:"Refund or Revive",      bg:"#FEEDE5", color:"#C45104" },
-  refundTxSignatureRequired: { label:"Sign Refund",           bg:"#FEEDE5", color:"#C45104" },
-};
-
-// Demo scenarios — switch between them to preview different states
-// Uses real API TradeStatus values
-const DEMO_SCENARIOS = [
-  {
-    id:"buyer_escrow_pending",
-    label:"Buyer — Awaiting Escrow",
-    role:"buyer",
-    tradeStatus:"fundEscrow",
-    lifecycleStep: 0,
-    instantTrade: false,
-    contract: {
-      id:"CT-00152",
-      direction:"buy",
-      amount:85000,
-      fiat:"74.32",
-      currency:"EUR",
-      premium:-1.2,
-      method:"SEPA",
-      creationDate: Date.now() - 12 * 60_000,
-      paymentExpectedBy: null,
-      escrow:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-    },
-    counterparty:{ initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"], online:true },
-    paymentDetails:null,
-  },
-  {
-    id:"seller_escrow_pending",
-    label:"Seller — Fund Escrow",
-    role:"seller",
-    tradeStatus:"fundEscrow",
-    lifecycleStep: 0,
-    instantTrade: true,
-    contract: {
-      id:"CT-00152",
-      direction:"sell",
-      amount:85000,
-      fiat:"74.32",
-      currency:"EUR",
-      premium:-1.2,
-      method:"SEPA",
-      creationDate: Date.now() - 12 * 60_000,
-      paymentExpectedBy: null,
-      escrow:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-    },
-    counterparty:{ initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"], online:true },
-    paymentDetails:null,
-  },
-  {
-    id:"buyer_awaiting",
-    label:"Buyer — Send Payment",
-    role:"buyer",
-    tradeStatus:"paymentRequired",
-    lifecycleStep: 1,
-    instantTrade: false,
-    contract: {
-      id:"CT-00148",
-      direction:"buy",
-      amount:85000,
-      fiat:"74.32",
-      currency:"EUR",
-      premium:-1.2,
-      method:"SEPA",
-      creationDate: Date.now() - 4 * 3600_000,
-      paymentExpectedBy: Date.now() + 8 * 3600_000,
-      escrow:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-    },
-    counterparty:{ initials:"ST", color:"#65A519", name:"Peer #2B90", rep:5.0, trades:541, badges:["supertrader"], online:true },
-    paymentDetails:{
-      type:"SEPA",
-      bank:"Deutsche Bank",
-      iban:"DE89 3704 0044 0532 0130 00",
-      bic:"COBADEFFXXX",
-      name:"Stefan T.",
-      reference:"PEACH-CT-00148",
-    },
-  },
-  {
-    id:"seller_awaiting",
-    label:"Seller — Awaiting Payment",
-    role:"seller",
-    tradeStatus:"paymentRequired",
-    lifecycleStep: 1,
-    instantTrade: false,
-    contract: {
-      id:"CT-00149",
-      direction:"sell",
-      amount:120000,
-      fiat:"104.92",
-      currency:"EUR",
-      premium:0.5,
-      method:"Revolut",
-      creationDate: Date.now() - 1.5 * 3600_000,
-      paymentExpectedBy: Date.now() + 10.5 * 3600_000,
-      escrow:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-    },
-    counterparty:{ initials:"DV", color:"#9B5CFF", name:"Peer #A1F3", rep:4.6, trades:67, badges:[], online:true },
-    paymentDetails:null,
-  },
-  {
-    id:"confirm_payment",
-    label:"Seller — Confirm Payment",
-    role:"seller",
-    tradeStatus:"confirmPaymentRequired",
-    lifecycleStep: 2,
-    instantTrade: false,
-    contract: {
-      id:"CT-00150",
-      direction:"sell",
-      amount:55000,
-      fiat:"47.88",
-      currency:"EUR",
-      premium:-0.5,
-      method:"SEPA",
-      creationDate: Date.now() - 6 * 3600_000,
-      paymentExpectedBy: null,
-      escrow:"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
-    },
-    counterparty:{ initials:"NB", color:"#037DB5", name:"Peer #C73E", rep:4.8, trades:156, badges:["fast"], online:false },
-    paymentDetails:null,
-  },
-  {
-    id:"rate_user",
-    label:"Completed — Rate Counterparty",
-    role:"buyer",
-    tradeStatus:"rateUser",
-    lifecycleStep: 3,
-    instantTrade: false,
-    contract: {
-      id:"CT-00145",
-      direction:"buy",
-      amount:100000,
-      fiat:"87.43",
-      currency:"EUR",
-      premium:-1.5,
-      method:"SEPA",
-      creationDate: Date.now() - 26 * 3600_000,
-      paymentExpectedBy: null,
-      escrow:"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
-    },
-    counterparty:{ initials:"PW", color:"#FF7A50", name:"Peer #4E2A", rep:4.9, trades:312, badges:["supertrader"], online:false },
-    paymentDetails:null,
-  },
-  {
-    id:"dispute",
-    label:"Dispute Open",
-    role:"buyer",
-    tradeStatus:"dispute",
-    lifecycleStep: 2,
-    instantTrade: false,
-    contract: {
-      id:"CT-00143",
-      direction:"buy",
-      amount:30000,
-      fiat:"26.23",
-      currency:"EUR",
-      premium:-2.0,
-      method:"Revolut",
-      creationDate: Date.now() - 28 * 3600_000,
-      paymentExpectedBy: null,
-      escrow:"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-    },
-    counterparty:{ initials:"FR", color:"#DF321F", name:"Peer #D8B1", rep:3.9, trades:9, badges:[], online:false },
-    paymentDetails:null,
-  },
-];
-
-// Mock chat messages per scenario
-const MOCK_MESSAGES = {
-  buyer_awaiting: [
-    { id:1, from:"counterparty", text:"Hey, I'm ready. Please send the payment to the SEPA details above.", ts: Date.now() - 3 * 3600_000 + 5 * 60_000 },
-    { id:2, from:"me",           text:"Got it, sending now. Will take a few minutes to process.", ts: Date.now() - 3 * 3600_000 + 8 * 60_000 },
-    { id:3, from:"counterparty", text:"Perfect, let me know once it's done.", ts: Date.now() - 3 * 3600_000 + 10 * 60_000 },
-    { id:4, from:"me",           text:"Payment is on its way! Should arrive within 2 hours.", ts: Date.now() - 2 * 3600_000 },
-  ],
-  seller_awaiting: [
-    { id:1, from:"me",           text:"Hello! The escrow is funded. Please review the payment details and send when ready.", ts: Date.now() - 1 * 3600_000 },
-    { id:2, from:"counterparty", text:"Hi, on it. My bank might take a little longer, is that ok?", ts: Date.now() - 55 * 60_000 },
-    { id:3, from:"me",           text:"That's fine, you have plenty of time. Let me know if you need anything.", ts: Date.now() - 50 * 60_000 },
-  ],
-  confirm_payment: [
-    { id:1, from:"me",           text:"Escrow is set, waiting on your payment.", ts: Date.now() - 5 * 3600_000 },
-    { id:2, from:"counterparty", text:"Just sent it via SEPA. Reference: PEACH-CT-00150", ts: Date.now() - 4 * 3600_000 },
-    { id:3, from:"counterparty", text:"Please confirm once you see it arrive.", ts: Date.now() - 4 * 3600_000 + 2 * 60_000 },
-    { id:4, from:"me",           text:"Checking my account now…", ts: Date.now() - 30 * 60_000 },
-  ],
-  rate_user: [
-    { id:1, from:"counterparty", text:"Payment sent, please confirm.", ts: Date.now() - 25 * 3600_000 },
-    { id:2, from:"me",           text:"Confirmed! Releasing now.", ts: Date.now() - 24 * 3600_000 },
-    { id:3, from:"counterparty", text:"Bitcoin arrived, thank you!", ts: Date.now() - 23 * 3600_000 },
-    { id:4, from:"me",           text:"Smooth trade, thanks!", ts: Date.now() - 23 * 3600_000 + 5 * 60_000 },
-  ],
-  dispute: [
-    { id:1, from:"counterparty", text:"I sent the payment 2 days ago. Why haven't you released?", ts: Date.now() - 27 * 3600_000 },
-    { id:2, from:"me",           text:"I never received any payment in my Revolut account.", ts: Date.now() - 26 * 3600_000 },
-    { id:3, from:"counterparty", text:"Check again, I have the screenshot.", ts: Date.now() - 25 * 3600_000 },
-    { id:4, from:"me",           text:"I've opened a dispute. A Peach mediator will assist us.", ts: Date.now() - 24 * 3600_000 },
-  ],
-};
 
 // ─── AVATAR ───────────────────────────────────────────────────────────────────
 function Avatar({ initials, color, size = 36, online }) {
@@ -502,22 +253,48 @@ function EscrowAddressCard({ address }) {
 }
 
 // ─── DISPUTE FLOW ────────────────────────────────────────────────────────────
-const DISPUTE_REASONS = [
-  "BITCOIN NOT RECEIVED",
-  "SELLER UNRESPONSIVE",
-  "ABUSIVE BEHAVIOUR",
-  "SOMETHING ELSE",
+const DISPUTE_REASONS_BUYER = [
+  { key: "noPayment.buyer", label: "I HAVEN'T RECEIVED BITCOIN" },
+  { key: "unresponsive.buyer", label: "SELLER UNRESPONSIVE" },
+  { key: "abusive", label: "ABUSIVE BEHAVIOUR" },
+  { key: "other", label: "SOMETHING ELSE" },
+];
+const DISPUTE_REASONS_SELLER = [
+  { key: "noPayment.seller", label: "I HAVEN'T RECEIVED PAYMENT" },
+  { key: "unresponsive.seller", label: "BUYER UNRESPONSIVE" },
+  { key: "abusive", label: "ABUSIVE BEHAVIOUR" },
+  { key: "other", label: "SOMETHING ELSE" },
 ];
 
-function DisputeFlow({ tradeId, onClose }) {
+function DisputeFlow({ tradeId, role, onClose, onSubmit }) {
   const [step, setStep] = useState(1); // 1=warning, 2=reason, 3=details
   const [reason, setReason] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
+  const reasons = role === "seller" ? DISPUTE_REASONS_SELLER : DISPUTE_REASONS_BUYER;
+  const needsForm = reason.startsWith("noPayment.");
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const canConfirm = email.trim().length > 0 && emailValid && message.trim().length > 0;
+  const canConfirm = needsForm ? (email.trim().length > 0 && emailValid && message.trim().length > 0) : true;
+
+  async function submitDispute(r, e, m) {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const body = { reason: r };
+      if (e) body.email = e;
+      if (m) body.message = m;
+      const ok = onSubmit ? await onSubmit(body) : true;
+      if (ok) setSubmitted(true);
+      else setSubmitError("Failed to open dispute. Please try again.");
+    } catch (err) {
+      setSubmitError(err.message || "Failed to open dispute.");
+    }
+    setSubmitting(false);
+  }
 
   if (submitted) {
     return (
@@ -622,23 +399,36 @@ function DisputeFlow({ tradeId, onClose }) {
           <div style={{ fontWeight:800, fontSize:"1.2rem", marginBottom:24, textAlign:"center" }}>
             what's up?
           </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            {DISPUTE_REASONS.map(r => (
+          {submitting && (
+            <div style={{ textAlign:"center", fontSize:".85rem", color:"#7D675E", padding:"20px 0" }}>Submitting...</div>
+          )}
+          {submitError && (
+            <div style={{ fontSize:".78rem", color:"#DF321F", textAlign:"center", marginBottom:10 }}>{submitError}</div>
+          )}
+          {!submitting && <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {reasons.map(r => (
               <button
-                key={r}
+                key={r.key}
                 style={{
-                  border: reason === r ? "2px solid #DF321F" : "1.5px solid #C4B5AE",
-                  background: reason === r ? "#FFF0EE" : "white",
+                  border: reason === r.key ? "2px solid #DF321F" : "1.5px solid #C4B5AE",
+                  background: reason === r.key ? "#FFF0EE" : "white",
                   borderRadius:999, fontFamily:"Baloo 2, cursive",
                   fontWeight:700, fontSize:".82rem", letterSpacing:".04em",
-                  color: reason === r ? "#DF321F" : "#624D44",
+                  color: reason === r.key ? "#DF321F" : "#624D44",
                   padding:"13px 20px", cursor:"pointer", transition:"all .15s",
                   textAlign:"center",
                 }}
-                onClick={() => { setReason(r); setStep(3); }}
-              >{r}</button>
+                onClick={() => {
+                  setReason(r.key);
+                  if (r.key.startsWith("noPayment.")) {
+                    setStep(3); // needs email + message form
+                  } else {
+                    submitDispute(r.key, null, null); // submit immediately
+                  }
+                }}
+              >{r.label}</button>
             ))}
-          </div>
+          </div>}
           <button
             style={{
               marginTop:20, background:"none", border:"none",
@@ -681,11 +471,11 @@ function DisputeFlow({ tradeId, onClose }) {
             )}
             <input
               style={{
-                border:"1.5px solid #C4B5AE", borderRadius:12, background:"white",
-                fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"#2B1911",
+                border:"1.5px solid #C4B5AE", borderRadius:12, background:"#F9F5F3",
+                fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"#7D675E",
                 padding:"12px 16px", outline:"none",
               }}
-              value={reason.toLowerCase()}
+              value={(reasons.find(r => r.key === reason)?.label ?? reason).toLowerCase()}
               readOnly
             />
             <textarea
@@ -711,9 +501,12 @@ function DisputeFlow({ tradeId, onClose }) {
               cursor: canConfirm ? "pointer" : "not-allowed",
               letterSpacing:".06em", transition:"background .2s",
             }}
-            disabled={!canConfirm}
-            onClick={() => { if (canConfirm) setSubmitted(true); }}
-          >CONFIRM</button>
+            disabled={!canConfirm || submitting}
+            onClick={() => { if (canConfirm) submitDispute(reason, email.trim(), message.trim()); }}
+          >{submitting ? "SUBMITTING..." : "CONFIRM"}</button>
+          {submitError && (
+            <div style={{ fontSize:".78rem", color:"#DF321F", textAlign:"center", marginTop:8 }}>{submitError}</div>
+          )}
           <button
             style={{
               marginTop:14, background:"none", border:"none",
@@ -730,7 +523,7 @@ function DisputeFlow({ tradeId, onClose }) {
 }
 
 // ─── TRADING RULES CARD ───────────────────────────────────────────────────────
-function TradingRulesCard() {
+function TradingRulesCard({ disputeOpen, disabled, onOpenDispute }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -739,18 +532,42 @@ function TradingRulesCard() {
       background:"#FEFCE5",
       flexShrink:0,
     }}>
-      <button
-        style={{
-          width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
-          border:"none", background:"transparent", fontFamily:"Baloo 2, cursive",
-          fontWeight:700, fontSize:".82rem", color:"#624D44",
-          padding:"10px 18px", cursor:"pointer",
-        }}
-        onClick={() => setOpen(o => !o)}
-      >
-        <span>📋 Trading Rules</span>
-        {open ? <IconChevronUp/> : <IconChevronDown/>}
-      </button>
+      <div style={{
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+        padding:"0 18px",
+      }}>
+        {/* Left: Trading Rules toggle */}
+        <button
+          style={{
+            display:"flex", alignItems:"center", gap:6,
+            border:"none", background:"transparent", fontFamily:"Baloo 2, cursive",
+            fontWeight:700, fontSize:".82rem", color:"#624D44",
+            padding:"10px 0", cursor:"pointer",
+          }}
+          onClick={() => setOpen(o => !o)}
+        >
+          <span>📋 Trading Rules</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#2B1911" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 1.5L0.8 10.5h10.4L6 1.5z"/><line x1="6" y1="5" x2="6" y2="7.5"/><circle cx="6" cy="9" r=".5" fill="#2B1911" stroke="none"/></svg>
+          {open ? <IconChevronUp/> : <IconChevronDown/>}
+        </button>
+
+        {/* Right: Open dispute button */}
+        <button
+          style={{
+            display:"flex", alignItems:"center", gap:5,
+            border:"1.5px solid rgba(223,50,31,.25)", borderRadius:999,
+            background:"white", fontFamily:"Baloo 2, cursive",
+            fontWeight:700, fontSize:".72rem", color:"#DF321F",
+            padding:"5px 12px", cursor: (disabled || disputeOpen) ? "default" : "pointer",
+            opacity: disabled ? 0.4 : 1,
+          }}
+          onClick={() => !disabled && !disputeOpen && onOpenDispute?.()}
+          onMouseEnter={e => { if (!disabled && !disputeOpen) e.currentTarget.style.background="#FFF0EE"; }}
+          onMouseLeave={e => { e.currentTarget.style.background="white"; }}
+        >
+          <IconDispute/> <span>{disputeOpen ? "dispute open" : "open dispute"}</span>
+        </button>
+      </div>
       {open && (
         <div style={{
           padding:"0 18px 14px",
@@ -1087,8 +904,123 @@ function SlideToConfirm({ label, onConfirm, disabled = false, confirmedColor = "
   );
 }
 
+// ─── DISPUTE BANNER ──────────────────────────────────────────────────────────
+const OUTCOME_LABELS = {
+  buyerWins:   "The dispute has been resolved in favour of the buyer.",
+  sellerWins:  "The dispute has been resolved in favour of the seller.",
+  none:        "The dispute has been reviewed and dismissed — no action taken.",
+  cancelTrade: "The trade has been cancelled and the seller will be refunded.",
+  payOutBuyer: "The dispute has been resolved — the buyer will receive the payout.",
+};
+
+function DisputeBanner({ scenario, onAction }) {
+  const { role, disputeActive, disputeInitiator, disputeOutcome, disputeWinner,
+          disputeOutcomeAcknowledgedBy, isEmailRequired, disputeAcknowledgedByCounterParty } = scenario;
+  const peachId = window.__PEACH_AUTH__?.peachId;
+  const iInitiated = disputeInitiator === peachId;
+  const myRole = role === "buyer" ? "buyer" : "seller";
+  const alreadyAckedOutcome = (disputeOutcomeAcknowledgedBy ?? []).includes(myRole);
+
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [acked, setAcked] = useState(false);
+
+  const boxStyle = {
+    background:"#FFF0EE", border:"1px solid rgba(223,50,31,.2)",
+    borderRadius:10, padding:"12px 14px", fontSize:".82rem",
+    color:"#2B1911", lineHeight:1.6,
+  };
+
+  // ── Dispute resolved: show outcome + acknowledge button ──
+  if (disputeOutcome && disputeOutcome !== "none" || (disputeOutcome === "none" && disputeActive === false)) {
+    if (alreadyAckedOutcome || acked) {
+      return (
+        <div style={boxStyle}>
+          <strong style={{ color:"#7D675E" }}>Dispute resolved.</strong><br/>
+          {OUTCOME_LABELS[disputeOutcome] ?? "The dispute has been resolved."}
+        </div>
+      );
+    }
+    return (
+      <div style={boxStyle}>
+        <strong style={{ color:"#DF321F" }}>Dispute resolved</strong><br/>
+        {OUTCOME_LABELS[disputeOutcome] ?? "The dispute has been resolved."}
+        <div style={{ marginTop:10 }}>
+          <button
+            disabled={submitting}
+            onClick={async () => {
+              setSubmitting(true);
+              setError(null);
+              const ok = await onAction?.("dispute_ack_outcome");
+              if (ok) setAcked(true);
+              else setError("Failed to acknowledge. Please try again.");
+              setSubmitting(false);
+            }}
+            style={{
+              background:"#F56522", color:"#fff", border:"none", borderRadius:8,
+              padding:"8px 20px", fontWeight:700, fontSize:".82rem", cursor:"pointer",
+            }}
+          >{submitting ? "SUBMITTING…" : "ACKNOWLEDGE"}</button>
+          {error && <div style={{ color:"#DF321F", fontSize:".78rem", marginTop:6 }}>{error}</div>}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Dispute active, counterparty initiated, email required ──
+  if (!iInitiated && isEmailRequired && !disputeAcknowledgedByCounterParty) {
+    return (
+      <div style={boxStyle}>
+        <strong style={{ color:"#DF321F" }}>Your counterparty has opened a dispute.</strong><br/>
+        Please enter your email address so the Peach mediator can contact you.
+        <div style={{ display:"flex", gap:8, marginTop:10 }}>
+          <input
+            type="email"
+            placeholder="your@email.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            style={{
+              flex:1, padding:"7px 10px", borderRadius:8, border:"1px solid #EAE3DF",
+              fontSize:".82rem", fontFamily:"inherit",
+            }}
+          />
+          <button
+            disabled={submitting || !email.trim()}
+            onClick={async () => {
+              setSubmitting(true);
+              setError(null);
+              const ok = await onAction?.("dispute_ack_email", email.trim());
+              if (ok) setAcked(true);
+              else setError("Failed to submit. Please try again.");
+              setSubmitting(false);
+            }}
+            style={{
+              background:"#F56522", color:"#fff", border:"none", borderRadius:8,
+              padding:"7px 16px", fontWeight:700, fontSize:".82rem", cursor:"pointer",
+              opacity: (!email.trim() || submitting) ? 0.5 : 1,
+            }}
+          >{submitting ? "…" : "SUBMIT"}</button>
+        </div>
+        {error && <div style={{ color:"#DF321F", fontSize:".78rem", marginTop:6 }}>{error}</div>}
+        {acked && <div style={{ color:"#65A519", fontSize:".78rem", marginTop:6 }}>Email submitted. A mediator will be in touch.</div>}
+      </div>
+    );
+  }
+
+  // ── Dispute active, default state (we initiated, or no email needed, or already acked) ──
+  return (
+    <div style={boxStyle}>
+      <strong style={{ color:"#DF321F" }}>Dispute open.</strong> A Peach mediator has been assigned to your case and will be in touch soon.
+      {iInitiated
+        ? " You can provide additional evidence via the chat."
+        : " Provide your side of the story via the chat."}
+    </div>
+  );
+}
+
 // ─── ACTION BUTTONS ───────────────────────────────────────────────────────────
-function ActionPanel({ scenario, onAction }) {
+function ActionPanel({ scenario, onAction, showPostCancel = false }) {
   const { tradeStatus: status, role } = scenario;
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -1214,8 +1146,8 @@ function ActionPanel({ scenario, onAction }) {
           <div className="action-hint">Bitcoin is being released. This may take a few minutes.</div>
         )}
 
-        {/* Payment too late */}
-        {status === "paymentTooLate" && (
+        {/* Payment too late — seller POV */}
+        {status === "paymentTooLate" && role === "seller" && !showPostCancel && <>
           <div style={{
             display:"flex", alignItems:"center", gap:8,
             background:"#FEFCE5", border:"1px solid rgba(154,112,0,.15)",
@@ -1223,19 +1155,55 @@ function ActionPanel({ scenario, onAction }) {
             fontSize:".83rem", color:"#9A7000", fontWeight:600, lineHeight:1.5,
           }}>
             <IconClock/>
-            <span>The payment deadline has passed. The buyer did not pay in time.</span>
+            <span>The buyer did not pay in time. You can either cancel the trade without a reputation penalty, or give the buyer some more time.</span>
+          </div>
+          <SlideToConfirm
+            label="Cancel Trade"
+            onConfirm={() => onAction("cancel_trade")}
+            confirmedColor="#DF321F"
+          />
+          <SlideToConfirm
+            label="Give More Time"
+            onConfirm={() => onAction("extend_time")}
+          />
+        </>}
+
+        {/* Payment too late — seller POV after cancel: republish or refund */}
+        {status === "paymentTooLate" && role === "seller" && showPostCancel && <>
+          <div style={{
+            display:"flex", alignItems:"center", gap:8,
+            background:"#E8F9EE", border:"1px solid rgba(5,168,90,.15)",
+            borderRadius:8, padding:"10px 12px",
+            fontSize:".83rem", color:"#05A85A", fontWeight:600, lineHeight:1.5,
+          }}>
+            <span>Trade cancelled. What would you like to do with the escrow?</span>
+          </div>
+          <SlideToConfirm
+            label="Re-publish Offer"
+            onConfirm={() => onAction("republish_offer")}
+          />
+          <SlideToConfirm
+            label="Refund Escrow"
+            onConfirm={() => onAction("refund_escrow")}
+          />
+        </>}
+
+        {/* Payment too late — buyer POV */}
+        {status === "paymentTooLate" && role === "buyer" && (
+          <div style={{
+            display:"flex", alignItems:"center", gap:8,
+            background:"#FFF0EE", border:"1px solid rgba(223,50,31,.15)",
+            borderRadius:8, padding:"10px 12px",
+            fontSize:".83rem", color:"#DF321F", fontWeight:600, lineHeight:1.5,
+          }}>
+            <IconClock/>
+            <span>You did not pay on time. The seller can now decide to give you more time or cancel the trade. In either case, your reputation has been impacted.</span>
           </div>
         )}
 
-        {/* Dispute */}
+        {/* Dispute states */}
         {(status === "dispute" || status === "disputeWithoutEscrowFunded") && (
-          <div style={{
-            background:"#FFF0EE", border:"1px solid rgba(223,50,31,.2)",
-            borderRadius:10, padding:"10px 14px", fontSize:".82rem",
-            color:"#DF321F", lineHeight:1.5,
-          }}>
-            <strong>Dispute open.</strong> A Peach mediator has been assigned. Provide evidence via the chat. Do not close this screen.
-          </div>
+          <DisputeBanner scenario={scenario} onAction={onAction} />
         )}
       </div>
     </>
@@ -1298,25 +1266,55 @@ function RatingPanel({ counterparty, onRate }) {
 }
 
 // ─── CHAT PANEL ───────────────────────────────────────────────────────────────
-function ChatPanel({ messages, tradeId, disabled, status }) {
+function ChatPanel({ messages, tradeId, role, disabled, status, onSend, onDisputeSubmit, hasMore, loadingMore, onLoadOlder }) {
   const disputeOpen = status === "dispute" || status === "disputeWithoutEscrowFunded";
   const [text, setText] = useState("");
   const [localMsgs, setLocalMsgs] = useState(messages);
   const [showDispute, setShowDispute] = useState(false);
   const messagesRef = useRef(null);
-  const bottomRef = useRef(null);
+  const prevScrollHeight = useRef(0);
 
   useEffect(() => { setLocalMsgs(messages); }, [messages]);
+
+  // Scroll to bottom on first load and new messages; preserve position when prepending older
   useEffect(() => {
-    if (messagesRef.current) {
-      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    if (!messagesRef.current) return;
+    const el = messagesRef.current;
+    if (prevScrollHeight.current && el.scrollHeight > prevScrollHeight.current) {
+      el.scrollTop = el.scrollHeight - prevScrollHeight.current;
+    } else {
+      el.scrollTop = el.scrollHeight;
     }
+    prevScrollHeight.current = 0;
   }, [localMsgs]);
 
-  function send() {
+  // Auto-load older messages when user scrolls near the top
+  useEffect(() => {
+    const el = messagesRef.current;
+    if (!el) return;
+    function onScroll() {
+      if (el.scrollTop < 40 && hasMore && !loadingMore) {
+        prevScrollHeight.current = el.scrollHeight;
+        onLoadOlder?.();
+      }
+    }
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [hasMore, loadingMore, onLoadOlder]);
+
+  async function send() {
     if (!text.trim() || disabled) return;
-    setLocalMsgs(prev => [...prev, { id:Date.now(), from:"me", text:text.trim(), ts:Date.now(), optimistic:true }]);
+    const msg = text.trim();
+    const tempId = Date.now();
+    // Optimistic UI — show immediately
+    setLocalMsgs(prev => [...prev, { id:tempId, from:"me", text:msg, ts:Date.now(), optimistic:true }]);
     setText("");
+    // Send via API if callback provided
+    if (onSend) {
+      const ok = await onSend(msg);
+      // Mark as sent (remove optimistic flag) or show error
+      setLocalMsgs(prev => prev.map(m => m.id === tempId ? { ...m, optimistic: false, failed: !ok } : m));
+    }
   }
   function handleKey(e) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
@@ -1324,7 +1322,7 @@ function ChatPanel({ messages, tradeId, disabled, status }) {
 
   return (
     <div className="chat-panel" style={{ position:"relative" }}>
-      {showDispute && <DisputeFlow tradeId={tradeId} onClose={() => setShowDispute(false)}/>}
+      {showDispute && <DisputeFlow tradeId={tradeId} role={role} onClose={() => setShowDispute(false)} onSubmit={onDisputeSubmit}/>}
 
       {/* Disabled overlay */}
       {disabled && (
@@ -1352,34 +1350,22 @@ function ChatPanel({ messages, tradeId, disabled, status }) {
         </div>
       )}
 
-      <TradingRulesCard/>
+      <TradingRulesCard
+        disputeOpen={disputeOpen}
+        disabled={disabled}
+        onOpenDispute={() => setShowDispute(true)}
+      />
 
       <div className="chat-enc-notice">
         <IconLock/> End-to-end encrypted
       </div>
 
-      {/* Dispute button — fixed top-right of chat area */}
-      <div style={{ position:"relative", flexShrink:0, height:0 }}>
-        <button
-          className={`chat-dispute-btn${disputeOpen ? " chat-dispute-btn-inactive" : ""}`}
-          onClick={() => !disabled && !disputeOpen && setShowDispute(true)}
-          onMouseEnter={e => { if (!disabled && !disputeOpen) e.currentTarget.style.background="#FFF0EE"; }}
-          onMouseLeave={e => { e.currentTarget.style.background="white"; }}
-          style={{
-            position:"absolute", top:10, right:14,
-            opacity: disabled ? 0.4 : 1,
-            pointerEvents: (disabled || disputeOpen) ? "none" : "auto",
-            background:"white",
-            boxShadow:"0 2px 8px rgba(0,0,0,.12)",
-            zIndex:5,
-          }}
-          title={disputeOpen ? "Dispute already open" : "Open dispute"}
-        >
-          <IconDispute/> <span>{disputeOpen ? "dispute open" : "open dispute"}</span>
-        </button>
-      </div>
-
       <div className="chat-messages" ref={messagesRef}>
+        {loadingMore && (
+          <div style={{ textAlign:"center", padding:"8px 0", fontSize:".78rem", color:"#7D675E", fontWeight:600 }}>
+            Loading…
+          </div>
+        )}
         {localMsgs.map(msg => {
           const isMe = msg.from === "me";
           return (
@@ -1389,6 +1375,7 @@ function ChatPanel({ messages, tradeId, disabled, status }) {
                 <div className="chat-ts">
                   {relTime(msg.ts)}
                   {msg.optimistic && <span style={{ opacity:.6 }}> · sending…</span>}
+                  {msg.failed && <span style={{ color:"#DF321F" }}> · failed to send</span>}
                 </div>
               </div>
             </div>
@@ -1628,7 +1615,7 @@ export default function TradeExecution() {
   const navigate = useNavigate();
   const { id: routeId } = useParams();
   const { auth, isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
-  const { get } = useApi();
+  const { get, post, patch } = useApi();
 
   const [demoOpen, setDemoOpen] = useState(false);
   const [scenarioId, setScenarioId]   = useState("buyer_awaiting");
@@ -1651,6 +1638,12 @@ export default function TradeExecution() {
   const [liveContract, setLiveContract] = useState(null);
   const [liveMessages, setLiveMessages] = useState(null);
   const [contractLoading, setContractLoading] = useState(!!auth && !!routeId);
+  const [showPostCancel, setShowPostCancel] = useState(false);
+  const [chatSymKey, setChatSymKey] = useState(null);
+  const [actionError, setActionError] = useState(null);
+  const [chatPage, setChatPage] = useState(0);
+  const [chatHasMore, setChatHasMore] = useState(false);
+  const [chatLoadingMore, setChatLoadingMore] = useState(false);
 
   const demoScenario = DEMO_SCENARIOS.find(s => s.id === scenarioId) || DEMO_SCENARIOS[0];
   const demoMessages = MOCK_MESSAGES[scenarioId] || [];
@@ -1679,14 +1672,15 @@ export default function TradeExecution() {
   }, []);
 
   // ── FETCH LIVE CONTRACT + CHAT ──
+  const peachId = auth?.peachId;
   useEffect(() => {
     if (!auth || !routeId) return;
-    const peachId = auth.peachId;
 
     async function fetchContract() {
+      let symKey = null;
       try {
         const res = await get(`/contract/${routeId}`);
-        if (!res.ok) return;
+        if (!res.ok) return null;
         const c = await res.json();
         const isBuyer = (c.buyer?.id ?? c.buyerId) === peachId;
         setLiveContract({
@@ -1725,6 +1719,18 @@ export default function TradeExecution() {
           })(),
           paymentDetails: null, // will be populated below after decryption
           paymentDetailsError: false,
+          // Keep raw encrypted fields for dispute re-encryption
+          paymentDataEncrypted: c.paymentDataEncrypted ?? null,
+          buyerPaymentDataEncrypted: c.buyerPaymentDataEncrypted ?? null,
+          // Dispute fields
+          disputeActive: c.disputeActive ?? false,
+          disputeReason: c.disputeReason ?? null,
+          disputeInitiator: c.disputeInitiator ?? null,
+          disputeOutcome: c.disputeOutcome ?? null,
+          disputeWinner: c.disputeWinner ?? null,
+          disputeOutcomeAcknowledgedBy: c.disputeOutcomeAcknowledgedBy ?? [],
+          disputeAcknowledgedByCounterParty: c.disputeAcknowledgedByCounterParty ?? false,
+          isEmailRequired: c.isEmailRequired ?? false,
         });
 
         // Decrypt payment data if available
@@ -1732,29 +1738,34 @@ export default function TradeExecution() {
         // As seller: need buyer's payment details (buyerPaymentDataEncrypted)
         const encryptedPM = isBuyer ? c.paymentDataEncrypted : c.buyerPaymentDataEncrypted;
         const symKeyEnc = c.symmetricKeyEncrypted;
-        if (encryptedPM && symKeyEnc && auth.pgpPrivKey) {
+
+        // Decrypt symmetric key (needed for both PM data and chat)
+        if (symKeyEnc && auth.pgpPrivKey) {
           try {
-            // Step 1: decrypt the symmetric key with our PGP private key
-            const symKey = await decryptPGPMessage(symKeyEnc, auth.pgpPrivKey);
-            if (symKey) {
-              // Step 2: decrypt the payment data with the symmetric key
-              const pmJson = await decryptSymmetric(encryptedPM, symKey);
-              if (pmJson) {
-                const pmData = JSON.parse(pmJson);
-                // Map API field names to PaymentDetailsCard expected shape
-                setLiveContract(prev => prev ? { ...prev, paymentDetails: {
-                  type: pmData.type ?? c.paymentMethod ?? "",
-                  bank: pmData.bank ?? pmData.beneficiary ?? "",
-                  iban: pmData.iban ?? "",
-                  bic: pmData.bic ?? "",
-                  name: pmData.userName ?? pmData.beneficiary ?? pmData.name ?? "",
-                  email: pmData.email ?? "",
-                  phone: pmData.phone ?? "",
-                  reference: pmData.reference ?? `PEACH-${c.id}`,
-                }} : prev);
-              } else {
-                setLiveContract(prev => prev ? { ...prev, paymentDetailsError: true } : prev);
-              }
+            symKey = await decryptPGPMessage(symKeyEnc, auth.pgpPrivKey);
+            if (symKey) setChatSymKey(symKey);
+          } catch (err) {
+            console.warn("[Trade] Symmetric key decryption failed:", err.message);
+          }
+        }
+
+        // Decrypt payment data if available
+        if (encryptedPM && symKey) {
+          try {
+            const pmJson = await decryptSymmetric(encryptedPM, symKey);
+            if (pmJson) {
+              const pmData = JSON.parse(pmJson);
+              // Map API field names to PaymentDetailsCard expected shape
+              setLiveContract(prev => prev ? { ...prev, paymentDetails: {
+                type: pmData.type ?? c.paymentMethod ?? "",
+                bank: pmData.bank ?? pmData.beneficiary ?? "",
+                iban: pmData.iban ?? "",
+                bic: pmData.bic ?? "",
+                name: pmData.userName ?? pmData.beneficiary ?? pmData.name ?? "",
+                email: pmData.email ?? "",
+                phone: pmData.phone ?? "",
+                reference: pmData.reference ?? `PEACH-${c.id}`,
+              }} : prev);
             } else {
               setLiveContract(prev => prev ? { ...prev, paymentDetailsError: true } : prev);
             }
@@ -1762,30 +1773,137 @@ export default function TradeExecution() {
             console.warn("[Trade] PM decryption failed:", err.message);
             setLiveContract(prev => prev ? { ...prev, paymentDetailsError: true } : prev);
           }
+        } else if (encryptedPM && !symKey) {
+          setLiveContract(prev => prev ? { ...prev, paymentDetailsError: true } : prev);
         }
       } catch {}
       setContractLoading(false);
+      return symKey ?? null;
     }
 
-    async function fetchChat() {
+    async function parseChatPage(rawMsgs, symKey) {
+      return Promise.all(rawMsgs.map(async (m) => {
+        let text = m.message ?? m.text ?? "";
+        if (symKey && text.includes("-----BEGIN PGP MESSAGE-----")) {
+          const decrypted = await decryptSymmetric(text, symKey);
+          if (decrypted) text = decrypted;
+        }
+        return {
+          id: m.id ?? m.date ?? Math.random(),
+          from: m.from === peachId ? "me" : (m.from === "system" ? "system" : "them"),
+          text,
+          ts: m.date ? new Date(m.date).getTime() : Date.now(),
+          readBy: m.readBy ?? [],
+        };
+      }));
+    }
+
+    async function fetchChat(symKey) {
       try {
         const res = await get(`/contract/${routeId}/chat?page=0`);
         if (!res.ok) return;
         const data = await res.json();
         const msgs = Array.isArray(data) ? data : (data?.messages ?? []);
-        setLiveMessages(msgs.map(m => ({
-          id: m.id ?? Math.random(),
-          from: m.from === peachId ? "me" : "them",
-          text: m.message ?? m.text ?? "",
-          time: m.date ? new Date(m.date).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }) : "",
-        })));
+        const parsed = await parseChatPage(msgs, symKey);
+        setLiveMessages(parsed.sort((a, b) => a.ts - b.ts));
+        setChatPage(0);
+        setChatHasMore(msgs.length >= 22);
+        // Mark messages as read
+        const unread = msgs.filter(m => m.from !== peachId && !(m.readBy ?? []).includes(peachId));
+        if (unread.length > 0) {
+          post(`/contract/${routeId}/chat/received`, {
+            start: unread[0].date,
+            end: unread[unread.length - 1].date,
+          }).catch(() => {});
+        }
       } catch {}
     }
 
     setContractLoading(true);
-    fetchContract();
-    fetchChat();
+    fetchContract().then(symKey => fetchChat(symKey));
   }, [routeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Chat polling: fetch page 0 every 5s to pick up new messages ──
+  useEffect(() => {
+    if (!chatSymKey || !routeId || !auth) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await get(`/contract/${routeId}/chat?page=0`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const msgs = Array.isArray(data) ? data : (data?.messages ?? []);
+        const parsed = await Promise.all(msgs.map(async (m) => {
+          let text = m.message ?? m.text ?? "";
+          if (chatSymKey && text.includes("-----BEGIN PGP MESSAGE-----")) {
+            const decrypted = await decryptSymmetric(text, chatSymKey);
+            if (decrypted) text = decrypted;
+          }
+          return {
+            id: m.id ?? m.date ?? Math.random(),
+            from: m.from === peachId ? "me" : (m.from === "system" ? "system" : "them"),
+            text,
+            ts: m.date ? new Date(m.date).getTime() : Date.now(),
+          };
+        }));
+        // Merge: deduplicate by id, keep older pages, sort chronologically
+        setLiveMessages(prev => {
+          if (!prev) return parsed.sort((a, b) => a.ts - b.ts);
+          const byId = new Map();
+          for (const m of prev) byId.set(m.id, m);
+          for (const m of parsed) byId.set(m.id, m);
+          return [...byId.values()].sort((a, b) => a.ts - b.ts);
+        });
+        // Mark unread
+        const unread = msgs.filter(m => m.from !== peachId && !(m.readBy ?? []).includes(peachId));
+        if (unread.length > 0) {
+          post(`/contract/${routeId}/chat/received`, {
+            start: unread[0].date,
+            end: unread[unread.length - 1].date,
+          }).catch(() => {});
+        }
+      } catch {}
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [chatSymKey, routeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load older chat messages ──
+  const loadOlderChatRef = useRef(null);
+  loadOlderChatRef.current = async () => {
+    if (chatLoadingMore || !chatHasMore || !chatSymKey) return;
+    const nextPage = chatPage + 1;
+    setChatLoadingMore(true);
+    try {
+      const res = await get(`/contract/${routeId}/chat?page=${nextPage}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const msgs = Array.isArray(data) ? data : (data?.messages ?? []);
+      const parsed = await Promise.all(msgs.map(async (m) => {
+        let text = m.message ?? m.text ?? "";
+        if (chatSymKey && text.includes("-----BEGIN PGP MESSAGE-----")) {
+          const decrypted = await decryptSymmetric(text, chatSymKey);
+          if (decrypted) text = decrypted;
+        }
+        return {
+          id: m.id ?? m.date ?? Math.random(),
+          from: m.from === peachId ? "me" : (m.from === "system" ? "system" : "them"),
+          text,
+          ts: m.date ? new Date(m.date).getTime() : Date.now(),
+          readBy: m.readBy ?? [],
+        };
+      }));
+      setLiveMessages(prev => {
+        const byId = new Map();
+        for (const m of (prev ?? [])) byId.set(m.id, m);
+        for (const m of parsed) byId.set(m.id, m);
+        return [...byId.values()].sort((a, b) => a.ts - b.ts);
+      });
+      setChatPage(nextPage);
+      setChatHasMore(msgs.length >= 22);
+    } catch {} finally {
+      setChatLoadingMore(false);
+    }
+  };
+  function loadOlderChat() { loadOlderChatRef.current?.(); }
 
   const satsPerCur  = Math.round(SAT / btcPrice);
 
@@ -2004,7 +2122,7 @@ export default function TradeExecution() {
 
               {/* Payment deadline — inside actions */}
               {/* Payment deadline pill — not shown for seller when paymentRequired (has its own merged bar) */}
-              {deadlineStr && !(status === "paymentRequired" && role === "seller") && (
+              {deadlineStr && !(status === "paymentRequired" && role === "seller") && status !== "dispute" && status !== "disputeWithoutEscrowFunded" && (
                 <div style={{
                   display:"flex", alignItems:"center", gap:12,
                   background:"#FEEDE5", border:"1.5px solid rgba(196,81,4,.2)",
@@ -2049,10 +2167,118 @@ export default function TradeExecution() {
                 </>
               )}
 
+              {/* Action error banner */}
+              {actionError && (
+                <div style={{
+                  display:"flex", alignItems:"flex-start", gap:8,
+                  background:"#FFF0EE", border:"1px solid rgba(223,50,31,.2)",
+                  borderRadius:8, padding:"10px 12px", marginBottom:8,
+                  fontSize:".82rem", color:"#DF321F", fontWeight:600, lineHeight:1.5,
+                }}>
+                  <IconAlert/>
+                  <span>{actionError}</span>
+                </div>
+              )}
+
               {/* All other action states */}
               {status !== "tradeCompleted" && status !== "rateUser"
                 && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding" && (
-                <ActionPanel scenario={scenario} onAction={(action) => console.log("action:", action)}/>
+                <ActionPanel scenario={scenario} showPostCancel={showPostCancel} onAction={async (action, arg) => {
+                  if (action === "extend_time") {
+                    try {
+                      const res = await patch('/contract/' + contract.id + '/extendTime');
+                      if (res.ok) {
+                        // Refresh contract data to get new paymentExpectedBy
+                        const cRes = await get('/contract/' + contract.id);
+                        if (cRes.ok) {
+                          const c = await cRes.json();
+                          setLiveContract(prev => prev ? { ...prev, contract: { ...prev.contract, paymentExpectedBy: new Date(c.paymentExpectedBy).getTime() } } : prev);
+                        }
+                      } else {
+                        const err = await res.json().catch(() => ({}));
+                        console.warn("[Trade] Extend deadline failed:", err.error || res.status);
+                      }
+                    } catch (e) {
+                      console.warn("[Trade] Extend deadline error:", e.message);
+                    }
+                  } else if (action === "cancel_trade") {
+                    try {
+                      const res = await post('/contract/' + contract.id + '/cancel');
+                      if (res.ok) {
+                        setShowPostCancel(true);
+                      } else {
+                        const err = await res.json().catch(() => ({}));
+                        console.warn("[Trade] Cancel trade failed:", err.error || res.status);
+                      }
+                    } catch (e) {
+                      console.warn("[Trade] Cancel trade error:", e.message);
+                    }
+                  } else if (action === "republish_offer") {
+                    try {
+                      const offerId = contract.offerId ?? contract.id;
+                      const res = await post('/offer/' + offerId + '/republish');
+                      if (res.ok) {
+                        setLiveContract(prev => prev ? { ...prev, tradeStatus: "refundOrReviveRequired" } : prev);
+                        setShowPostCancel(false);
+                      } else {
+                        const err = await res.json().catch(() => ({}));
+                        console.warn("[Trade] Republish failed:", err.error || res.status);
+                      }
+                    } catch (e) {
+                      console.warn("[Trade] Republish error:", e.message);
+                    }
+                  } else if (action === "refund_escrow") {
+                    // Refund requires mobile signing relay — show info for now
+                    setActionError("Refund requires signing via the mobile app. This feature is not yet available on web.");
+                  } else if (action === "payment_sent") {
+                    setActionError(null);
+                    try {
+                      const res = await post('/contract/' + contract.id + '/payment/confirm');
+                      if (res.ok) {
+                        // Refresh contract to get updated status
+                        const cRes = await get('/contract/' + contract.id);
+                        if (cRes.ok) {
+                          const c = await cRes.json();
+                          setLiveContract(prev => prev ? { ...prev, tradeStatus: c.tradeStatus ?? "confirmPaymentRequired" } : prev);
+                        }
+                      } else {
+                        const err = await res.json().catch(() => ({}));
+                        const msg = err.error || err.message || "";
+                        if (msg.toLowerCase().includes("address") || msg.toLowerCase().includes("signature") || res.status === 403) {
+                          setActionError("Payment confirmation requires a payout address with a Bitcoin signature. Please set a payout address in Settings first, or confirm via the mobile app.");
+                        } else {
+                          setActionError("Payment confirmation failed: " + (msg || res.status));
+                        }
+                      }
+                    } catch (e) {
+                      setActionError("Payment confirmation failed: " + e.message);
+                    }
+                  } else if (action === "release_bitcoin") {
+                    // Seller release requires PSBT signing — blocked until signing relay
+                    setActionError("Releasing Bitcoin requires signing via the mobile app. This feature is not yet available on web.");
+                  } else if (action === "dispute_ack_email") {
+                    try {
+                      const res = await post('/contract/' + contract.id + '/dispute/acknowledge', { email: arg });
+                      if (res.ok) {
+                        setLiveContract(prev => prev ? { ...prev, isEmailRequired: false, disputeAcknowledgedByCounterParty: true } : prev);
+                        return true;
+                      }
+                    } catch {}
+                    return false;
+                  } else if (action === "dispute_ack_outcome") {
+                    try {
+                      const res = await post('/contract/' + contract.id + '/dispute/acknowledgeOutcome');
+                      if (res.ok) {
+                        const myRole = scenario.role === "buyer" ? "buyer" : "seller";
+                        setLiveContract(prev => prev ? { ...prev, disputeOutcomeAcknowledgedBy: [...(prev.disputeOutcomeAcknowledgedBy ?? []), myRole] } : prev);
+                        return true;
+                      }
+                    } catch {}
+                    return false;
+                  } else {
+                    console.log("action:", action);
+                  }
+                }}/>
               )}
             </div>
 
@@ -2106,7 +2332,72 @@ export default function TradeExecution() {
 
           {/* ── RIGHT: Chat ── */}
           <div className={`split-right${mobileTab === "chat" ? " mobile-active" : ""}`}>
-            <ChatPanel messages={messages} tradeId={contract.id} disabled={status === "fundEscrow" || status === "createEscrow" || status === "waitingForFunding"} status={status}/>
+            <ChatPanel messages={messages} tradeId={contract.id} role={role} disabled={status === "fundEscrow" || status === "createEscrow" || status === "waitingForFunding"} status={status} hasMore={chatHasMore} loadingMore={chatLoadingMore} onLoadOlder={loadOlderChat} onSend={async (plaintext) => {
+              if (!chatSymKey || !auth?.pgpPrivKey) return false;
+              try {
+                const encrypted = await encryptSymmetric(plaintext, chatSymKey);
+                const signature = await signPGPMessage(plaintext, auth.pgpPrivKey, { detached: true });
+                const res = await post('/contract/' + contract.id + '/chat', { message: encrypted, signature });
+                return res.ok;
+              } catch (e) {
+                console.warn("[Chat] Send failed:", e.message);
+                return false;
+              }
+            }} onDisputeSubmit={async (body) => {
+              if (!chatSymKey || !auth?.pgpPrivKey) return false;
+              try {
+                // Get platform public key from /v1/info
+                const infoRes = await get('/info');
+                if (!infoRes.ok) return false;
+                const info = await infoRes.json();
+                const platformPubKey = info.peach?.pgpPublicKey;
+                if (!platformPubKey) {
+                  console.warn("[Dispute] Platform PGP key not found in /info response");
+                  return false;
+                }
+                // Re-encrypt symmetric key for the platform
+                const symmetricKeyEncrypted = await encryptForPublicKey(chatSymKey, platformPubKey);
+                if (!symmetricKeyEncrypted) return false;
+                // Decrypt payment data (may be symmetric or asymmetric PGP) then re-encrypt for platform
+                async function decryptPMField(encrypted) {
+                  const sym = await decryptSymmetric(encrypted, chatSymKey);
+                  if (sym) return sym;
+                  const asym = await decryptPGPMessage(encrypted, auth.pgpPrivKey);
+                  if (asym) return asym;
+                  return null;
+                }
+                let paymentDataSellerEncrypted = undefined;
+                let paymentDataBuyerEncrypted = undefined;
+                if (scenario.paymentDataEncrypted) {
+                  try {
+                    const sellerPM = await decryptPMField(scenario.paymentDataEncrypted);
+                    if (sellerPM) paymentDataSellerEncrypted = await encryptForPublicKey(sellerPM, platformPubKey);
+                  } catch (e) { console.warn("[Dispute] Seller PM re-encrypt failed:", e.message); }
+                }
+                if (scenario.buyerPaymentDataEncrypted) {
+                  try {
+                    const buyerPM = await decryptPMField(scenario.buyerPaymentDataEncrypted);
+                    if (buyerPM) paymentDataBuyerEncrypted = await encryptForPublicKey(buyerPM, platformPubKey);
+                  } catch (e) { console.warn("[Dispute] Buyer PM re-encrypt failed:", e.message); }
+                }
+                const res = await post('/contract/' + contract.id + '/dispute', {
+                  ...body,
+                  symmetricKeyEncrypted,
+                  paymentDataSellerEncrypted,
+                  paymentDataBuyerEncrypted,
+                });
+                if (res.ok) {
+                  setLiveContract(prev => prev ? { ...prev, tradeStatus: "dispute" } : prev);
+                  return true;
+                }
+                const err = await res.json().catch(() => ({}));
+                console.warn("[Dispute] Submit failed:", err.error || res.status);
+                return false;
+              } catch (e) {
+                console.warn("[Dispute] Submit error:", e.message);
+                return false;
+              }
+            }}/>
           </div>
 
         </div>

@@ -25,3 +25,10 @@ src/peach-api-config.js
 
 # Claude instructions (local only)
 CLAUDE.md
+
+#backlog and planning files
+peach-backlog.md
+PEACH-1S-PLAN.md
+
+#auth protocol
+peach-web-auth-analysis.md

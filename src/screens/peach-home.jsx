@@ -4,54 +4,8 @@ import { SideNav, Topbar, formatPeachId } from "../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-const BTC_PRICE = 87432;
-
-
-const MOCK_STATS = {
-  dailyVolume:    { sats: 4_280_000, eur: 3741 },
-  dailyTrades:    14,
-  activeOffers:   { buy: 6, sell: 8 },
-  avgPremiumBuy:  -0.32,
-  avgPremiumSell: 0.18,
-  topMethods:     [
-    { name:"SEPA",    volume:62, count:9  },
-    { name:"Revolut", volume:21, count:4  },
-    { name:"Wise",    volume:11, count:3  },
-    { name:"PayPal",  volume:6,  count:2  },
-  ],
-  topCurrencies:  [
-    { name:"EUR", volume:68, count:12 },
-    { name:"CHF", volume:18, count:4  },
-    { name:"GBP", volume:14, count:2  },
-  ],
-};
-
-const MOCK_USER = {
-  peachId:          "PEACH08476D23",
-  memberSince:      "March 2023",
-  trades:           23,
-  disputesTotal:    0,
-  rating:           4.7,
-  badges:           ["fast"],
-  preferredMethods: ["SEPA", "Wise"],
-  preferredCurrencies: ["EUR", "CHF"],
-  totalVolumeBtc:   1.24,
-  lastTradeDaysAgo: 3,
-  blockedByCount:   0,
-};
-
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-function formatSats(n) {
-  if (n >= 1_000_000) return (n/1_000_000).toFixed(2)+"M";
-  if (n >= 1_000)     return (n/1_000).toFixed(0)+"k";
-  return n.toString();
-}
-function fmtPct(v, showPlus = true) {
-  const n = parseFloat(v);
-  const plus = showPlus && n > 0 ? "+" : "";
-  return `${plus}${n.toFixed(2)}%`;
-}
+import { MOCK_STATS, MOCK_USER } from "../data/mockData.js";
+import { BTC_PRICE_FALLBACK as BTC_PRICE, fmt as formatSats, fmtPct } from "../utils/format.js";
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const css = `
@@ -302,19 +256,28 @@ export default function PeachHome() {
   const { auth, isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
   const { get } = useApi();
   const liveProfile = auth?.profile ?? null;
-  const user = {
-    peachId:             auth?.peachId ? formatPeachId(auth.peachId) : MOCK_USER.peachId,
-    memberSince:         MOCK_USER.memberSince,
-    trades:              liveProfile?.trades         ?? MOCK_USER.trades,
-    disputesTotal:       MOCK_USER.disputesTotal,
-    rating:              liveProfile?.rating         ?? MOCK_USER.rating,
-    badges:              liveProfile?.medals ?? liveProfile?.badges ?? MOCK_USER.badges,
-    preferredMethods:    MOCK_USER.preferredMethods,
-    preferredCurrencies: MOCK_USER.preferredCurrencies,
-    totalVolumeBtc:      MOCK_USER.totalVolumeBtc,
-    lastTradeDaysAgo:    MOCK_USER.lastTradeDaysAgo,
-    blockedByCount:      MOCK_USER.blockedByCount,
-  };
+  // Build user profile — live data when logged in, mock data when logged out.
+  // Some fields (preferredMethods, totalVolumeBtc, etc.) are not yet returned by
+  // the API, so we show "—" / empty instead of fake mock values.
+  const disputes = liveProfile?.disputes;
+  const disputesTotal = disputes
+    ? (typeof disputes === "number" ? disputes : Object.values(disputes).reduce((s, v) => s + (v || 0), 0))
+    : 0;
+  const user = auth ? {
+    peachId:             auth.peachId ? formatPeachId(auth.peachId) : "—",
+    memberSince:         liveProfile?.creationDate
+                           ? new Date(liveProfile.creationDate).toLocaleDateString("en-US", { month:"long", year:"numeric" })
+                           : "—",
+    trades:              liveProfile?.trades ?? 0,
+    disputesTotal,
+    rating:              liveProfile?.rating ?? 0,
+    badges:              liveProfile?.medals ?? liveProfile?.badges ?? [],
+    preferredMethods:    liveProfile?.preferredPaymentMethods ?? [],
+    preferredCurrencies: liveProfile?.preferredCurrencies ?? [],
+    totalVolumeBtc:      liveProfile?.totalVolumeBtc ?? 0,
+    lastTradeDaysAgo:    liveProfile?.lastTradeDaysAgo ?? null,
+    blockedByCount:      liveProfile?.blockedByCount ?? 0,
+  } : MOCK_USER;
 
   // Close avatar menu on outside click
   useEffect(() => {

@@ -39,14 +39,40 @@ Then open `http://localhost:5173/peach-web/` in your browser.
 
 ---
 
+## Project structure
+
+```
+src/
+├── screens/              # One file per screen (see routes below)
+├── components/           # Shared UI components
+│   ├── Navbars.jsx       # SideNav, Topbar, PeachIcon
+│   └── BitcoinAmount.jsx # SatsAmount, IcoBtc
+├── hooks/                # Shared logic
+│   ├── useAuth.js        # Auth state management
+│   └── useApi.js         # Fetch helpers with auto auth headers
+├── styles/
+│   └── global.css        # Shared tokens, reset, topbar, sidenav, keyframes
+├── utils/
+│   └── pgp.js            # PGP encrypt/decrypt helpers
+├── data/
+│   └── mockData.js       # All mock/demo data (only used when logged out)
+├── App.jsx               # Router
+├── main.jsx              # Entry point
+├── peach-api-config.js   # API endpoint catalogue
+└── peach-validators.js   # Input validation helpers
+```
+
+---
+
 ## Screens
 
-| Route | Screen |
-|-------|--------|
-| `/` | Auth / Landing |
-| `/home` | Home Dashboard |
-| `/market` | Market View |
-| `/offer/new` | Offer Creation |
-| `/trades` | Trades Dashboard |
-| `/trade/:id` | Trade Execution |
-| `/settings` | Settings |
+| Route | Screen | File |
+|-------|--------|------|
+| `/` | Auth / Landing | `peach-auth.jsx` |
+| `/home` | Home Dashboard | `peach-home.jsx` |
+| `/market` | Market View | `peach-market-view.jsx` |
+| `/offer/new` | Offer Creation | `peach-offer-creation.jsx` |
+| `/trades` | Trades Dashboard | `peach-trades-dashboard.jsx` |
+| `/trade/:id` | Trade Execution | `peach-trade-execution.jsx` |
+| `/settings` | Settings | `peach-settings.jsx` |
+| `/payment-methods` | Payment Methods | `peach-payment-methods.jsx` |

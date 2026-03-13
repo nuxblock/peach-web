@@ -6,34 +6,10 @@ import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
 import { extractPMsFromProfile, isApiError } from "../utils/pgp.js";
 import { getCached, setCache, clearCache } from "../hooks/useApi.js";
+import { MOCK_OFFERS, MOCK_USER_PMS as USER_PMS, MOCK_ALL_METHODS as ALL_METHODS } from "../data/mockData.js";
+import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat } from "../utils/format.js";
 
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-const MOCK_OFFERS = [
-  { id:"a_me", type:"ask", amount:73000, premium:0.8, methods:["SEPA","Wise"], currencies:["EUR","CHF"], rep:4.7, trades:23, badges:["fast"], auto:false, online:true, isOwn:true },
-  { id:"b_me", type:"bid", amount:120000,  premium:-0.5, methods:["SEPA"],           currencies:["EUR"],       rep:4.7, trades:23,  badges:["fast"],               auto:false, online:true, isOwn:true },
-  { id:"a1", type:"ask", amount:85000,   premium:-1.2, methods:["SEPA","Revolut"], currencies:["EUR","CHF"], rep:4.9, trades:312, badges:["supertrader","fast"], auto:true,  online:true  },
-  { id:"a2", type:"ask", amount:42000,   premium:0.5,  methods:["SEPA"],           currencies:["EUR"],       rep:4.7, trades:88,  badges:["fast"],              auto:false, online:true,  requested:true },
-  { id:"a3", type:"ask", amount:250000,  premium:1.0,  methods:["SEPA","PayPal"],  currencies:["EUR","GBP"], rep:5.0, trades:541, badges:["supertrader"],       auto:false, online:false },
-  { id:"a4", type:"ask", amount:18000,   premium:2.1,  methods:["Revolut"],        currencies:["EUR"],       rep:4.3, trades:21,  badges:[],                    auto:false, online:true  },
-  { id:"a5", type:"ask", amount:55000,   premium:-0.5, methods:["SEPA","Wise"],    currencies:["EUR","CHF"], rep:4.8, trades:156, badges:["fast"],              auto:true,  online:true  },
-  { id:"a6", type:"ask", amount:120000,  premium:1.8,  methods:["PayPal"],         currencies:["EUR"],       rep:4.6, trades:67,  badges:[],                    auto:false, online:true  },
-  { id:"a7", type:"ask", amount:9000,    premium:3.2,  methods:["Revolut","SEPA"], currencies:["EUR","CHF","GBP"], rep:3.9, trades:9, badges:[],               auto:false, online:false },
-  { id:"b1", type:"bid", amount:80000,   premium:-2.0, methods:["SEPA"],           currencies:["EUR"],       rep:4.5, trades:44,  badges:["fast"],              auto:true,  online:true  },
-  { id:"b2", type:"bid", amount:30000,   premium:-0.8, methods:["SEPA","Revolut"], currencies:["EUR","CHF"], rep:4.9, trades:201, badges:["supertrader"],       auto:false, online:true  },
-  { id:"b3", type:"bid", amount:150000,  premium:0.3,  methods:["PayPal"],         currencies:["EUR"],       rep:4.2, trades:33,  badges:[],                    auto:false, online:true  },
-  { id:"b4", type:"bid", amount:60000,   premium:-1.5, methods:["Wise","SEPA"],    currencies:["EUR","GBP"], rep:4.7, trades:119, badges:["fast"],              auto:false, online:false, requested:true },
-  { id:"b5", type:"bid", amount:300000,  premium:1.2,  methods:["SEPA"],           currencies:["EUR","CHF"], rep:5.0, trades:489, badges:["supertrader","fast"],auto:true,  online:true  },
-];
-
-// Mock user's saved payment methods (replaced by GET /v069/selfUser when authenticated)
-const USER_PMS = [
-  { id:"pm1", type:"SEPA",    currencies:["EUR","CHF"], details:{ holder:"Peter Weber", iban:"DE89370400440532013000" }},
-  { id:"pm2", type:"Revolut", currencies:["EUR","GBP"], details:{ username:"@peterweber" }},
-];
-
-const BTC_PRICE      = 87432;
 const ALL_CURRENCIES = ["EUR","CHF","GBP"];
-const ALL_METHODS    = [...new Set(MOCK_OFFERS.flatMap(o => o.methods))].sort();
 
 function premiumStats(offers) {
   if (!offers.length) return { avg: null, best: null };
@@ -42,10 +18,6 @@ function premiumStats(offers) {
   const min  = Math.min(...vals).toFixed(2);
   const max  = Math.max(...vals).toFixed(2);
   return { avg, min, max };
-}
-function fmtPct(v) {
-  const n = parseFloat(v);
-  return (n > 0 ? "+" : "") + n.toFixed(2) + "%";
 }
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
@@ -648,9 +620,6 @@ function RepCell({ offer }) {
 
 const CURRENCY_SYMBOL = { EUR:"€", GBP:"£", USD:"$", CHF:"CHF", JPY:"¥", SEK:"kr", NOK:"kr", DKK:"kr" };
 function currSym(c) { return CURRENCY_SYMBOL[c] || c; }
-function fmtFiat(n) {
-  return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 function AmountCell({ offer, btcPrice, currency }) {
   const rate = btcPrice * (1 + offer.premium / 100);

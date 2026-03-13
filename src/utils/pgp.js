@@ -259,12 +259,31 @@ export async function encryptPGPMessage(plaintext, armoredPrivKey) {
 }
 
 /**
+ * Encrypt plaintext for a specific recipient's PGP public key (no signing).
+ * Used for dispute submission — encrypting data for the Peach platform.
+ */
+export async function encryptForPublicKey(plaintext, armoredPubKey) {
+  try {
+    const publicKey = await openpgp.readKey({ armoredKey: armoredPubKey });
+    const message = await openpgp.createMessage({ text: plaintext });
+    const encrypted = await openpgp.encrypt({
+      message,
+      encryptionKeys: publicKey,
+    });
+    return encrypted;
+  } catch (err) {
+    console.warn("[PGP] encryptForPublicKey failed:", err.message);
+    return null;
+  }
+}
+
+/**
  * Sign a plaintext string with the user's PGP private key.
  * Returns the armored PGP signature string, or null on failure.
  * Used alongside encryptPGPMessage() for PM sync — the server
  * expects both encryptedPaymentData and encryptedPaymentDataSignature.
  */
-export async function signPGPMessage(plaintext, armoredPrivKey) {
+export async function signPGPMessage(plaintext, armoredPrivKey, { detached = false } = {}) {
   try {
     let privateKey = await openpgp.readPrivateKey({ armoredKey: armoredPrivKey });
 
@@ -278,6 +297,10 @@ export async function signPGPMessage(plaintext, armoredPrivKey) {
     }
 
     const message = await openpgp.createMessage({ text: plaintext });
+    if (detached) {
+      const signature = await openpgp.sign({ message, signingKeys: privateKey, detached: true });
+      return signature;
+    }
     const signature = await openpgp.sign({ message, signingKeys: privateKey });
     return signature;
   } catch (err) {
