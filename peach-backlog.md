@@ -10,19 +10,19 @@ Everything that needs to be built, wired, or fixed. Organized by priority phase.
 
 These are completed and kept for reference.
 
-- ✅ **Buy offer submission** — wired via `POST /v069/buyOffer` (`peach-offer-creation.jsx`)
-- ✅ **Trade request acceptance** — both v069 trade requests and v1 system matches, full PGP crypto (`peach-trades-dashboard.jsx`)
+- ✅ **Buy offer submission** — wired via `POST /v069/buyOffer` (`offer-creation/index.jsx`)
+- ✅ **Trade request acceptance** — both v069 trade requests and v1 system matches, full PGP crypto (`trades-dashboard/index.jsx`)
 - ✅ **PM fetch** — `GET /v069/selfUser`, PGP-decrypted client-side. Same pattern in offer-creation, market-view, payment-methods.
 - ✅ **PM save/sync** — `POST /v069/selfUser/encryptedPaymentData` with encrypted + signed payload. Persists across refresh.
 - ✅ **Transaction Batching** — toggle calls `PATCH /user/batching` (`peach-settings.jsx`)
 - ✅ **Refund Address** — CONFIRM calls `PATCH /user` (refundAddress) (`peach-settings.jsx`)
 - ✅ **Custom Payout Wallet** — CONFIRM calls `PATCH /user` (payoutAddress) (`peach-settings.jsx`)
-- ✅ **1.1 Extend Payment Deadline** — `PATCH /contract/:id/extendTime`. Also added seller "Give More Time" + "Cancel Trade" sliders for paymentTooLate status, and buyer "not paid on time" view. (`peach-trade-execution.jsx`)
-- ✅ **1.2 Buyer Payment Confirmation** — `POST /contract/:id/payment/confirm` with empty body. Shows fallback error if payout address needed. Seller release shows "requires mobile signing relay" message. (`peach-trade-execution.jsx`)
-- ✅ **1.3 Chat Send + Decrypt** — `POST /contract/:id/chat` with `encryptSymmetric` + detached `signPGPMessage`. Symmetric key decrypted from contract, used for both send encryption and receive decryption. Optimistic UI. (`peach-trade-execution.jsx`)
-- ✅ **1.4 Chat Pagination + Mark Read + Polling** — `GET /contract/:id/chat?page=N` with auto-load on scroll-to-top, deduplication, chronological sort. `POST /contract/:id/chat/received` marks unread messages. 5s polling for real-time incoming messages. (`peach-trade-execution.jsx`)
-- ✅ **1.5 Dispute Submission** — `POST /contract/:id/dispute` with role-aware reasons (buyer/seller), conditional form (noPayment needs email+message, others submit immediately). Encrypts symmetric key + both payment data fields for platform PGP key via `encryptForPublicKey`. Decrypts PM fields with symmetric-then-asymmetric fallback. (`peach-trade-execution.jsx`, `pgp.js`)
-- ✅ **1.6 Dispute Acknowledgment + Outcome** — `DisputeBanner` component handles 3 states: counterparty dispute with email input (`POST /contract/:id/dispute/acknowledge`), active dispute info banner, and outcome display with acknowledge button (`POST /contract/:id/dispute/acknowledgeOutcome`). Supports all 5 mediator outcomes (buyerWins, sellerWins, none, cancelTrade, payOutBuyer). Payment deadline timer hidden during dispute. (`peach-trade-execution.jsx`)
+- ✅ **1.1 Extend Payment Deadline** — `PATCH /contract/:id/extendTime`. Also added seller "Give More Time" + "Cancel Trade" sliders for paymentTooLate status, and buyer "not paid on time" view. (`trade-execution/index.jsx`)
+- ✅ **1.2 Buyer Payment Confirmation** — `POST /contract/:id/payment/confirm` with empty body. Shows fallback error if payout address needed. Seller release shows "requires mobile signing relay" message. (`trade-execution/index.jsx`)
+- ✅ **1.3 Chat Send + Decrypt** — `POST /contract/:id/chat` with `encryptSymmetric` + detached `signPGPMessage`. Symmetric key decrypted from contract, used for both send encryption and receive decryption. Optimistic UI. (`trade-execution/index.jsx`)
+- ✅ **1.4 Chat Pagination + Mark Read + Polling** — `GET /contract/:id/chat?page=N` with auto-load on scroll-to-top, deduplication, chronological sort. `POST /contract/:id/chat/received` marks unread messages. 5s polling for real-time incoming messages. (`trade-execution/index.jsx`)
+- ✅ **1.5 Dispute Submission** — `POST /contract/:id/dispute` with role-aware reasons (buyer/seller), conditional form (noPayment needs email+message, others submit immediately). Encrypts symmetric key + both payment data fields for platform PGP key via `encryptForPublicKey`. Decrypts PM fields with symmetric-then-asymmetric fallback. (`trade-execution/index.jsx`, `pgp.js`)
+- ✅ **1.6 Dispute Acknowledgment + Outcome** — `DisputeBanner` component handles 3 states: counterparty dispute with email input (`POST /contract/:id/dispute/acknowledge`), active dispute info banner, and outcome display with acknowledge button (`POST /contract/:id/dispute/acknowledgeOutcome`). Supports all 5 mediator outcomes (buyerWins, sellerWins, none, cancelTrade, payOutBuyer). Payment deadline timer hidden during dispute. (`trade-execution/index.jsx`)
 
 ---
 
@@ -251,11 +251,11 @@ Items that don't add new API wiring but improve existing screens.
 ### Market View (`peach-market-view.jsx`)
 - **Filter parity with mobile app** — implement same filter set as mobile. Exact filter list TBD.
 
-### Offer Creation (`peach-offer-creation.jsx`)
+### Offer Creation (`offer-creation/index.jsx`)
 - **"No new users" filter** — wire the checkbox end-to-end: include flag in offer payload, reflect that traders with <3 completed trades are excluded.
 - **Wire validators into PM add flow** — mini PM-add modal accepts IBAN/phone/holder with zero validation. Inline validators from `peach-validators.js` + add `onBlur` validation.
 
-### Trade Execution (`peach-trade-execution.jsx`)
+### Trade Execution (`trade-execution/index.jsx`)
 - **Wrong amount escrow modal** — modal when seller funds with wrong amount. Options: continue (if close enough) or request refund.
 - **Copy buttons mobile layout** — "Copy Address" and "Copy BTC" buttons don't render well on mobile.
 - **Escrow funding timer (buyer POV)** — countdown at "Waiting for escrow" stage. `instantTrade` determines duration (1H instant, 12H normal). Source: `SellOffer.funding.expiry`.
@@ -302,10 +302,10 @@ Items that don't add new API wiring but improve existing screens.
 
 | File | Changes |
 |------|---------|
-| `src/screens/peach-trade-execution.jsx` | Wire all trade actions, cancellation, dispute ack, chat encryption |
-| `src/screens/peach-trades-dashboard.jsx` | Reject, republish, unread counts, instant trade |
+| `src/screens/trade-execution/index.jsx` | Wire remaining trade actions, cancellation, rating |
+| `src/screens/trades-dashboard/index.jsx` | Reject, republish, unread counts, instant trade |
 | `src/screens/peach-market-view.jsx` | Edit/withdraw own offers, filter parity |
-| `src/screens/peach-offer-creation.jsx` | Sell offer, "no new users" flag, PM validators |
+| `src/screens/offer-creation/index.jsx` | Sell offer, "no new users" flag, PM validators |
 | `src/screens/peach-settings.jsx` | 7 empty sub-screens + fee save + block users + referrals |
 | `src/screens/peach-home.jsx` | Profile card, price card |
 | `src/screens/peach-auth.jsx` | Full auth handshake (when server ready) |

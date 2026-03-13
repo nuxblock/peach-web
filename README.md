@@ -43,19 +43,39 @@ Then open `http://localhost:5173/peach-web/` in your browser.
 
 ```
 src/
-├── screens/              # One file per screen (see routes below)
+├── screens/
+│   ├── trade-execution/      # Split into folder
+│   │   ├── index.jsx         # Main component + CSS
+│   │   └── components.jsx    # Sub-components (stepper, cards, panels, etc.)
+│   ├── trades-dashboard/     # Split into folder
+│   │   ├── index.jsx         # Main component + CSS
+│   │   ├── components.jsx    # TradeCard, HistoryTable, filters, etc.
+│   │   └── MatchesPopup.jsx  # Match list/detail/confirm popup
+│   ├── offer-creation/       # Split into folder
+│   │   ├── index.jsx         # Main component
+│   │   ├── components.jsx    # LivePreview, AmountSlider, PMModal
+│   │   └── styles.js         # CSS block
+│   ├── peach-home.jsx
+│   ├── peach-market-view.jsx
+│   ├── peach-auth.jsx
+│   ├── peach-settings.jsx
+│   └── peach-payment-methods.jsx
 ├── components/           # Shared UI components
 │   ├── Navbars.jsx       # SideNav, Topbar, PeachIcon
-│   └── BitcoinAmount.jsx # SatsAmount, IcoBtc
+│   ├── BitcoinAmount.jsx # SatsAmount, IcoBtc
+│   ├── Avatar.jsx        # Shared avatar component
+│   └── StatusChip.jsx    # Trade status chip
 ├── hooks/                # Shared logic
 │   ├── useAuth.js        # Auth state management
 │   └── useApi.js         # Fetch helpers with auto auth headers
 ├── styles/
 │   └── global.css        # Shared tokens, reset, topbar, sidenav, keyframes
 ├── utils/
-│   └── pgp.js            # PGP encrypt/decrypt helpers
+│   ├── pgp.js            # PGP encrypt/decrypt helpers
+│   └── format.js         # Number/date formatting helpers
 ├── data/
-│   └── mockData.js       # All mock/demo data (only used when logged out)
+│   ├── mockData.js       # All mock/demo data (only used when logged out)
+│   └── statusConfig.js   # Trade status configuration (31 statuses)
 ├── App.jsx               # Router
 ├── main.jsx              # Entry point
 ├── peach-api-config.js   # API endpoint catalogue
@@ -71,8 +91,8 @@ src/
 | `/` | Auth / Landing | `peach-auth.jsx` |
 | `/home` | Home Dashboard | `peach-home.jsx` |
 | `/market` | Market View | `peach-market-view.jsx` |
-| `/offer/new` | Offer Creation | `peach-offer-creation.jsx` |
-| `/trades` | Trades Dashboard | `peach-trades-dashboard.jsx` |
-| `/trade/:id` | Trade Execution | `peach-trade-execution.jsx` |
+| `/offer/new` | Offer Creation | `offer-creation/index.jsx` |
+| `/trades` | Trades Dashboard | `trades-dashboard/index.jsx` |
+| `/trade/:id` | Trade Execution | `trade-execution/index.jsx` |
 | `/settings` | Settings | `peach-settings.jsx` |
 | `/payment-methods` | Payment Methods | `peach-payment-methods.jsx` |
