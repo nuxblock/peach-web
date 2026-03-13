@@ -202,7 +202,7 @@ export default function MatchesPopup({
               </div>
               {(() => {
                 const cur = m.currencies[0] ?? "EUR";
-                const sym = cur === "CHF" ? "₣" : cur === "GBP" ? "£" : "€";
+                const sym = cur === "CHF" ? "CHF " : cur === "GBP" ? "£" : "€";
                 const matchedPrice = m._raw.matchedPrice;
                 return (
                   <div className="match-detail-row">

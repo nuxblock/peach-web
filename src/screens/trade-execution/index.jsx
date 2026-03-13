@@ -698,7 +698,7 @@ export default function TradeExecution() {
               </div>
               <div>
                 <div className="summary-item-label">You {role === "buyer" ? "pay" : "receive"}</div>
-                <div className="summary-item-val">{contract.currency === "CHF" ? "₣" : "€"}{contract.fiat}</div>
+                <div className="summary-item-val">{contract.currency === "CHF" ? "CHF " : "€"}{contract.fiat}</div>
                 <div className="summary-item-sub">{contract.currency}</div>
               </div>
               <div>

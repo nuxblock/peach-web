@@ -332,7 +332,7 @@ function StatusCard({ status, direction="buy", instant=false, exp=null,
         </div>
         <div className="sc-peer-right">
           <SatsAmount sats={sats}/>
-          <span className="sc-fiat">{currency === "CHF" ? "₣" : "€"}{fiat}</span>
+          <span className="sc-fiat">{currency === "CHF" ? "CHF " : "€"}{fiat}</span>
           {premium !== null && (
             <span className="sc-prem" style={{ color: isBuy
               ? (premium < 0 ? "#65A519" : "#DF321F")

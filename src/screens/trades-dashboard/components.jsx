@@ -195,7 +195,7 @@ export function TradeCard({ trade, onSelect, layout = "grid" }) {
         <span className={`direction-badge direction-${isBuy ? "buy" : "sell"}`}>
           {isBuy ? "BUY" : "SELL"}
         </span>
-        <span className="trade-row-id">{trade.id.toUpperCase()}</span>
+        <span className="trade-row-id">{trade.tradeId ?? trade.id}</span>
         <span className="trade-row-peer">
           {trade.counterparty ? trade.counterparty.name : "—"}
         </span>
@@ -239,7 +239,7 @@ export function TradeCard({ trade, onSelect, layout = "grid" }) {
           {isBuy ? "BUY" : "SELL"}
         </span>
         <span style={{ fontSize:".72rem", fontWeight:700, color:"var(--black-65)", fontFamily:"monospace" }}>
-          {trade.id.toUpperCase()}
+          {trade.tradeId ?? trade.id}
         </span>
         <span style={{ fontSize:".68rem", color:"var(--black-65)" }}>
           · {new Date(trade.creationDate || trade.createdAt || trade.matchedAt || Date.now()).toLocaleDateString("en-GB")}
@@ -356,7 +356,7 @@ export function HistorySatsAmount({ sats }) {
   );
 }
 
-export const CURRENCY_SYMBOLS = { EUR: "€", CHF: "₣", GBP: "£", USD: "$", SEK: "kr", NOK: "kr", DKK: "kr", PLN: "zł", CZK: "Kč" };
+export const CURRENCY_SYMBOLS = { EUR: "€", CHF: "CHF ", GBP: "£", USD: "$", SEK: "kr ", NOK: "kr ", DKK: "kr ", PLN: "zł", CZK: "Kč " };
 
 export function HistoryTable({ rows, onTradeSelect, selectedCurrency, tab }) {
   const navigate = useNavigate();
