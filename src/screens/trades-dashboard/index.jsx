@@ -3,7 +3,7 @@
 // Sub-components live in ./components.jsx, popup in ./MatchesPopup.jsx
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { SideNav, Topbar } from "../../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -387,6 +387,7 @@ const CSS = `
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function TradesDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mainTab, setMainTab]     = useState("history");   // "active" | "pending" | "history"
   const [subTab, setSubTab]       = useState("buy");      // "buy" | "sell"
   const [filterMethods, setFilterMethods]     = useState([]);
@@ -470,7 +471,7 @@ export default function TradesDashboard() {
       const status = o.tradeStatus ?? o.tradeStatusNew ?? o.status ?? "unknown";
       return {
         id: o.id,
-        tradeId: formatTradeId(o.id),
+        tradeId: formatTradeId(o.id, "offer"),
         kind: "offer",
         direction: isBuy ? "buy" : "sell",
         amount: amt,
@@ -648,6 +649,13 @@ export default function TradesDashboard() {
     fetchUserPMs();
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Auto-refresh trades every 15s when logged in ──
+  useEffect(() => {
+    if (!auth) return;
+    const iv = setInterval(() => setRefreshKey(k => k + 1), 15_000);
+    return () => clearInterval(iv);
+  }, [auth]);
+
   function handleRefreshTrades() {
     clearCache("trades-items");
     clearCache("trades-pending");
@@ -811,6 +819,36 @@ export default function TradesDashboard() {
     }
     // Pending offers (searching, published, fund escrow) → no-op for now
   }
+
+  // ── Auto-open matches popup when navigated with openOfferId state ──
+  useEffect(() => {
+    const offerId = location.state?.openOfferId;
+    if (!offerId) return;
+    // Clear location state so it doesn't re-trigger on refresh
+    const clearState = () => navigate(location.pathname, { replace: true, state: {} });
+
+    // 1. Offer still pending → open matches popup
+    if (livePending) {
+      const trade = livePending.find(t => String(t.id) === String(offerId));
+      if (trade && !matchesPopup) {
+        handleTradeSelect(trade);
+        clearState();
+        return;
+      }
+    }
+    // 2. Offer already accepted → find its contract and go to trade execution
+    //    Contract IDs are "buyOfferId-sellOfferId", so check if either part matches
+    if (liveItems) {
+      const contract = liveItems.find(t =>
+        t.kind === "contract" && String(t.id).split("-").includes(String(offerId))
+      );
+      if (contract) {
+        clearState();
+        navigate(`/trade/${contract.id}`);
+        return;
+      }
+    }
+  }, [location.state?.openOfferId, livePending, liveItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function getMatchesForTrade(trade) {
     if (localMatches[trade.id]) return localMatches[trade.id];

@@ -4,7 +4,7 @@
 //           and by the main component's fetch logic.
 // ─────────────────────────────────────────────────────────────────────────────
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
-import { relTime as relativeTime } from "../../utils/format.js";
+import { relTime as relativeTime, formatTradeId } from "../../utils/format.js";
 import { AVATAR_COLORS } from "../../data/mockData.js";
 import Avatar from "../../components/Avatar.jsx";
 import { PeachRating, Badge, satsToFiat } from "./components.jsx";
@@ -12,13 +12,8 @@ import { PeachRating, Badge, satsToFiat } from "./components.jsx";
 
 // ─── HELPER FUNCTIONS (also used by index.jsx fetch logic) ──────────────────
 
-export function formatTradeId(id) {
-  const s = String(id);
-  // Convert decimal IDs to hex (matching mobile app's contractIdToHex / offerIdToHex)
-  // "1361-1360" → "PC‑551‑550", "1257" → "PC‑4E9"
-  const parts = s.split("-").map(n => parseInt(n, 10).toString(16).toUpperCase());
-  return "PC\u2011" + parts.join("\u2011");
-}
+// Re-export for backwards compatibility (other files import from here)
+export { formatTradeId } from "../../utils/format.js";
 
 export function formatPeachName(rawId) {
   if (!rawId || rawId === "unknown") return "Unknown";
@@ -252,7 +247,7 @@ export default function MatchesPopup({
       <div className="matches-popup" onClick={e => e.stopPropagation()}>
         <div className="matches-header">
           <span style={{fontWeight:800,fontSize:"1.05rem"}}>Trade requests</span>
-          <span style={{fontSize:".78rem",fontFamily:"monospace",color:"var(--black-65)"}}>{String(trade.id).toUpperCase()}</span>
+          <span style={{fontSize:".78rem",fontFamily:"monospace",color:"var(--black-65)"}}>{formatTradeId(trade.id, "offer")}</span>
           <button className="matches-close" onClick={onClose}>✕</button>
         </div>
         {/* Offer summary */}

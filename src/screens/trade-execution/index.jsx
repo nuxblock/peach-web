@@ -6,7 +6,7 @@ import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
 import { decryptPGPMessage, decryptSymmetric, encryptSymmetric, signPGPMessage, encryptForPublicKey } from "../../utils/pgp.js";
 import { DEMO_SCENARIOS, MOCK_MESSAGES } from "../../data/mockData.js";
-import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE, satsToFiat } from "../../utils/format.js";
+import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE, satsToFiat, formatTradeId } from "../../utils/format.js";
 import Avatar from "../../components/Avatar.jsx";
 import StatusChip from "../../components/StatusChip.jsx";
 import {
@@ -14,7 +14,6 @@ import {
   HorizontalStepper, PaymentDetailsCard, EscrowAddressCard,
   EscrowFundingCard, ActionPanel, RatingPanel, ChatPanel,
 } from "./components.jsx";
-import { formatTradeId } from "../trades-dashboard/MatchesPopup.jsx";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `

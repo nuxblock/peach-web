@@ -50,3 +50,13 @@ export function relTime(ts) {
 export function formatDate(date) {
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
+
+/** Format trade/offer ID: decimal → hex with prefix.
+ *  kind="contract": "1361-1360" → "PC‑551‑550"
+ *  kind="offer":    "325"       → "P‑145"        */
+export function formatTradeId(id, kind = "contract") {
+  const s = String(id);
+  const prefix = kind === "offer" ? "P" : "PC";
+  const parts = s.split("-").map(n => parseInt(n, 10).toString(16).toUpperCase());
+  return prefix + "\u2011" + parts.join("\u2011");
+}

@@ -1,5 +1,9 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { IcoBtc } from "./BitcoinAmount.jsx";
 import { useUnread } from "../hooks/useUnread.js";
+import { useNotifications } from "../hooks/useNotifications.js";
+import NotificationPanel from "./NotificationPanel.jsx";
 
 // ─── PEACH ID FORMATTING ─────────────────────────────────────────────────────
 export function formatPeachId(rawId) {
@@ -43,6 +47,7 @@ const IconCreditCard = () => <svg width="20" height="20" viewBox="0 0 20 20" fil
 const IconChevLeft   = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9,2 4,7 9,12"/></svg>;
 const IconChevRight  = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="5,2 10,7 5,12"/></svg>;
 export const IconBurger = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="2" y1="4.5" x2="16" y2="4.5"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="13.5" x2="16" y2="13.5"/></svg>;
+const IconBell = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 7a5 5 0 00-10 0c0 5-2 7-2 7h14s-2-2-2-7"/><path d="M8.5 17a1.5 1.5 0 003 0"/></svg>;
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 export const NAV_ITEMS = [
@@ -106,7 +111,49 @@ export function Topbar({
   showPrice = true,
 }) {
   const { total: unreadTotal } = useUnread();
+  const { notifications, unreadCount: unreadNotifs, markAllRead } = useNotifications();
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const navigate = useNavigate();
   const satsPerCur = btcPrice > 0 ? Math.round(100_000_000 / btcPrice) : 0;
+
+  // Close notification panel on outside click or Escape
+  useEffect(() => {
+    if (!showNotifPanel) return;
+    const close = (e) => { if (!e.target.closest(".notif-panel-wrap")) setShowNotifPanel(false); };
+    const esc   = (e) => { if (e.key === "Escape") setShowNotifPanel(false); };
+    document.addEventListener("click", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("click", close); document.removeEventListener("keydown", esc); };
+  }, [showNotifPanel]);
+
+  // Mark all read 1s after opening panel
+  useEffect(() => {
+    if (!showNotifPanel || unreadNotifs === 0) return;
+    const t = setTimeout(markAllRead, 1000);
+    return () => clearTimeout(t);
+  }, [showNotifPanel]);
+
+  const openNotifPanel = (e) => {
+    e.stopPropagation();
+    setShowNotifPanel(v => !v);
+    setShowAvatarMenu(false);
+  };
+  const openAvatarMenu = (e) => {
+    e.stopPropagation();
+    setShowAvatarMenu(v => !v);
+    setShowNotifPanel(false);
+  };
+  const handleNotifNavigate = (n) => {
+    setShowNotifPanel(false);
+    if (n.contractId) navigate(`/trade/${n.contractId}`);
+    else if (n.offerId) navigate("/trades", { state: { openOfferId: n.offerId } });
+    else navigate("/trades");
+  };
+
+  // Compute lastRead for the panel (to style unread items)
+  const lastRead = notifications.length > 0 && unreadNotifs === 0
+    ? Date.now()
+    : (parseInt(localStorage.getItem("peach_notif_last_read"), 10) || 0);
 
   return (
     <header className="topbar">
@@ -130,9 +177,25 @@ export function Topbar({
       )}
 
       <div className="topbar-right">
+        {isLoggedIn && (
+          <div className="notif-panel-wrap" style={{position:"relative"}}>
+            <button className="notif-bell-btn" onClick={openNotifPanel}>
+              <IconBell/>
+              {unreadNotifs > 0 && <span className="notif-bell-badge">{unreadNotifs > 99 ? "99+" : unreadNotifs}</span>}
+            </button>
+            {showNotifPanel && (
+              <NotificationPanel
+                notifications={notifications}
+                lastRead={lastRead}
+                onMarkAllRead={markAllRead}
+                onNavigate={handleNotifNavigate}
+              />
+            )}
+          </div>
+        )}
         {isLoggedIn ? (
           <div className="avatar-menu-wrap">
-            <div className="avatar-peachid" onClick={(e) => { e.stopPropagation(); setShowAvatarMenu(v => !v); }}>
+            <div className="avatar-peachid" onClick={openAvatarMenu}>
               <span className="peach-id">{getTopbarPeachId()}</span>
               <div className="avatar">PW{unreadTotal > 0 && <div className="avatar-badge">{unreadTotal > 99 ? "99+" : unreadTotal}</div>}</div>
             </div>
