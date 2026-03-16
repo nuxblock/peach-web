@@ -13,7 +13,7 @@
 
 export const STATUS_CONFIG = {
   // ── Pending (offer stage) ──
-  searchingForPeer:    { label: "Looking for Match",     bg: "#F4EEEB", color: "#7D675E", action: false },
+  searchingForPeer:    { label: "Waiting for Match",     bg: "#F4EEEB", color: "#7D675E", action: false },
   waitingForTradeRequest:{ label: "Waiting for Match",   bg: "#F4EEEB", color: "#7D675E", action: false },
   offerHidden:         { label: "Offer Hidden",          bg: "#F4EEEB", color: "#7D675E", action: false },
   offerHiddenWithMatchesAvailable: { label: "Hidden (Matches)", bg: "#FEEDE5", color: "#C45104", action: true },

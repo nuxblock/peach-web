@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { SideNav, Topbar } from "../../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi } from "../../hooks/useApi.js";
+import { useApi, createTask } from "../../hooks/useApi.js";
+import MobileSigningModal, { hasPendingTask, savePendingTask, clearPendingTask } from "../../components/MobileSigningModal.jsx";
 import { decryptPGPMessage, decryptSymmetric, encryptSymmetric, signPGPMessage, encryptForPublicKey } from "../../utils/pgp.js";
 import { DEMO_SCENARIOS, MOCK_MESSAGES } from "../../data/mockData.js";
 import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE, satsToFiat, formatTradeId } from "../../utils/format.js";
@@ -254,9 +255,77 @@ export default function TradeExecution() {
   const [showPostCancel, setShowPostCancel] = useState(false);
   const [chatSymKey, setChatSymKey] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [signingModal, setSigningModal] = useState(null); // { title, description, taskType } or null
+  const [pendingTaskType, setPendingTaskType] = useState(null); // "release" | "refund" | "rate" | null
   const [chatPage, setChatPage] = useState(0);
   const [chatHasMore, setChatHasMore] = useState(false);
   const [chatLoadingMore, setChatLoadingMore] = useState(false);
+  const signingStatusRef = useRef(null); // track the tradeStatus when signing modal opened
+
+  // ── Restore pending task state from localStorage on mount ──
+  useEffect(() => {
+    if (!routeId) return;
+    for (const type of ["release", "refund", "rate"]) {
+      if (hasPendingTask(routeId, type)) { setPendingTaskType(type); break; }
+    }
+  }, [routeId]);
+
+  // ── Poll contract status while signing modal is open OR a pending task exists ──
+  useEffect(() => {
+    if ((!signingModal && !pendingTaskType) || !auth || !routeId) return;
+    signingStatusRef.current = liveContract?.tradeStatus ?? null;
+    const iv = setInterval(async () => {
+      try {
+        const res = await get('/contract/' + routeId);
+        if (!res.ok) return;
+        const c = await res.json();
+        if (c.tradeStatus && c.tradeStatus !== signingStatusRef.current) {
+          setLiveContract(prev => prev ? { ...prev, tradeStatus: c.tradeStatus } : prev);
+          setSigningModal(null);
+          if (pendingTaskType) {
+            clearPendingTask(routeId, pendingTaskType);
+            setPendingTaskType(null);
+          }
+        }
+      } catch {}
+    }, 4000);
+    return () => clearInterval(iv);
+  }, [signingModal, pendingTaskType, routeId]);
+
+  // ── Poll contract status every 5s to catch external changes (e.g. escrow funded from mobile) ──
+  useEffect(() => {
+    if (!auth || !routeId || signingModal || !liveContract) return;
+    const iv = setInterval(async () => {
+      try {
+        const res = await get('/contract/' + routeId);
+        if (!res.ok) return;
+        const c = await res.json();
+        const newStatus = c.tradeStatus ?? c.status;
+        if (!newStatus || newStatus === liveContract.tradeStatus) return;
+        const isBuyer = (c.buyer?.id ?? c.buyerId) === peachId;
+        setLiveContract(prev => prev ? {
+          ...prev,
+          tradeStatus: newStatus,
+          contract: {
+            ...prev.contract,
+            paymentExpectedBy: c.paymentExpectedBy ? new Date(c.paymentExpectedBy).getTime() : prev.contract.paymentExpectedBy,
+            escrow: c.escrow ?? prev.contract.escrow,
+          },
+          cancelationRequested: c.cancelationRequested ?? prev.cancelationRequested,
+          canceled: c.canceled ?? prev.canceled,
+          canceledBy: c.canceledBy ?? prev.canceledBy,
+          disputeActive: c.disputeActive ?? prev.disputeActive,
+          disputeReason: c.disputeReason ?? prev.disputeReason,
+          disputeInitiator: c.disputeInitiator ?? prev.disputeInitiator,
+          disputeOutcome: c.disputeOutcome ?? prev.disputeOutcome,
+          disputeWinner: c.disputeWinner ?? prev.disputeWinner,
+          disputeOutcomeAcknowledgedBy: c.disputeOutcomeAcknowledgedBy ?? prev.disputeOutcomeAcknowledgedBy,
+          disputeAcknowledgedByCounterParty: c.disputeAcknowledgedByCounterParty ?? prev.disputeAcknowledgedByCounterParty,
+        } : prev);
+      } catch {}
+    }, 5000);
+    return () => clearInterval(iv);
+  }, [auth, routeId, signingModal, liveContract?.tradeStatus]);
 
   const demoScenario = DEMO_SCENARIOS.find(s => s.id === scenarioId) || DEMO_SCENARIOS[0];
   const demoMessages = MOCK_MESSAGES[scenarioId] || [];
@@ -652,7 +721,7 @@ export default function TradeExecution() {
           <span className="trade-topbar-sep">·</span>
           <span className={role === "buyer" ? "dir-buy" : "dir-sell"}>{role === "buyer" ? "BUY" : "SELL"}</span>
           <span className="trade-topbar-sep">·</span>
-          <StatusChip status={status} large/>
+          <StatusChip status={status} large role={role}/>
         </div>
 
         {/* ── Mobile tabs ── */}
@@ -801,7 +870,15 @@ export default function TradeExecution() {
               {/* All other action states */}
               {status !== "tradeCompleted" && status !== "rateUser"
                 && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding" && (
-                <ActionPanel scenario={scenario} showPostCancel={showPostCancel} onAction={async (action, arg) => {
+                <ActionPanel scenario={scenario} showPostCancel={showPostCancel} pendingTask={pendingTaskType} onPendingClick={() => {
+                  const labels = {
+                    release: { title: "Release Bitcoin", description: "Approve the Bitcoin release on your Peach mobile app. A push notification has been sent to your phone." },
+                    refund: { title: "Refund Escrow", description: "Approve the escrow refund on your Peach mobile app. A push notification has been sent to your phone." },
+                    rate: { title: "Sign Rating", description: "Approve the rating on your Peach mobile app. A push notification has been sent to your phone." },
+                  };
+                  const l = labels[pendingTaskType] || labels.release;
+                  setSigningModal({ ...l, taskType: pendingTaskType });
+                }} onAction={async (action, arg) => {
                   if (action === "extend_time") {
                     try {
                       const res = await patch('/contract/' + contract.id + '/extendTime');
@@ -853,8 +930,16 @@ export default function TradeExecution() {
                       console.warn("[Trade] Republish error:", e.message);
                     }
                   } else if (action === "refund_escrow") {
-                    // Refund requires mobile signing relay — show info for now
-                    setActionError("Refund requires signing via the mobile app. This feature is not yet available on web.");
+                    setActionError(null);
+                    try {
+                      const offerId = contract.offerId ?? contract.id;
+                      await createTask(post, "refund", { offerId });
+                      savePendingTask(routeId, "refund");
+                      setPendingTaskType("refund");
+                      setSigningModal({ title: "Refund Escrow", description: "Approve the escrow refund on your Peach mobile app. A push notification has been sent to your phone.", taskType: "refund" });
+                    } catch (e) {
+                      setActionError("Failed to request signing: " + e.message);
+                    }
                   } else if (action === "payment_sent") {
                     setActionError(null);
                     try {
@@ -879,8 +964,15 @@ export default function TradeExecution() {
                       setActionError("Payment confirmation failed: " + e.message);
                     }
                   } else if (action === "release_bitcoin") {
-                    // Seller release requires PSBT signing — blocked until signing relay
-                    setActionError("Releasing Bitcoin requires signing via the mobile app. This feature is not yet available on web.");
+                    setActionError(null);
+                    try {
+                      await createTask(post, "release", { contractId: contract.id });
+                      savePendingTask(routeId, "release");
+                      setPendingTaskType("release");
+                      setSigningModal({ title: "Release Bitcoin", description: "Approve the Bitcoin release on your Peach mobile app. A push notification has been sent to your phone.", taskType: "release" });
+                    } catch (e) {
+                      setActionError("Failed to request signing: " + e.message);
+                    }
                   } else if (action === "dispute_ack_email") {
                     try {
                       const res = await post('/contract/' + contract.id + '/dispute/acknowledge', { email: arg });
@@ -950,7 +1042,17 @@ export default function TradeExecution() {
             {/* Rating panel */}
             {(status === "rateUser" || status === "tradeCompleted") && (
               <div className="panel-section">
-                <RatingPanel counterparty={counterparty} onRate={(r) => console.log("rated:", r)}/>
+                <RatingPanel counterparty={counterparty} pending={pendingTaskType === "rate"} onPendingClick={() => setSigningModal({ title: "Sign Rating", description: "Approve the rating on your Peach mobile app. A push notification has been sent to your phone.", taskType: "rate" })} onRate={async (r) => {
+                  const rating = r === 5 ? 1 : -1;
+                  try {
+                    await createTask(post, "rate", { contractId: contract.id, rating });
+                    savePendingTask(routeId, "rate");
+                    setPendingTaskType("rate");
+                    setSigningModal({ title: "Sign Rating", description: "Approve the rating on your Peach mobile app. A push notification has been sent to your phone.", taskType: "rate" });
+                  } catch (e) {
+                    setActionError("Failed to request signing: " + e.message);
+                  }
+                }}/>
               </div>
             )}
           </div>
@@ -1036,6 +1138,14 @@ export default function TradeExecution() {
         <HorizontalStepper status={status}/>
       </div>
       )}
+
+      {/* ── MOBILE SIGNING MODAL ── */}
+      <MobileSigningModal
+        open={!!signingModal}
+        title={signingModal?.title}
+        description={signingModal?.description}
+        onCancel={() => setSigningModal(null)}
+      />
     </>
   );
 }

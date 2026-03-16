@@ -25,7 +25,7 @@ import {
 
 // Matches popup + helpers
 import MatchesPopup, {
-  formatTradeId, formatPeachName, transformMatch, transformTradeRequest,
+  formatTradeId, formatPeachName, transformMatch, transformTradeRequest, SentRequestPopup,
 } from "./MatchesPopup.jsx";
 
 
@@ -381,6 +381,53 @@ const CSS = `
   @media(max-width:500px){
     .matches-popup{max-width:100%;border-radius:16px}
   }
+
+  /* ── Pre-contract chat (inside matches popup) ── */
+  .matches-popup-chat{display:flex;flex-direction:column;max-height:85vh;overflow:hidden}
+  .precontract-chat-messages{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+  .precontract-chat-accept-bar{
+    padding:12px 24px;border-top:1px solid var(--black-10);
+    background:var(--surface);border-radius:0 0 20px 20px;
+  }
+  .match-chat-btn{
+    position:relative;background:none;border:none;cursor:pointer;padding:4px;
+    border-radius:8px;color:var(--black-50);transition:color .15s;
+  }
+  .match-chat-btn:hover{color:var(--primary)}
+  .chat-unread-dot{
+    position:absolute;top:0;right:0;
+    width:8px;height:8px;border-radius:50%;
+    background:var(--primary);
+  }
+
+  /* Chat bubbles (shared pattern with trade-execution) */
+  .chat-enc-notice{
+    display:flex;align-items:center;gap:6px;padding:7px 18px;
+    background:#F4EEEB;border-bottom:1px solid var(--black-10);
+    font-size:.7rem;font-weight:600;color:var(--black-65);flex-shrink:0;font-family:monospace}
+  .chat-bubble-row{display:flex}
+  .chat-bubble-row-me{justify-content:flex-end}
+  .chat-bubble{max-width:72%;border-radius:14px;padding:9px 13px;line-height:1.5}
+  .chat-bubble-me{background:linear-gradient(135deg,#FF7A50,#F56522);color:white;border-bottom-right-radius:4px}
+  .chat-bubble-them{background:var(--surface);border:1px solid var(--black-10);color:var(--black);border-bottom-left-radius:4px}
+  .chat-text{font-size:.85rem}
+  .chat-ts{font-size:.65rem;opacity:.65;margin-top:3px;text-align:right}
+  .chat-bubble-them .chat-ts{text-align:left}
+  .chat-input-row{
+    display:flex;align-items:flex-end;gap:10px;
+    padding:12px 18px;border-top:1px solid var(--black-10);
+    background:var(--surface);flex-shrink:0}
+  .chat-input{
+    flex:1;resize:none;font-family:var(--font);font-size:.87rem;color:var(--black);
+    background:var(--bg);border:1.5px solid var(--black-10);border-radius:12px;
+    padding:9px 14px;outline:none;transition:border-color .15s;max-height:100px;line-height:1.5}
+  .chat-input:focus{border-color:var(--primary)}
+  .chat-send-btn{
+    width:38px;height:38px;border-radius:50%;border:none;
+    background:var(--grad);color:white;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    transition:transform .15s,opacity .15s;box-shadow:0 2px 8px rgba(245,101,34,.3)}
+  .chat-send-btn:hover:not(:disabled){transform:scale(1.07)}
 `;
 
 
@@ -486,6 +533,33 @@ export default function TradesDashboard() {
       };
     }
 
+    // Normalize a counterparty offer where the current user has performed a trade request
+    function normalizeSentRequest(o, offerType) {
+      // Direction is inverted: if we requested on a buyOffer, we are selling
+      const userDirection = offerType === "buyOffer" ? "sell" : "buy";
+      const mop = o.meansOfPayment ?? {};
+      const offerCurrencies = Object.keys(mop);
+      const offerMethods = [...new Set(Object.values(mop).flat())];
+      const amt = o.amountSats ?? (Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0));
+      return {
+        id: o.id,
+        tradeId: formatTradeId(o.id, "offer"),
+        kind: "sentRequest",
+        direction: userDirection,
+        amount: amt,
+        premium: o.premium ?? 0,
+        fiatAmount: "—",
+        currency: offerCurrencies[0] ?? "",
+        tradeStatus: "tradeRequestSent",
+        createdAt: new Date(o.creationDate ?? Date.now()),
+        methods: offerMethods,
+        currencies: offerCurrencies,
+        _offerType: offerType,
+        _offerId: o.id,
+        _tradeRequestData: null, // populated after fetching details
+      };
+    }
+
     function normalizeContract(c) {
       const rawType = (c.type ?? '').toLowerCase();
       const isBuyer = rawType === 'bid' || rawType === 'buy'
@@ -535,19 +609,20 @@ export default function TradesDashboard() {
     async function fetchPendingOffers() {
       try {
         const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
-        const [v1Res, v069BuyRes, v069SellRes] = await Promise.all([
+        const hdrs = { Authorization: `Bearer ${auth.token}` };
+        const [v1Res, v069BuyRes, v069SellRes, browseBuyRes, browseSellRes] = await Promise.all([
           get('/offers/summary'),
-          fetch(`${v069Base}/buyOffer?ownOffers=true`, {
-            headers: { Authorization: `Bearer ${auth.token}` },
-          }),
-          fetch(`${v069Base}/sellOffer?ownOffers=true`, {
-            headers: { Authorization: `Bearer ${auth.token}` },
-          }),
+          fetch(`${v069Base}/buyOffer?ownOffers=true`, { headers: hdrs }),
+          fetch(`${v069Base}/sellOffer?ownOffers=true`, { headers: hdrs }),
+          fetch(`${v069Base}/buyOffer?ownOffers=false`, { headers: hdrs }),
+          fetch(`${v069Base}/sellOffer?ownOffers=false`, { headers: hdrs }),
         ]);
-        const [v1Data, v069BuyData, v069SellData] = await Promise.all([
+        const [v1Data, v069BuyData, v069SellData, browseBuyData, browseSellData] = await Promise.all([
           v1Res.ok ? v1Res.json() : [],
           v069BuyRes.ok ? v069BuyRes.json() : [],
           v069SellRes.ok ? v069SellRes.json() : [],
+          browseBuyRes.ok ? browseBuyRes.json() : [],
+          browseSellRes.ok ? browseSellRes.json() : [],
         ]);
         const v1Arr = Array.isArray(v1Data) ? v1Data : (v1Data?.offers ?? []);
         const v069BuyArr = Array.isArray(v069BuyData) ? v069BuyData : (v069BuyData?.offers ?? []);
@@ -563,6 +638,35 @@ export default function TradesDashboard() {
         const all = [...byId.values()].map(normalizeOffer);
         // Keep only items with pending statuses
         const pending = all.filter(i => PENDING_STATUSES.has(i.tradeStatus));
+
+        // ── Sent trade requests (offers where user performed a trade request) ──
+        const browseBuyArr = Array.isArray(browseBuyData) ? browseBuyData : (browseBuyData?.offers ?? []);
+        const browseSellArr = Array.isArray(browseSellData) ? browseSellData : (browseSellData?.offers ?? []);
+        const sentBuy = browseBuyArr.filter(o => o.hasPerformedTradeRequest).map(o => normalizeSentRequest(o, "buyOffer"));
+        const sentSell = browseSellArr.filter(o => o.hasPerformedTradeRequest).map(o => normalizeSentRequest(o, "sellOffer"));
+        const sentRequests = [...sentBuy, ...sentSell];
+
+        // Fetch trade request details + check unread for each sent request
+        if (sentRequests.length > 0) {
+          await Promise.all(sentRequests.map(async (sr) => {
+            try {
+              // Fetch trade request details (for symmetric key etc.)
+              const detailRes = await fetch(`${v069Base}/${sr._offerType}/${sr._offerId}/tradeRequestPerformed/`, { headers: hdrs });
+              if (detailRes.ok) {
+                const detailData = await detailRes.json();
+                sr._tradeRequestData = Array.isArray(detailData) ? detailData[0] : detailData;
+              }
+              // Probe for unread messages from offer owner
+              const chatRes = await fetch(`${v069Base}/${sr._offerType}/${sr._offerId}/tradeRequestPerformed/chat`, { headers: hdrs });
+              if (chatRes.ok) {
+                const chatData = await chatRes.json();
+                const msgs = Array.isArray(chatData) ? chatData : (chatData.messages ?? chatData.data ?? []);
+                sr.unread = msgs.filter(m => m.sender === "offerOwner" && m.seen === false).length;
+              }
+            } catch { /* silent */ }
+          }));
+        }
+        pending.push(...sentRequests);
 
         // Fetch matches/trade requests depending on status
         const matchable = pending.filter(o => o.tradeStatus === "hasMatchesAvailable" || o.tradeStatus === "acceptTradeRequest");
@@ -764,8 +868,14 @@ export default function TradesDashboard() {
   const [localMatches, setLocalMatches]   = useState({});      // tradeId → remaining matches
   const [matchError, setMatchError]       = useState(null);    // error message shown in popup
   const [matchesLoading, setMatchesLoading] = useState(false);  // loading matches on demand
+  const [sentRequestPopup, setSentRequestPopup] = useState(null); // sent trade request detail/chat popup
 
   async function handleTradeSelect(trade) {
+    // Sent trade requests → show detail/chat popup
+    if (trade.kind === "sentRequest") {
+      setSentRequestPopup(trade);
+      return;
+    }
     // Offers with available matches or trade requests → show match acceptance popup
     if ((trade.tradeStatus === "hasMatchesAvailable" || trade.tradeStatus === "acceptTradeRequest") && !acceptedTrades.has(trade.id)) {
       setMatchesPopup(trade);
@@ -1220,6 +1330,14 @@ export default function TradesDashboard() {
           onSkip={handleSkipMatch}
           onAccept={handleAcceptMatch}
           onConfirmAccept={handleConfirmAccept}
+        />
+      )}
+
+      {/* ── SENT REQUEST POPUP ── */}
+      {sentRequestPopup && (
+        <SentRequestPopup
+          trade={sentRequestPopup}
+          onClose={() => setSentRequestPopup(null)}
         />
       )}
 

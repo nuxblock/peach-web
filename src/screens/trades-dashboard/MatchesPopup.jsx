@@ -3,11 +3,30 @@
 // Contains: MatchesPopup component + helper functions used by the popup
 //           and by the main component's fetch logic.
 // ─────────────────────────────────────────────────────────────────────────────
+import { useState, useEffect, useRef } from "react";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { relTime as relativeTime, formatTradeId } from "../../utils/format.js";
 import { AVATAR_COLORS } from "../../data/mockData.js";
 import Avatar from "../../components/Avatar.jsx";
 import { PeachRating, Badge, satsToFiat } from "./components.jsx";
+import { decryptPGPMessage, decryptSymmetric, encryptSymmetric, signPGPMessage } from "../../utils/pgp.js";
+
+// ─── ICONS (chat) ────────────────────────────────────────────────────────────
+const IconChat = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2.5 3h11a1 1 0 011 1v7a1 1 0 01-1 1H5l-3 2.5V4a1 1 0 011-1z"/>
+  </svg>
+);
+const IconSend = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="14" y1="2" x2="6" y2="10"/><polygon points="14,2 9,14 6,10 2,7" fill="currentColor" stroke="none"/>
+  </svg>
+);
+const IconLock = () => (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+    <rect x="2" y="5.5" width="8" height="5.5" rx="1.5"/><path d="M4 5.5V3.5a2 2 0 0 1 4 0v2"/>
+  </svg>
+);
 
 
 // ─── HELPER FUNCTIONS (also used by index.jsx fetch logic) ──────────────────
@@ -131,7 +150,186 @@ export default function MatchesPopup({
   trade, matches, matchDetail, matchConfirm, matchError, matchesLoading,
   setMatchDetail, setMatchConfirm, onClose, onSkip, onAccept, onConfirmAccept,
 }) {
+  const auth = window.__PEACH_AUTH__ ?? null;
   const isBuy = trade.direction === "buy";
+
+  // ── Chat state (local to popup) ──
+  const [chatMatch, setChatMatch] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatSymKey, setChatSymKey] = useState(null);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatText, setChatText] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const messagesRef = useRef(null);
+
+  // ── Unread dot state ──
+  const [unreadMatchIds, setUnreadMatchIds] = useState(new Set());
+
+  // Check for unread messages on each match when popup opens
+  useEffect(() => {
+    if (!auth || !matches.length) return;
+    let cancelled = false;
+    const chatMatches = matches.filter(m => m._raw.symmetricKeyEncrypted && m._raw.tradeRequestUserId);
+    if (!chatMatches.length) return;
+
+    const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
+    const offerType = trade.direction === "buy" ? "buyOffer" : "sellOffer";
+
+    Promise.all(chatMatches.map(async (m) => {
+      try {
+        const url = `${v069Base}/${offerType}/${trade.id}/tradeRequestReceived/${m._raw.tradeRequestUserId}/chat`;
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${auth.token}` } });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const msgs = Array.isArray(data) ? data : (data.messages ?? data.data ?? []);
+        const hasUnread = msgs.some(msg => msg.sender === "tradeRequester" && msg.seen === false);
+        return hasUnread ? m.offerId : null;
+      } catch { return null; }
+    })).then(results => {
+      if (cancelled) return;
+      const ids = new Set(results.filter(Boolean));
+      setUnreadMatchIds(ids);
+    });
+
+    return () => { cancelled = true; };
+  }, [matches]);
+
+  // ── Build v069 chat URL for current chat match ──
+  function buildChatUrl(match) {
+    if (!auth || !match) return null;
+    const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
+    const offerType = trade.direction === "buy" ? "buyOffer" : "sellOffer";
+    const userId = match._raw.tradeRequestUserId;
+    return `${v069Base}/${offerType}/${trade.id}/tradeRequestReceived/${userId}/chat`;
+  }
+
+  // ── Decrypt messages from API response ──
+  async function decryptMessages(rawMessages, symKey) {
+    const decrypted = [];
+    for (const msg of rawMessages) {
+      let text = msg.encryptedMessage ?? "";
+      try {
+        if (text.startsWith("-----BEGIN PGP MESSAGE-----")) {
+          text = await decryptSymmetric(text, symKey);
+        }
+      } catch { /* show raw if decryption fails */ }
+      decrypted.push({
+        id: msg.id,
+        from: msg.sender === "offerOwner" ? "me" : "them",
+        text,
+        ts: new Date(msg.creationDate ?? Date.now()).getTime(),
+      });
+    }
+    return decrypted.sort((a, b) => a.ts - b.ts);
+  }
+
+  // ── Fetch & decrypt chat on open ──
+  useEffect(() => {
+    if (!chatMatch || !auth) return;
+    let cancelled = false;
+
+    async function load() {
+      setChatLoading(true);
+      setChatMessages([]);
+      setChatSymKey(null);
+      try {
+        // Decrypt symmetric key from the trade request
+        const symKey = await decryptPGPMessage(chatMatch._raw.symmetricKeyEncrypted, auth.pgpPrivKey);
+        if (cancelled) return;
+        setChatSymKey(symKey);
+
+        // Fetch messages
+        const url = buildChatUrl(chatMatch);
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          const msgs = Array.isArray(data) ? data : (data.messages ?? data.data ?? []);
+          const decrypted = await decryptMessages(msgs, symKey);
+          if (!cancelled) setChatMessages(decrypted);
+        }
+      } catch (err) {
+        console.error("Pre-contract chat load error:", err);
+      }
+      if (!cancelled) setChatLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [chatMatch]);
+
+  // ── Poll for new messages every 5s ──
+  useEffect(() => {
+    if (!chatMatch || !chatSymKey || !auth) return;
+    const url = buildChatUrl(chatMatch);
+    const iv = setInterval(async () => {
+      try {
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const msgs = Array.isArray(data) ? data : (data.messages ?? data.data ?? []);
+        const decrypted = await decryptMessages(msgs, chatSymKey);
+        setChatMessages(prev => {
+          const ids = new Set(prev.filter(m => m.optimistic).map(m => m.id));
+          const merged = [...prev.filter(m => m.optimistic)];
+          for (const msg of decrypted) {
+            if (!ids.has(msg.id)) merged.push(msg);
+          }
+          merged.sort((a, b) => a.ts - b.ts);
+          return merged;
+        });
+      } catch { /* silent */ }
+    }, 5000);
+    return () => clearInterval(iv);
+  }, [chatMatch, chatSymKey]);
+
+  // ── Scroll to bottom on new messages ──
+  useEffect(() => {
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  // ── Send message ──
+  async function handleSendChat() {
+    if (!chatText.trim() || chatSending || !chatSymKey || !auth) return;
+    const plaintext = chatText.trim();
+    const tempId = Date.now();
+
+    // Optimistic UI
+    setChatMessages(prev => [...prev, { id: tempId, from: "me", text: plaintext, ts: Date.now(), optimistic: true }]);
+    setChatText("");
+    setChatSending(true);
+
+    try {
+      const encrypted = await encryptSymmetric(plaintext, chatSymKey);
+      const signature = await signPGPMessage(plaintext, auth.pgpPrivKey, { detached: true });
+      const url = buildChatUrl(chatMatch);
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messageEncrypted: encrypted, signature }),
+      });
+      setChatMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, optimistic: false, failed: !res.ok } : m
+      ));
+    } catch {
+      setChatMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, optimistic: false, failed: true } : m
+      ));
+    }
+    setChatSending(false);
+  }
+
+  function handleChatKey(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendChat(); }
+  }
 
   // ── Confirmation dialog ──
   if (matchConfirm) {
@@ -155,6 +353,86 @@ export default function MatchesPopup({
               <button className="match-btn-skip" onClick={() => setMatchConfirm(null)}>Cancel</button>
               <button className="match-btn-accept" onClick={() => onConfirmAccept(trade, m)}>Confirm</button>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Chat view ──
+  if (chatMatch) {
+    const m = chatMatch;
+    return (
+      <div className="matches-overlay" onClick={onClose}>
+        <div className="matches-popup matches-popup-chat" onClick={e => e.stopPropagation()}>
+          <div className="matches-header">
+            <button className="matches-back" onClick={() => { setChatMatch(null); setChatSymKey(null); }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="10,2 4,8 10,14"/></svg>
+            </button>
+            <Avatar initials={m.user.initials} color={m.user.color} size={28}/>
+            <span style={{fontWeight:800,fontSize:".95rem",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.user.name}</span>
+            <button className="matches-close" onClick={onClose}>✕</button>
+          </div>
+
+          <div className="chat-enc-notice">
+            <IconLock/> End-to-end encrypted
+          </div>
+
+          <div className="precontract-chat-messages" ref={messagesRef}>
+            {chatLoading && (
+              <div style={{textAlign:"center",padding:"24px 0",fontSize:".82rem",color:"var(--black-65)",fontWeight:600}}>
+                Loading messages\u2026
+              </div>
+            )}
+            {!chatLoading && chatMessages.length === 0 && (
+              <div style={{textAlign:"center",padding:"24px 0",fontSize:".82rem",color:"var(--black-50)",fontWeight:600}}>
+                No messages yet
+              </div>
+            )}
+            {chatMessages.map(msg => {
+              const isMe = msg.from === "me";
+              return (
+                <div key={msg.id} className={`chat-bubble-row${isMe ? " chat-bubble-row-me" : ""}`}>
+                  <div className={`chat-bubble${isMe ? " chat-bubble-me" : " chat-bubble-them"}`}>
+                    <div className="chat-text">{msg.text}</div>
+                    <div className="chat-ts">
+                      {relativeTime(msg.ts)}
+                      {msg.optimistic && <span style={{opacity:.6}}> · sending\u2026</span>}
+                      {msg.failed && <span style={{color:"#DF321F"}}> · failed to send</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="chat-input-row">
+            <textarea
+              className="chat-input"
+              placeholder="Send an encrypted message\u2026"
+              value={chatText}
+              onChange={e => setChatText(e.target.value)}
+              onKeyDown={handleChatKey}
+              rows={1}
+            />
+            <button
+              className="chat-send-btn"
+              onClick={handleSendChat}
+              disabled={!chatText.trim() || chatSending}
+              style={{opacity: chatText.trim() && !chatSending ? 1 : 0.45}}
+            >
+              <IconSend/>
+            </button>
+          </div>
+
+          <div className="precontract-chat-accept-bar">
+            <button
+              className="match-btn-accept"
+              style={{width:"100%"}}
+              onClick={() => { setMatchDetail(m); setChatMatch(null); setChatSymKey(null); }}
+            >
+              Review & Accept
+            </button>
           </div>
         </div>
       </div>
@@ -246,31 +524,35 @@ export default function MatchesPopup({
     <div className="matches-overlay" onClick={onClose}>
       <div className="matches-popup" onClick={e => e.stopPropagation()}>
         <div className="matches-header">
-          <span style={{fontWeight:800,fontSize:"1.05rem"}}>Trade requests</span>
-          <span style={{fontSize:".78rem",fontFamily:"monospace",color:"var(--black-65)"}}>{formatTradeId(trade.id, "offer")}</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:800,fontSize:"1.05rem"}}>Trade requests</div>
+            <div style={{fontSize:".72rem",fontFamily:"monospace",color:"var(--black-50)",marginTop:1}}>{formatTradeId(trade.id, "offer")}</div>
+          </div>
           <button className="matches-close" onClick={onClose}>✕</button>
         </div>
-        {/* Offer summary */}
-        <div style={{padding:"8px 24px 12px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-          <span className={`direction-badge direction-${isBuy ? "buy" : "sell"}`}>
-            {isBuy ? "BUY" : "SELL"}
-          </span>
-          <SatsAmount sats={trade.amount}/>
-          {trade.premium !== undefined && (
-            <span style={{fontSize:".78rem",fontWeight:700,
-              color: isBuy
-                ? (trade.premium < 0 ? "#65A519" : "#DF321F")
-                : (trade.premium > 0 ? "#65A519" : "#DF321F"),
-            }}>
-              {trade.premium > 0 ? "+" : ""}{trade.premium.toFixed(2)}%
+        {/* Offer summary — tinted card for visual separation */}
+        <div style={{margin:"0 16px 0",padding:"12px 16px",background:"var(--primary-mild)",borderRadius:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <span className={`direction-badge direction-${isBuy ? "buy" : "sell"}`}>
+              {isBuy ? "BUY" : "SELL"}
             </span>
-          )}
-          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-            {(trade.methods || []).map(m => <span key={m} className="tag tag-method">{m}</span>)}
+            <SatsAmount sats={trade.amount}/>
+            {trade.premium !== undefined && (
+              <span style={{fontSize:".78rem",fontWeight:700,
+                color: isBuy
+                  ? (trade.premium < 0 ? "#65A519" : "#DF321F")
+                  : (trade.premium > 0 ? "#65A519" : "#DF321F"),
+              }}>
+                {trade.premium > 0 ? "+" : ""}{trade.premium.toFixed(2)}%
+              </span>
+            )}
+            <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+              {(trade.methods || []).map(m => <span key={m} className="tag tag-method">{m}</span>)}
+            </div>
           </div>
         </div>
         {/* Count / Loading */}
-        <div style={{padding:"0 24px 12px",fontSize:".85rem",fontWeight:600,color:"var(--black-75)"}}>
+        <div style={{padding:"12px 24px 8px",fontSize:".82rem",fontWeight:600,color:"var(--black-50)"}}>
           {matchesLoading && matches.length === 0
             ? "Loading matches\u2026"
             : matches.length === 0
@@ -301,12 +583,317 @@ export default function MatchesPopup({
                   {m.user.badges.includes("fast") && <Badge label="fast" icon="⚡"/>}
                 </div>
               </div>
-              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
                 <span style={{fontSize:".72rem",color:"var(--black-65)"}}>{relativeTime(m.requestedAt)}</span>
+                {m._raw.symmetricKeyEncrypted && (
+                  <button className="match-chat-btn" title="Chat" onClick={e => {
+                    e.stopPropagation();
+                    setChatMatch(m);
+                    setUnreadMatchIds(prev => { const next = new Set(prev); next.delete(m.offerId); return next; });
+                  }}>
+                    <IconChat/>
+                    {unreadMatchIds.has(m.offerId) && <span className="chat-unread-dot"/>}
+                  </button>
+                )}
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--black-65)" strokeWidth="2" strokeLinecap="round"><polyline points="5,2 10,7 5,12"/></svg>
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── SENT REQUEST POPUP (requester-side detail + chat) ──────────────────────
+// Props:
+//   trade   — normalized sent request item (kind === "sentRequest")
+//   onClose — close popup handler
+// ─────────────────────────────────────────────────────────────────────────────
+export function SentRequestPopup({ trade, onClose }) {
+  const auth = window.__PEACH_AUTH__ ?? null;
+  const isBuy = trade.direction === "buy";
+
+  // ── Views: "detail" or "chat" ──
+  const [view, setView] = useState("detail");
+
+  // ── Chat state ──
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatSymKey, setChatSymKey] = useState(null);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatText, setChatText] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const messagesRef = useRef(null);
+
+  // ── Build v069 chat URL (requester perspective — no userId) ──
+  function buildChatUrl() {
+    if (!auth) return null;
+    const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
+    return `${v069Base}/${trade._offerType}/${trade._offerId}/tradeRequestPerformed/chat`;
+  }
+
+  // ── Decrypt messages (flipped sender: tradeRequester = me) ──
+  async function decryptMsgs(rawMessages, symKey) {
+    const decrypted = [];
+    for (const msg of rawMessages) {
+      let text = msg.encryptedMessage ?? "";
+      try {
+        if (text.startsWith("-----BEGIN PGP MESSAGE-----")) {
+          text = await decryptSymmetric(text, symKey);
+        }
+      } catch { /* show raw */ }
+      decrypted.push({
+        id: msg.id,
+        from: msg.sender === "tradeRequester" ? "me" : "them",
+        text,
+        ts: new Date(msg.creationDate ?? Date.now()).getTime(),
+      });
+    }
+    return decrypted.sort((a, b) => a.ts - b.ts);
+  }
+
+  // ── Fetch & decrypt chat on open ──
+  useEffect(() => {
+    if (view !== "chat" || !auth || !trade._tradeRequestData) return;
+    let cancelled = false;
+
+    async function load() {
+      setChatLoading(true);
+      setChatMessages([]);
+      setChatSymKey(null);
+      try {
+        const symKey = await decryptPGPMessage(trade._tradeRequestData.symmetricKeyEncrypted, auth.pgpPrivKey);
+        if (cancelled) return;
+        setChatSymKey(symKey);
+
+        const url = buildChatUrl();
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          const msgs = Array.isArray(data) ? data : (data.messages ?? data.data ?? []);
+          const decrypted = await decryptMsgs(msgs, symKey);
+          if (!cancelled) setChatMessages(decrypted);
+        }
+      } catch (err) {
+        console.error("Requester chat load error:", err);
+      }
+      if (!cancelled) setChatLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [view]);
+
+  // ── Poll every 5s ──
+  useEffect(() => {
+    if (view !== "chat" || !chatSymKey || !auth) return;
+    const url = buildChatUrl();
+    const iv = setInterval(async () => {
+      try {
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const msgs = Array.isArray(data) ? data : (data.messages ?? data.data ?? []);
+        const decrypted = await decryptMsgs(msgs, chatSymKey);
+        setChatMessages(prev => {
+          const ids = new Set(prev.filter(m => m.optimistic).map(m => m.id));
+          const merged = [...prev.filter(m => m.optimistic)];
+          for (const msg of decrypted) {
+            if (!ids.has(msg.id)) merged.push(msg);
+          }
+          merged.sort((a, b) => a.ts - b.ts);
+          return merged;
+        });
+      } catch { /* silent */ }
+    }, 5000);
+    return () => clearInterval(iv);
+  }, [view, chatSymKey]);
+
+  // ── Scroll to bottom ──
+  useEffect(() => {
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  // ── Send message ──
+  async function handleSend() {
+    if (!chatText.trim() || chatSending || !chatSymKey || !auth) return;
+    const plaintext = chatText.trim();
+    const tempId = Date.now();
+
+    setChatMessages(prev => [...prev, { id: tempId, from: "me", text: plaintext, ts: Date.now(), optimistic: true }]);
+    setChatText("");
+    setChatSending(true);
+
+    try {
+      const encrypted = await encryptSymmetric(plaintext, chatSymKey);
+      const signature = await signPGPMessage(plaintext, auth.pgpPrivKey, { detached: true });
+      const url = buildChatUrl();
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messageEncrypted: encrypted, signature }),
+      });
+      setChatMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, optimistic: false, failed: !res.ok } : m
+      ));
+    } catch {
+      setChatMessages(prev => prev.map(m =>
+        m.id === tempId ? { ...m, optimistic: false, failed: true } : m
+      ));
+    }
+    setChatSending(false);
+  }
+
+  function handleKey(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  }
+
+  // ── Chat view ──
+  if (view === "chat") {
+    return (
+      <div className="matches-overlay" onClick={onClose}>
+        <div className="matches-popup matches-popup-chat" onClick={e => e.stopPropagation()}>
+          <div className="matches-header">
+            <button className="matches-back" onClick={() => setView("detail")}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="10,2 4,8 10,14"/></svg>
+            </button>
+            <span style={{fontWeight:800,fontSize:".95rem",flex:1}}>Chat</span>
+            <button className="matches-close" onClick={onClose}>✕</button>
+          </div>
+
+          <div className="chat-enc-notice">
+            <IconLock/> End-to-end encrypted
+          </div>
+
+          <div className="precontract-chat-messages" ref={messagesRef}>
+            {chatLoading && (
+              <div style={{textAlign:"center",padding:"24px 0",fontSize:".82rem",color:"var(--black-65)",fontWeight:600}}>
+                Loading messages\u2026
+              </div>
+            )}
+            {!chatLoading && chatMessages.length === 0 && (
+              <div style={{textAlign:"center",padding:"24px 0",fontSize:".82rem",color:"var(--black-50)",fontWeight:600}}>
+                No messages yet
+              </div>
+            )}
+            {chatMessages.map(msg => {
+              const isMe = msg.from === "me";
+              return (
+                <div key={msg.id} className={`chat-bubble-row${isMe ? " chat-bubble-row-me" : ""}`}>
+                  <div className={`chat-bubble${isMe ? " chat-bubble-me" : " chat-bubble-them"}`}>
+                    <div className="chat-text">{msg.text}</div>
+                    <div className="chat-ts">
+                      {relativeTime(msg.ts)}
+                      {msg.optimistic && <span style={{opacity:.6}}> · sending\u2026</span>}
+                      {msg.failed && <span style={{color:"#DF321F"}}> · failed to send</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="chat-input-row">
+            <textarea
+              className="chat-input"
+              placeholder="Send an encrypted message\u2026"
+              value={chatText}
+              onChange={e => setChatText(e.target.value)}
+              onKeyDown={handleKey}
+              rows={1}
+            />
+            <button
+              className="chat-send-btn"
+              onClick={handleSend}
+              disabled={!chatText.trim() || chatSending}
+              style={{opacity: chatText.trim() && !chatSending ? 1 : 0.45}}
+            >
+              <IconSend/>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Detail view (default) ──
+  const reqDate = trade._tradeRequestData?.creationDate
+    ? relativeTime(new Date(trade._tradeRequestData.creationDate).getTime())
+    : relativeTime(trade.createdAt?.getTime?.() ?? Date.now());
+
+  return (
+    <div className="matches-overlay" onClick={onClose}>
+      <div className="matches-popup" onClick={e => e.stopPropagation()}>
+        <div className="matches-header">
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:800,fontSize:"1.05rem"}}>Trade request</div>
+            <div style={{fontSize:".72rem",fontFamily:"monospace",color:"var(--black-50)",marginTop:1}}>{trade.tradeId}</div>
+          </div>
+          <button className="matches-close" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Offer summary — tinted card */}
+        <div style={{margin:"0 16px",padding:"12px 16px",background:"var(--primary-mild)",borderRadius:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <span className={`direction-badge direction-${isBuy ? "buy" : "sell"}`}>
+              {isBuy ? "BUY" : "SELL"}
+            </span>
+            <SatsAmount sats={trade.amount}/>
+            {trade.premium !== undefined && (
+              <span style={{fontSize:".78rem",fontWeight:700,
+                color: isBuy
+                  ? (trade.premium < 0 ? "#65A519" : "#DF321F")
+                  : (trade.premium > 0 ? "#65A519" : "#DF321F"),
+              }}>
+                {trade.premium > 0 ? "+" : ""}{trade.premium.toFixed(2)}%
+              </span>
+            )}
+            <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+              {(trade.methods || []).map(m => <span key={m} className="tag tag-method">{m}</span>)}
+            </div>
+          </div>
+        </div>
+
+        {/* Status + timestamp */}
+        <div style={{padding:"16px 24px",display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <span style={{
+              background:"var(--primary-bg)",color:"var(--primary-dark)",
+              borderRadius:999,padding:"4px 12px",fontSize:".78rem",fontWeight:700,
+            }}>
+              Request sent
+            </span>
+            <span style={{fontSize:".78rem",color:"var(--black-50)"}}>{reqDate}</span>
+          </div>
+
+          {/* Chat button */}
+          {trade._tradeRequestData?.symmetricKeyEncrypted && (
+            <button
+              className="match-btn-accept"
+              style={{width:"100%"}}
+              onClick={() => setView("chat")}
+            >
+              <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                <IconChat/> Open chat
+              </span>
+            </button>
+          )}
+
+          {!trade._tradeRequestData?.symmetricKeyEncrypted && (
+            <div style={{fontSize:".82rem",color:"var(--black-50)",fontWeight:600,textAlign:"center",padding:"8px 0"}}>
+              Chat not available — trade request data missing
+            </div>
+          )}
         </div>
       </div>
     </div>

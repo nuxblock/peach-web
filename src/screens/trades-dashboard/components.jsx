@@ -86,6 +86,8 @@ export const PILL_CONFIG = {
   hasMatchesAvailable: { bg:"var(--primary)",    color:"white",              label:"View matches",          passive:false },
   acceptTradeRequest:  { bg:"var(--primary)",    color:"white",              label:"Accept trade request",  passive:false },
   offerHiddenWithMatchesAvailable: { bg:"var(--primary)", color:"white",    label:"View matches",          passive:false },
+  // Sent trade request (synthetic — user performed a trade request on a counterparty's offer)
+  tradeRequestSent:  { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Request sent",         passive:true  },
   // Escrow stage
   createEscrow:        { bg:"var(--primary)", color:"white", label:"Create Escrow",      passive:false },
   fundEscrow:          { bg:"var(--primary)", color:"white", label:"Fund Escrow",        passive:false },
@@ -523,7 +525,7 @@ export function HistoryTable({ rows, onTradeSelect, selectedCurrency, tab }) {
                 </td>
                 <td>
                   <span style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
-                    <StatusChip status={r.tradeStatus} showAction/>
+                    <StatusChip status={r.tradeStatus} showAction role={r.direction === "sell" ? "seller" : "buyer"}/>
                     {r.unread > 0 && <span className="unread-badge"><span style={{ lineHeight:1 }}>{r.unread}</span><IconMsg/></span>}
                   </span>
                 </td>

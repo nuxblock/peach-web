@@ -10,8 +10,9 @@ import { STATUS_CONFIG } from "../data/statusConfig.js";
 
 const FALLBACK = { label: "Unknown", bg: "#F4EEEB", color: "#7D675E", action: false };
 
-export default function StatusChip({ status, large, showAction }) {
+export default function StatusChip({ status, large, showAction, role }) {
   const cfg = STATUS_CONFIG[status] || FALLBACK;
+  const label = (status === "paymentRequired" && role === "seller") ? "Confirm Payment" : cfg.label;
   return (
     <span style={{
       display:"inline-flex", alignItems:"center", gap:4,
@@ -20,7 +21,7 @@ export default function StatusChip({ status, large, showAction }) {
       fontSize: large ? ".8rem" : ".72rem", fontWeight:700, whiteSpace:"nowrap",
     }}>
       {showAction && cfg.action && <span style={{ width:6, height:6, borderRadius:"50%", background:cfg.color, display:"inline-block" }}/>}
-      {cfg.label}
+      {label}
     </span>
   );
 }

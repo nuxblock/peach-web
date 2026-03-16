@@ -585,6 +585,17 @@ function MultiSelect({ label, options, value, onChange }) {
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+const MAX_CHIPS = 4;
+function Chips({ items, className }) {
+  const visible = items.slice(0, MAX_CHIPS);
+  const extra = items.length - MAX_CHIPS;
+  return <>
+    {visible.map(v => <span key={v} className={className}>{v}</span>)}
+    {extra > 0 && <span className={className} style={{opacity:.55}}>+{extra}</span>}
+  </>;
+}
+
 // isSellTab: when true, seller perspective → high premium is GOOD
 function PremiumCell({ p, isSellTab }) {
   let cls;
@@ -653,7 +664,7 @@ export default function PeachMarket() {
   const [selMethods,       setSelMethods]       = useState([]);   // [] = all
   const [selPaymentTypes,  setSelPaymentTypes]  = useState([]);   // [] = all
   const [searchQuery,      setSearchQuery]      = useState("");
-  const [filterMinRep,     setFilterMinRep]     = useState("0");
+
   const [myOffersOnly,        setMyOffersOnly]        = useState(false);
   const [allPrices,           setAllPrices]           = useState({ EUR: BTC_PRICE });
   const [availableCurrencies, setAvailableCurrencies] = useState(ALL_CURRENCIES);
@@ -754,8 +765,8 @@ export default function PeachMarket() {
   const peachId = auth?.peachId ?? null;
 
   function normalizeOffer(o) {
-    const methods = o.meansOfPayment ? Object.keys(o.meansOfPayment) : [];
-    const currencies = o.meansOfPayment
+    const currencies = o.meansOfPayment ? Object.keys(o.meansOfPayment) : [];
+    const methods = o.meansOfPayment
       ? [...new Set(Object.values(o.meansOfPayment).flat())]
       : [];
     return {
@@ -799,16 +810,23 @@ export default function PeachMarket() {
         post('/offer/search', { type: 'bid', size: 50 }),
         post('/offer/search', { type: 'ask', size: 50 }),
       ]);
+      if (!bidsRes.ok || !asksRes.ok) {
+        console.warn("[MarketView] offer/search status:", bidsRes.status, asksRes.status);
+      }
       const [bids, asks] = await Promise.all([
         bidsRes.ok ? bidsRes.json() : [],
         asksRes.ok ? asksRes.json() : [],
       ]);
       const bidsArr = Array.isArray(bids) ? bids : bids?.offers ?? [];
       const asksArr = Array.isArray(asks) ? asks : asks?.offers ?? [];
+      console.log("[MarketView] bids:", bidsArr.length, "asks:", asksArr.length);
+      if (bidsArr[0]) console.log("[MarketView] sample bid keys:", Object.keys(bidsArr[0]), "type:", bidsArr[0].type);
+      if (asksArr[0]) console.log("[MarketView] sample ask keys:", Object.keys(asksArr[0]), "type:", asksArr[0].type);
       const all = [
         ...bidsArr.map(normalizeOffer),
         ...asksArr.map(normalizeOffer),
       ];
+      console.log("[MarketView] normalized sample:", all[0]);
 
       // Fetch own active offers from v069 (when authenticated)
       if (auth) {
@@ -838,7 +856,9 @@ export default function PeachMarket() {
 
       setCache("market-offers", all);
       setLiveOffers(all);
-    } catch {} finally {
+    } catch (err) {
+      console.error("[MarketView] fetchMarket failed:", err);
+    } finally {
       setOffersLoading(false);
     }
   }
@@ -932,7 +952,6 @@ export default function PeachMarket() {
     .filter(o => selPaymentTypes.length === 0 || selPaymentTypes.some(pt =>
       (PAYMENT_TYPE_MAP[pt] || []).some(m => o.methods.includes(m))
     ))
-    .filter(o => o.rep >= parseFloat(filterMinRep))
     .filter(o => searchQuery.trim() === "" ||
       o.methods.some(m => m.toLowerCase().includes(searchQuery.toLowerCase())) ||
       o.currencies.some(c => c.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -1338,17 +1357,6 @@ export default function PeachMarket() {
               value={selMethods}
               onChange={setSelMethods}
             />
-            <select
-              className="filter-select"
-              value={filterMinRep}
-              onChange={e=>setFilterMinRep(e.target.value)}
-            >
-              <option value="0">Any rep</option>
-              <option value="4">4.0+</option>
-              <option value="4.5">4.5+</option>
-              <option value="4.8">4.8+</option>
-            </select>
-
             <input
               className="search-inp"
               placeholder="Search offers…"
@@ -1424,12 +1432,12 @@ export default function PeachMarket() {
                       <td><PremiumCell p={offer.premium} isSellTab={isSellTab}/></td>
                       <td>
                         <div className="methods">
-                          {offer.methods.map(m=><span key={m} className="method-chip">{m}</span>)}
+                          <Chips items={offer.methods} className="method-chip"/>
                         </div>
                       </td>
                       <td>
                         <div className="currencies">
-                          {offer.currencies.map(c=><span key={c} className="currency-chip">{c}</span>)}
+                          <Chips items={offer.currencies} className="currency-chip"/>
                         </div>
                       </td>
                       <td>
@@ -1520,8 +1528,8 @@ export default function PeachMarket() {
                 })()}
                 {/* Row 4: tags */}
                 <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                  {offer.methods.map(m=><span key={m} className="method-chip">{m}</span>)}
-                  {offer.currencies.map(c=><span key={c} className="currency-chip">{c}</span>)}
+                  <Chips items={offer.methods} className="method-chip"/>
+                  <Chips items={offer.currencies} className="currency-chip"/>
                 </div>
               </div>
             ))}

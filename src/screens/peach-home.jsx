@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, Topbar, formatPeachId } from "../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
-import { useApi } from "../hooks/useApi.js";
+import { useApi, getCached, setCache } from "../hooks/useApi.js";
 import { MOCK_STATS, MOCK_USER } from "../data/mockData.js";
+import { STATUS_CONFIG } from "../data/statusConfig.js";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmt as formatSats, fmtPct } from "../utils/format.js";
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
@@ -311,6 +312,45 @@ export default function PeachHome() {
     return () => clearInterval(iv);
   }, []);
 
+  // ── URGENT TRADES COUNT ──
+  function countUrgent(items) {
+    return items.filter(t => {
+      const s = t.tradeStatus ?? t.status ?? "unknown";
+      return (STATUS_CONFIG[s] || {}).action;
+    }).length;
+  }
+  const [urgentCount, setUrgentCount] = useState(() => {
+    if (!auth) return 0;
+    const cached = getCached("trades-items")?.data;
+    return cached ? countUrgent(cached) : 0;
+  });
+  useEffect(() => {
+    if (!auth) { setUrgentCount(0); return; }
+    // Use cache immediately if available
+    const cached = getCached("trades-items")?.data;
+    if (cached) setUrgentCount(countUrgent(cached));
+    async function fetchUrgent() {
+      try {
+        const [offersRes, contractsRes] = await Promise.all([
+          get('/offers/summary'),
+          get('/contracts/summary'),
+        ]);
+        const [offersData, contractsData] = await Promise.all([
+          offersRes.ok ? offersRes.json() : [],
+          contractsRes.ok ? contractsRes.json() : [],
+        ]);
+        const offers = Array.isArray(offersData) ? offersData : (offersData?.offers ?? []);
+        const contracts = Array.isArray(contractsData) ? contractsData : (contractsData?.contracts ?? []);
+        const all = [...offers, ...contracts];
+        setUrgentCount(countUrgent(all));
+        setCache("home-urgent", all);
+      } catch {}
+    }
+    fetchUrgent();
+    const iv = setInterval(fetchUrgent, 30000);
+    return () => clearInterval(iv);
+  }, [auth]);
+
   const satsPerCur  = Math.round(100_000_000 / btcPrice);
   const navWidth = isMobile ? 0 : (sidebarCollapsed ? 44 : 68);
 
@@ -390,13 +430,13 @@ export default function PeachHome() {
               )}
             </div>
 
-            {/* ── ATTENTION ALERT (only when logged in) ── */}
-            {isLoggedIn && (
+            {/* ── ATTENTION ALERT (only when logged in + trades need action) ── */}
+            {isLoggedIn && urgentCount > 0 && (
               <div style={{background:"#FEFCE5",border:"1.5px solid #F5CE22",borderRadius:12,
                 padding:"12px 18px",display:"inline-flex",alignItems:"center",gap:12,width:"fit-content"}}>
                 <span style={{fontSize:"1.1rem"}}>⚠️</span>
                 <span style={{fontSize:".88rem",fontWeight:700,color:"#2B1911"}}>
-                  3 trades need your attention
+                  {urgentCount} trade{urgentCount > 1 ? "s" : ""} need{urgentCount === 1 ? "s" : ""} your attention
                 </span>
                 <span style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",cursor:"pointer",paddingLeft:42}} onClick={() => navigate("/trades")}>View →</span>
               </div>

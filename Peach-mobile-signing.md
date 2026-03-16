@@ -1,4 +1,4 @@
-# Plan: Unified Relay Protocol — Mobile-Assisted Signing & Auth for Web
+# Plan: Mobile-Assisted Bitcoin Signing via Pending Tasks
 
 ## Context
 
@@ -9,194 +9,196 @@ The Peach web app holds the user's PGP key but **never** the Bitcoin private key
 3. **Seller payment release** — needs signed PSBT (`releaseTransaction`)
 4. **Refund flow** — needs signed PSBT for refund tx
 
-Additionally, the **Desktop Auth handshake** (QR scan to log in) uses the same relay pattern.
+### Confirmed architecture (from backend dev)
 
-**Approach: Design one unified relay system (`/v1/relay/*`) that handles both auth and signing. Build the signing type first.** Auth slots in later when its protocol is confirmed by the backend team. This avoids duplicating infrastructure while keeping signing independent of unresolved auth decisions.
-
----
-
-## Can any of these SKIP the relay?
-
-| Feature | Can skip? | Why |
-|---------|-----------|-----|
-| **Rating** | Maybe | The mobile signs `sha256(counterpartyUserId)` with ECDSA. If the backend team adds PGP signature support as an alternative, this works without relay. **Ask backend first.** |
-| **Buyer payment confirm** | Partially | Already works if the contract has a `releaseAddress` set from mobile. Only needs relay for "set payout address on the fly" case. |
-| **Sell offer creation** | No | Escrow public key must come from HD wallet. No alternative. |
-| **Seller release** | No | PSBT must be signed with escrow private key. No alternative. |
-| **Refund** | No | Same as above — PSBT signing required. |
+- JWT tokens have an `isDesktop` flag (`true` for browser, `false` for mobile)
+- **Browser-exclusive endpoints**: create pending tasks (signing requests)
+- **Mobile-exclusive endpoint**: `GET /pendingTasks` — returns list of tasks waiting to be signed
+- **Mobile-exclusive endpoint**: submit the signature for a task
+- **No QR code for signing** — mobile is already authenticated as the same user, server links them by userId
+- **Server auto-applies the signature** — browser does NOT need to make a second API call after mobile signs. The server handles it (e.g., releases escrow, submits rating).
+- **Push notification** sent to mobile when a new pending task is created
+- **Auth handshake still uses QR** (separate system — user isn't logged in yet on browser)
 
 ---
 
-## Protocol Flow (Signing — built first; auth uses same relay later)
+## How it works
 
 ```
-BROWSER                         PEACH SERVER                      MOBILE APP
+BROWSER (isDesktop=true)        PEACH SERVER                      MOBILE (isDesktop=false)
    |                                |                                |
-   |  1. POST /v1/relay/request      |                                |
-   |  { type:"sign:rate",           |
-   |    payload, pgpPubKey }        |                                |
+   |  1. User clicks                |                                |
+   |     "Release Bitcoin"          |                                |
+   |                                |                                |
+   |  2. POST /v1/task/create       |                                |
+   |  (browser-exclusive)           |                                |
+   |  { type, contractId, ... }     |                                |
    |------------------------------->|                                |
-   |  { requestId, expiresAt }      |                                |
+   |  { taskId }                    |                                |
    |<-------------------------------|                                |
-   |                                |                                |
-   |  2. Display QR code            |                                |
-   |  { v:1, t:"sign", r:requestId }|                                |
-   |                                |                                |
-   |                                |  3. Mobile scans QR,           |
-   |                                |     fetches request details    |
-   |                                |  GET /v1/relay/request/:id     |
-   |                                |<-------------------------------|
-   |                                |  { type, payload, pgpPubKey }  |
+   |                                |  3. Push notification →        |
+   |                                |     "Signing request pending"  |
    |                                |------------------------------->|
    |                                |                                |
-   |                                |  4. Mobile shows confirmation, |
-   |                                |     user approves, mobile signs|
+   |  4. Browser shows              |  5. GET /v1/pendingTasks       |
+   |     "Waiting for mobile..."    |  (mobile-exclusive)            |
+   |     + polls task status        |<-------------------------------|
+   |                                |  [{ taskId, type, data... }]   |
+   |                                |------------------------------->|
    |                                |                                |
-   |                                |  5. POST /v1/relay/:id/response|
-   |                                |  { encryptedResponse } (PGP)   |
+   |                                |  6. Mobile shows confirmation, |
+   |                                |     user approves, signs       |
+   |                                |                                |
+   |                                |  7. POST /v1/task/:id/sign     |
+   |                                |  (mobile-exclusive)            |
+   |                                |  { signature / signedPSBT }    |
    |                                |<-------------------------------|
    |                                |                                |
-   |  6. Poll GET /v1/relay/         |                                |
-   |     request/:id/response       |                                |
-   |  → { encryptedResponse }       |                                |
+   |                                |  8. Server auto-applies:       |
+   |                                |     releases escrow / submits  |
+   |                                |     rating / processes refund  |
+   |                                |                                |
+   |  9. Poll detects completion    |                                |
+   |  GET /v1/task/:id/status       |                                |
+   |------------------------------->|                                |
+   |  { status: "completed" }       |                                |
    |<-------------------------------|                                |
    |                                |                                |
-   |  7. Decrypt + complete API call|                                |
+   |  10. Browser updates UI:       |                                |
+   |      "Bitcoin released!" /     |                                |
+   |      "Rating submitted!"      |                                |
 ```
 
-- **QR payload is small**: `{ "v": 1, "t": "sign", "r": "uuid" }` — the mobile fetches the full request (including browser PGP key) from the server
-- **5-minute TTL** on signing requests (30s for auth type, when implemented)
-- **Response is PGP-encrypted** for the browser's public key — server cannot read it
-- **Polling every 2s** from browser
-- **Same relay endpoints** will handle auth type in the future — mobile routes by `t` field in QR
+### Key simplifications vs our original QR-based design
+- **No QR code** — server links browser and mobile by userId
+- **No PGP encryption of responses** — server handles the signature directly, browser never sees it
+- **No browser-side API call after signing** — server auto-applies the result
+- **Browser just polls for task completion** — much simpler than decrypting relay responses
+- **Push notifications** — user doesn't have to guess when to open mobile app
 
 ---
 
-## Unified Relay Endpoints (4 endpoints)
+## What we know about the endpoints
 
-These don't exist yet — **this is a spec for the backend team**. One relay system handles both signing and future auth.
+Confirmed by backend dev (exact paths/shapes TBD — these are our best guess based on his description):
 
-### `POST /v1/relay/request` (auth: desktop token, or unauthenticated for auth type)
-Create a relay request. Body:
-```json
-{
-  "type": "sign:rate | sign:releasePsbt | sign:escrowSetup | sign:refund | auth:desktop",
-  "payload": { ... },
-  "pgpPublicKey": "armored PGP public key (browser's key for encryption)"
-}
-```
-Returns: `{ requestId, expiresAt }`
+| Endpoint | Auth | Purpose |
+|----------|------|---------|
+| `POST /v1/task/create` | Desktop only (`isDesktop=true`) | Browser creates a signing task |
+| `GET /v1/pendingTasks` | Mobile only (`isDesktop=false`) | Mobile fetches tasks to sign |
+| `POST /v1/task/:id/sign` | Mobile only (`isDesktop=false`) | Mobile submits signature |
+| `GET /v1/task/:id/status` | Desktop only (`isDesktop=true`) | Browser polls for completion |
 
-- **Signing types** (`sign:*`): require desktop auth token. Payload contains signing-specific data.
-- **Auth type** (`auth:desktop`): no auth token needed (user isn't logged in yet). `pgpPublicKey` is the ephemeral D2 key from the auth handshake.
-- TTL: 5 minutes for signing, 30 seconds for auth (as per auth spec).
+### Task types (our expectation)
 
-### `GET /v1/relay/request/:id` (auth: mobile token)
-Fetch request details. For signing types, server verifies same userId. For auth type, any authenticated mobile user can fetch (they verify identity visually). Returns: `{ type, payload, pgpPublicKey, expiresAt }`
-
-### `POST /v1/relay/request/:id/response` (auth: mobile token)
-Submit response, PGP-encrypted for the requester's public key. Body: `{ encryptedResponse }`
-
-### `GET /v1/relay/request/:id/response` (auth: desktop token, or session-bound for auth)
-Requester polls this. Returns: `{ status: "pending" | "completed" | "expired", encryptedResponse? }`
-
-### Unified QR format
-```json
-{ "v": 1, "t": "sign", "r": "request-uuid" }   // Signing
-{ "v": 1, "t": "auth", "r": "request-uuid" }    // Auth (future)
-```
-Mobile scanner checks `t` field and routes to the correct flow.
+| Type | What browser sends | What mobile signs | Server auto-applies |
+|------|-------------------|-------------------|---------------------|
+| `releaseTransaction` | `{ type: "release", contractId }` | Signs the release PSBT with escrow key | Broadcasts release tx, completes contract |
+| `refundTransaction` | `{ type: "refund", offerId }` | Signs the refund PSBT with escrow key | Broadcasts refund tx |
+| `rateUser` | `{ type: "rate", contractId, rating: 1\|-1 }` | Bitcoin message signature over counterparty userId | Submits rating to contract |
+| `escrowSetup` | `{ type: "escrow", offerId }` | Derives escrow keypair from offer | Registers escrow pubkey + return address on the offer |
 
 ---
 
-## How Auth Will Use the Same Relay (Future)
+## What we build now (steps 5.1–5.2)
 
-When the auth protocol is confirmed, it slots into the same system:
+### 1. `createTask()` helper — mock for now, real POST later
 
-1. Browser generates ephemeral PGP keypair (D1/D2) — no auth token yet
-2. `POST /v1/relay/request` with `type: "auth:desktop"`, `pgpPublicKey: D2` — unauthenticated
-3. QR: `{ "v": 1, "t": "auth", "r": "request-uuid" }`
-4. Mobile scans, fetches request, creates PACKAGE_1 (encrypted for D2) with xpub + PGP key + PMs
-5. `POST /v1/relay/request/:id/response` with encrypted PACKAGE_1
-6. Browser polls, decrypts PACKAGE_1 with D1, shows confirmation, sends ValidationPassword
-7. Server validates → issues auth token
-
-**Key differences from signing:**
-- Auth requests are **unauthenticated** (user isn't logged in yet)
-- TTL is **30 seconds** (not 5 minutes)
-- QR contains `"t": "auth"` instead of `"t": "sign"`
-- Any mobile user can fetch auth requests (identity verified visually, not by userId)
-- Response payload is much larger (xpub, PGP key, PMs vs a single signature)
-
-**No changes needed to relay endpoints** — the `type` field distinguishes the flows, and the server applies different validation rules per type.
-
----
-
-## What We Build on the Web Side
-
-### 1. `src/hooks/useSigningRelay.js` — signing lifecycle hook
+A simple async function added to `src/hooks/useApi.js`:
 
 ```js
-const {
-  requestSign,  // (type, payload) => starts the flow
-  status,       // "idle" | "waiting" | "complete" | "error" | "expired"
-  qrData,       // JSON string for QR code
-  result,       // decrypted signing result
-  error,        // error message
-  reset,        // clear state
-  cancel,       // stop polling
-} = useSigningRelay();
+// Mock mode: resolves immediately (the contract polling will detect the real change later)
+// Real mode (when backend ready): POST /v1/task/create { type, ...payload }
+async function createTask(post, type, payload) {
+  // TODO: replace with real endpoint when backend confirms shape
+  console.log('[createTask mock]', type, payload);
+  return { taskId: 'mock-' + Date.now() };
+}
 ```
 
-Internal flow:
-1. `requestSign()` → POST to server → get requestId → derive PGP pubkey from `auth.pgpPrivKey` → set qrData → start polling
-2. Poll every 2s → on response → decrypt with `decryptPGPMessage()` → set result
-3. On 5min timeout → set expired
+### 2. `src/components/MobileSigningModal.jsx` — waiting overlay
 
-### 2. `src/components/SigningModal.jsx` — reusable modal
+Props: `{ open, title, description, onCancel }`
 
-Props: `{ type, payload, title, description, onComplete, onCancel }`
+Reuse the existing `ConfirmModal` pattern from `trade-execution/components.jsx` (lines 720-770):
+- `position: fixed; inset: 0; zIndex: 500`
+- Background: `rgba(43,25,17,.6)`
+- Animation: `modalIn .18s ease`
 
-UI states:
-- **Waiting**: QR code + "Scan with Peach mobile app" + countdown ring + cancel button
-- **Complete**: Green checkmark → auto-close after 1.5s → calls `onComplete(result)`
-- **Expired**: "QR expired" + retry button
-- **Error**: Error message + retry button
+UI:
+- Phone icon (SVG) + "Approve on your Peach mobile app" heading
+- Description text (e.g., "A push notification has been sent to your phone")
+- Animated spinner (reuse existing `@keyframes spin` from global.css)
+- Cancel button
 
-QR rendering: reuse existing `qrcodejs` CDN pattern from `trade-execution/components.jsx`
+Styling: `const css` string, existing design tokens only.
 
-Styling: `const css` string, existing design tokens only
+### 3. Contract polling after task creation
 
-### 3. Integration into existing screens
+**Important finding:** Contract status is NOT currently auto-polled — only chat polls every 5s. After creating a signing task, we need to poll the contract to detect when the mobile has signed and the server has applied the result.
 
-**Rating** (`trade-execution/index.jsx`):
-- `RatingPanel.onRate` → open `SigningModal` type="rate"
-- On complete → `POST /contract/:id/user/rate` with `{ rating: 1|-1, signature }`
+Add a `useEffect` in `trade-execution/index.jsx` that:
+- Activates when `showSigningModal === true`
+- Polls `GET /contract/:id` every 3-5s
+- Compares `liveContract.tradeStatus` to detect the change
+- When status changes → close modal, update `liveContract`, stop polling
+- Clean up interval on unmount or modal close
 
-**Seller release** (`trade-execution/index.jsx`):
-- Replace the "requires mobile" error message at `action === "release_bitcoin"`
-- Open `SigningModal` type="releasePsbt" with contract's PSBT data
-- On complete → `POST /contract/:id/payment/confirm` with `{ releaseTransaction }`
+### 4. Integration into existing screens
 
-**Refund** (`trade-execution/index.jsx`):
-- Fetch unsigned PSBT from `GET /offer/:id/refundPsbt`
-- Open `SigningModal` type="refund"
-- On complete → `POST /offer/:id/refund` with `{ tx: signedTxHex }`
+**Rating** (`trade-execution/index.jsx` line ~953, `components.jsx` lines 1206-1257):
+- Replace `onRate={(r) => console.log("rated:", r)}` with:
+  ```js
+  onRate={async (r) => {
+    const rating = r === 5 ? 1 : -1;  // Map UI values to API values
+    await createTask(post, "rate", { contractId: routeId, rating });
+    setSigningModal({ title: "Sign Rating", description: "..." });
+  }}
+  ```
+- Contract polling detects `rateUser` → `tradeCompleted` → close modal
 
-**Sell offer** (`offer-creation/index.jsx`):
-- Before submitting sell offer, open `SigningModal` type="escrowSetup"
-- Mobile derives escrow keypair, returns `{ escrowPublicKey, returnAddress }`
-- Browser submits `POST /v069/sellOffer` with those values
+**Seller release** (`trade-execution/index.jsx` lines 881-883):
+- Replace `setActionError("Releasing Bitcoin requires...")` with:
+  ```js
+  await createTask(post, "release", { contractId: routeId });
+  setSigningModal({ title: "Release Bitcoin", description: "..." });
+  ```
+- Contract polling detects `releaseEscrow` → `payoutPending` → close modal
+
+**Refund** (`trade-execution/index.jsx` lines 855-857):
+- Replace `setActionError("Refund requires...")` with:
+  ```js
+  await createTask(post, "refund", { contractId: routeId });
+  setSigningModal({ title: "Refund Escrow", description: "..." });
+  ```
+- Contract polling detects refund status change → close modal
+
+**Sell offer** (`offer-creation/index.jsx` line ~187):
+- Deferred — sell offer flow needs more design (no existing polling, different screen). Wire the other 3 first.
 
 ---
 
-## What the Mobile App Needs
+## Auth handshake (separate system — still uses QR)
 
-1. **Extend QR scanner** — detect `"t": "sign"` and route to signing flow (vs auth flow)
-2. **Fetch request** — `GET /v1/relay/request/:id` to get type + payload + browser PGP key
-3. **Confirmation UI per type** — show human-readable summary of what's being signed
-4. **Sign + encrypt + upload** — perform Bitcoin signing, encrypt result for browser's PGP key, POST response
-5. **Reuse existing mobile signing code**:
+Auth is a different flow because the browser isn't logged in yet. It still follows the QR-based protocol from `peach-web-auth-analysis.md`:
+
+1. Browser generates ephemeral PGP keypair (D1/D2)
+2. Browser requests Desktop Connection from server (unauthenticated)
+3. QR displayed with connection ID + D2 public key
+4. Mobile scans, sends encrypted auth package via server
+5. Browser polls, decrypts, validates
+6. Server issues JWT with `isDesktop=true`
+
+**Auth and signing are separate systems.** Auth uses QR (must — no existing session). Signing uses server-linked pending tasks (can — both sides already authenticated).
+
+---
+
+## What the mobile app needs
+
+1. **Poll or receive push for `/pendingTasks`** — show pending tasks in-app
+2. **Confirmation UI per task type** — human-readable summary ("Release 250,000 sats for contract X?")
+3. **Sign + submit** — use existing signing code, POST result to `/v1/task/:id/sign`
+4. **Reuse existing mobile signing code**:
    - `createUserRating.ts` for rating
    - `useConfirmPaymentSeller.tsx` for PSBT release
    - `useRefundSellOffer.tsx` for refund PSBT
@@ -206,12 +208,12 @@ Styling: `const css` string, existing design tokens only
 
 ## Security
 
-- **PGP-encrypted responses** — server relays but can't read the signature
-- **Request bound to userId** — only the same user's mobile can fetch/respond
-- **5-minute TTL** — stale requests expire
-- **Mobile verifies independently** — mobile fetches contract/offer details from server to cross-check the payload, not trusting browser blindly
-- **Browser signs the payload** — PGP signature over the request payload so mobile can verify it wasn't tampered with in transit
-- **Rate limiting** — max 5 active signing requests per user
+- **Tasks bound to userId** — server creates task under the desktop token's userId, only the same userId's mobile can see/sign it
+- **`isDesktop` flag in JWT** — prevents browser from calling mobile endpoints and vice versa
+- **Mobile verifies independently** — mobile should fetch contract/offer details from server to cross-check task data
+- **Server validates signature** — server applies the signature only if it's valid
+- **TTL on tasks** — pending tasks expire after a reasonable window
+- **Push notifications** — user is actively alerted, not relying on manual polling
 
 ---
 
@@ -219,30 +221,50 @@ Styling: `const css` string, existing design tokens only
 
 | Step | What | Who | Effort |
 |------|------|-----|--------|
-| **5.1** | Build `useSigningRelay` hook + `SigningModal` component (with mock responses for testing) | Web (us) | ~1 session |
-| **5.2** | Wire rating — first ask backend if PGP sig works; if not, integrate SigningModal | Web (us) | ~0.5 session |
-| **5.3** | Wire seller release + refund into SigningModal | Web (us) | ~0.5 session |
-| **5.4** | Wire sell offer creation into SigningModal | Web (us) | ~0.5 session |
-| **5.5** | Implement 4 server endpoints | Backend team | ~2-3 sessions |
-| **5.6** | Implement "Scan to Sign" on mobile | Mobile team | ~2-3 sessions |
-| **5.7** | End-to-end testing on regtest | All | ~1 session |
+| **5.1** | Build `MobileSigningModal` + `createTask` helper (with mock mode) | Web (us) | ~0.5 session |
+| **5.2** | Wire all 4 features into existing screens | Web (us) | ~1 session |
+| **5.3** | Implement server endpoints + push notifications | Backend team | ~2-3 sessions |
+| **5.4** | Implement pending tasks UI + signing on mobile | Mobile team | ~2-3 sessions |
+| **5.5** | End-to-end testing on regtest | All | ~1 session |
 
-**We can build steps 5.1–5.4 now** (browser side) with mock server responses, so it's ready to go when the backend + mobile pieces land.
+**We can build steps 5.1–5.2 now** with mock task responses, so it's ready when backend + mobile land. The browser work is very light — just one modal component + one POST call per feature.
 
 ---
 
-## Files to Create
-- `src/hooks/useSigningRelay.js`
-- `src/components/SigningModal.jsx`
+## What we build now (this session)
 
-## Files to Modify
-- `src/screens/trade-execution/index.jsx` — rating, seller release, refund handlers
-- `src/screens/trade-execution/components.jsx` — RatingPanel signing state
-- `src/screens/offer-creation/index.jsx` — sell offer submission flow
+### Step 1: `MobileSigningModal.jsx`
+- New file: `src/components/MobileSigningModal.jsx`
+- Phone icon SVG + spinner + title + description + cancel button
+- Reuse ConfirmModal overlay pattern (fixed, z-500, backdrop blur)
+
+### Step 2: Mock `createTask()` + state in trade execution
+- Add mock `createTask()` in `src/hooks/useApi.js`
+- Add `signingModal` state to `trade-execution/index.jsx`
+- Add contract polling `useEffect` that activates when modal is open
+
+### Step 3: Wire the 3 trade execution integration points
+- `release_bitcoin` → createTask + show modal (lines 881-883)
+- `refund_escrow` → createTask + show modal (lines 855-857)
+- `onRate` → createTask + show modal (line 953)
+
+### Step 4 (deferred): Sell offer — needs separate design pass
+
+## Files to create
+- `src/components/MobileSigningModal.jsx`
+
+## Files to modify
+- `src/hooks/useApi.js` — add mock `createTask()` helper
+- `src/screens/trade-execution/index.jsx` — 3 action handlers + signing modal state + contract polling
+
+## Open questions for backend dev (not blocking current work)
+- Exact endpoint path and request/response shape for task creation
+- Task types: are they the 4 we expect (release, refund, rate, escrow)?
+- Does the mobile get the full signing data from `/pendingTasks`, or does it fetch it separately?
 
 ## Verification
-1. Build `useSigningRelay` + `SigningModal` with a mock mode that simulates server responses
-2. Click "Rate" → see QR modal → mock response returns → rating API call fires
-3. Click "Release Bitcoin" → see QR modal → mock response → payment confirm fires
-4. Submit sell offer → see QR modal → mock response → sell offer API call fires
-5. When backend + mobile are ready: end-to-end test on regtest
+1. `npm run dev` — app builds without errors
+2. Navigate to a trade with `releaseEscrow` status → click "Release Bitcoin" → signing modal appears with phone icon + spinner
+3. Navigate to a trade with `rateUser` status → click rating → signing modal appears
+4. Cancel button closes the modal
+5. When backend lands: swap mock `createTask()` for real POST, test end-to-end

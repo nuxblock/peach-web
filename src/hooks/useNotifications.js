@@ -105,7 +105,10 @@ async function _poll(auth, base) {
       : [];
     const buyOffers  = buyRes  ? (Array.isArray(buyRes)  ? buyRes  : (buyRes.offers ?? []))  : [];
     const sellOffers = sellRes ? (Array.isArray(sellRes) ? sellRes : (sellRes.offers ?? [])) : [];
-    const allOffers  = [...buyOffers, ...sellOffers];
+    const allOffers  = [
+      ...buyOffers.map(o => ({ ...o, _dir: "buy" })),
+      ...sellOffers.map(o => ({ ...o, _dir: "sell" })),
+    ];
 
     // ── First poll = baseline only ──
     if (_isFirstPoll) {
@@ -170,9 +173,12 @@ async function _poll(auth, base) {
 
       if (prev && prev !== status && STATUS_NOTIF[status]) {
         const sn = STATUS_NOTIF[status];
+        const body = (o._dir === "sell" && (status === "fundEscrow" || status === "waitingForFunding"))
+          ? "Waiting for you to fund escrow."
+          : sn.body;
         events.push(_makeNotif(
           `o-${o.id}-${status}-${now}`, sn.type,
-          `${sn.title}: offer ${fmtId}`, sn.body, null, o.id
+          `${sn.title}: offer ${fmtId}`, body, null, o.id
         ));
       } else if (!prev && STATUS_NOTIF[status]) {
         // New offer appeared — skip, it's the user's own action

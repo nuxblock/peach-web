@@ -279,6 +279,7 @@ Items that don't add new API wiring but improve existing screens.
 - **Copy buttons mobile layout** — "Copy Address" and "Copy BTC" buttons don't render well on mobile.
 - **Escrow funding timer (buyer POV)** — countdown at "Waiting for escrow" stage. `instantTrade` determines duration (1H instant, 12H normal). Source: `SellOffer.funding.expiry`.
 - **Escrow funding timer (seller POV)** — big, prominent countdown for how long seller has left to fund. Same data source.
+- **/totest — Rating modal** — `MobileSigningModal` wired to `RatingPanel.onRate`. Mock `createTask("rate", ...)` fires, modal appears. Needs real regtest trade in `rateUser` status to test. Verify: select rating → submit → modal shows → cancel closes it.
 
 ---
 

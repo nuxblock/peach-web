@@ -32,6 +32,24 @@ export function clearCache(key) {
   if (key) delete window.__PEACH_CACHE__[key];
   else window.__PEACH_CACHE__ = {};
 }
+
+/**
+ * createTask — request a mobile signing action via the server.
+ *
+ * When the backend endpoint is ready, this will POST to /v1/task/create.
+ * For now it's a mock that logs to console and returns a fake taskId.
+ *
+ * @param {Function} post - the post() function from useApi()
+ * @param {string}   type - task type: "release" | "refund" | "rate" | "escrow"
+ * @param {object}   payload - task-specific data (e.g. { contractId })
+ * @returns {Promise<{taskId: string}>}
+ */
+export async function createTask(post, type, payload) {
+  // TODO: replace with real endpoint when backend confirms shape
+  // return post('/task/create', { type, ...payload }).then(r => r.json());
+  console.log('[createTask mock]', type, payload);
+  return { taskId: 'mock-' + Date.now() };
+}
 export function useApi() {
   const auth = window.__PEACH_AUTH__ ?? null;
   const base = auth?.baseUrl ?? import.meta.env.VITE_API_BASE;

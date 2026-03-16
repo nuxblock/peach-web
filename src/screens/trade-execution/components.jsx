@@ -982,7 +982,7 @@ function DisputeBanner({ scenario, onAction }) {
 }
 
 // ─── ACTION BUTTONS ───────────────────────────────────────────────────────────
-export function ActionPanel({ scenario, onAction, showPostCancel = false }) {
+export function ActionPanel({ scenario, onAction, showPostCancel = false, pendingTask = null, onPendingClick = null }) {
   const { tradeStatus: status, role } = scenario;
   const [showConfirm, setShowConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -995,6 +995,16 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false }) {
       onMouseEnter={e => { e.currentTarget.style.filter="brightness(0.92)"; e.currentTarget.style.transform="translateY(-1px)"; }}
       onMouseLeave={e => { e.currentTarget.style.filter=""; e.currentTarget.style.transform=""; }}
     >{label}</button>
+  );
+
+  const PendingBtn = ({ label }) => (
+    <button
+      className="action-btn"
+      style={{ background:"#FFF4EC", color:"#F56522", border:"1.5px dashed #F56522", cursor:"pointer" }}
+      onClick={onPendingClick}
+      onMouseEnter={e => { e.currentTarget.style.filter="brightness(0.95)"; }}
+      onMouseLeave={e => { e.currentTarget.style.filter=""; }}
+    >📱 {label}</button>
   );
 
   const BtnGrad = ({ label, onClick }) => (
@@ -1101,10 +1111,14 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false }) {
         {/* Seller: confirm receipt → releases bitcoin */}
         {(status === "confirmPaymentRequired" || status === "releaseEscrow") && role === "seller" && <>
           <div className="action-hint">The buyer has marked the payment as sent. Check your account and confirm once the funds have arrived.</div>
-          <SlideToConfirm
-            label="I've received the payment"
-            onConfirm={() => setShowConfirm(true)}
-          />
+          {pendingTask === "release" ? (
+            <PendingBtn label="Release pending in mobile app"/>
+          ) : (
+            <SlideToConfirm
+              label="I've received the payment"
+              onConfirm={() => setShowConfirm(true)}
+            />
+          )}
           <Btn label="Open Dispute" bg="#FFF0EE" color="#DF321F" onClick={() => onAction("dispute")}/>
         </>}
 
@@ -1155,10 +1169,14 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false }) {
             label="Re-publish Offer"
             onConfirm={() => onAction("republish_offer")}
           />
-          <SlideToConfirm
-            label="Refund Escrow"
-            onConfirm={() => onAction("refund_escrow")}
-          />
+          {pendingTask === "refund" ? (
+            <PendingBtn label="Refund pending in mobile app"/>
+          ) : (
+            <SlideToConfirm
+              label="Refund Escrow"
+              onConfirm={() => onAction("refund_escrow")}
+            />
+          )}
         </>}
 
         {/* Payment too late — buyer POV */}
@@ -1192,9 +1210,9 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false }) {
           <DisputeBanner scenario={scenario} onAction={onAction} />
         )}
 
-        {/* Cancel trade — available during active trade phases (not during dispute/cancel/completed) */}
+        {/* Cancel trade — available during active trade phases for buyer only (seller cancels at offer level or via dispute) */}
         {["paymentRequired", "confirmPaymentRequired", "fundEscrow", "createEscrow", "waitingForFunding", "escrowWaitingForConfirmation"].includes(status)
-          && !scenario.disputeActive && (
+          && role === "buyer" && !scenario.disputeActive && (
           <Btn label="Cancel Trade" bg="#FFF0EE" color="#DF321F" onClick={() => setShowCancelConfirm(true)}/>
         )}
       </div>
@@ -1203,18 +1221,35 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false }) {
 }
 
 // ─── RATING PANEL ────────────────────────────────────────────────────────────
-export function RatingPanel({ counterparty, onRate }) {
+export function RatingPanel({ counterparty, onRate, pending, onPendingClick }) {
   const [rating, setRating] = useState(null);
   const [submitted, setSubmitted] = useState(false);
 
-  if (submitted) {
+  if (submitted || pending) {
     return (
       <div style={{
         textAlign:"center", padding:"20px 0",
-        fontSize:".9rem", color:"#65A519", fontWeight:700,
+        fontSize:".9rem", color: pending ? "#F56522" : "#65A519", fontWeight:700,
       }}>
-        <div style={{ fontSize:"1.5rem", marginBottom:8 }}>✓</div>
-        Rating submitted. Thanks!
+        {pending ? (
+          <>
+            <div style={{ fontSize:"1.5rem", marginBottom:8 }}>📱</div>
+            Rating pending in mobile app
+            <div style={{ marginTop:12 }}>
+              <button onClick={onPendingClick} style={{
+                border:"1.5px dashed #F56522", background:"#FFF9F6",
+                borderRadius:999, fontFamily:"'Baloo 2',cursive",
+                fontWeight:700, fontSize:".82rem", color:"#F56522",
+                padding:"8px 20px", cursor:"pointer",
+              }}>📱 Open signing request</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize:"1.5rem", marginBottom:8 }}>✓</div>
+            Rating submitted. Thanks!
+          </>
+        )}
       </div>
     );
   }
