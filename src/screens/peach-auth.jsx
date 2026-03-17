@@ -35,9 +35,9 @@ const QRDisplay = ({ qrPayload, size = 189 }) => {
 };
 
 // ─── COUNTDOWN RING ───────────────────────────────────────────────────────────
-const CountdownRing = ({ secondsLeft, total=180, size=220 }) => {
+const CountdownRing = ({ secondsLeft, total=30, size=220 }) => {
   const r=size/2-5, circ=2*Math.PI*r, off=circ*(1-secondsLeft/total);
-  const urgent = secondsLeft<=30;
+  const urgent = secondsLeft<=10;
   return (
     <svg width={size} height={size} style={{position:"absolute",top:-8,left:-8,pointerEvents:"none"}}>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#EAE3DF" strokeWidth="3.5"/>
@@ -100,7 +100,7 @@ const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/
 
 export default function PeachAuth() {
   const navigate = useNavigate();
-  const TOTAL = 180;
+  const TOTAL = 30;
   const [allPrices,           setAllPrices]           = useState({ EUR: 87432 });
   const [availableCurrencies, setAvailableCurrencies] = useState(["EUR","CHF","GBP"]);
   const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
@@ -165,7 +165,7 @@ export default function PeachAuth() {
 
   const mins   = String(Math.floor(secsLeft/60)).padStart(2,"0");
   const secs_  = String(secsLeft%60).padStart(2,"0");
-  const urgent = secsLeft<=30 && phase==="waiting";
+  const urgent = secsLeft<=10 && phase==="waiting";
 
   // ─── SHARED TOPBAR ────────────────────────────────────────────────────────
   const Topbar = () => (
@@ -381,7 +381,7 @@ export default function PeachAuth() {
                   borderRadius:12,background:"#F4EEEB",border:"1px solid #EAE3DF"}}>
                   <span style={{fontSize:".95rem",flexShrink:0}}>🔒</span>
                   <span style={{fontSize:".72rem",color:"#7D675E",fontWeight:500,lineHeight:1.5}}>
-                    <strong style={{color:"#2B1911"}}>Connection codes</strong> are single-use and expire after <strong style={{color:"#2B1911"}}>3 minutes</strong>. Your keys never leave your device.
+                    <strong style={{color:"#2B1911"}}>Connection codes</strong> are single-use and expire after <strong style={{color:"#2B1911"}}>30 seconds</strong>. Your keys never leave your device.
                   </span>
                 </div>
 
@@ -680,7 +680,7 @@ export default function PeachAuth() {
                     {qrPhase==="error" ? "Connection failed" : "Scan with Peach"}
                   </div>
                   <div style={{fontSize:".73rem",color:"#C4B5AE",fontWeight:500}}>
-                    {qrPhase==="error" ? "Something went wrong" : "Valid for 3 minutes"}
+                    {qrPhase==="error" ? "Something went wrong" : "Valid for 30 seconds"}
                   </div>
                 </div>
 
@@ -704,7 +704,8 @@ export default function PeachAuth() {
                   <div style={{position:"relative"}}>
                     <CountdownRing secondsLeft={secsLeft} total={TOTAL} size={320}/>
                     <div style={{width:304,height:304,borderRadius:14,overflow:"hidden",
-                      position:"relative",boxShadow:"0 4px 24px rgba(43,25,17,.1)"}}>
+                      position:"relative",boxShadow:"0 4px 24px rgba(43,25,17,.1)",
+                      display:"flex",alignItems:"center",justifyContent:"center"}}>
                       <QRDisplay qrPayload={qrPayload} size={288}/>
                       {phase==="scanning" && (
                         <div style={{position:"absolute",inset:0,background:"rgba(255,249,246,.85)",

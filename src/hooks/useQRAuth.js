@@ -22,7 +22,7 @@ import {
 import * as openpgp from "openpgp";
 
 const POLL_INTERVAL = 2000;
-const TOTAL_SECONDS = 180;
+const TOTAL_SECONDS = 30;
 
 export function useQRAuth({ baseUrl }) {
   const [phase, setPhase] = useState("init"); // init|ready|decrypting|validating|verifying|success|error

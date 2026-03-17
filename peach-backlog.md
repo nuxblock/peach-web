@@ -31,6 +31,7 @@ These are completed and kept for reference.
 - ✅ **3.5 Pre-Contract Chat (v069)** — full chat UI in MatchesPopup and SentRequestPopup. Send/receive encrypted messages via `POST/GET /v069/{buyOffer|sellOffer}/:id/tradeRequestPerformed/chat`. Chat bubbles, input field, unread message counts on sent trade requests. (`trades-dashboard/MatchesPopup.jsx`, `trades-dashboard/index.jsx`)
 - ✅ **5.1 Mobile Signing Modal + createTask helper** — `MobileSigningModal` component (phone icon, spinner, "Confirm later in mobile" button). Mock `createTask()` in `useApi.js`. localStorage persistence for pending tasks across navigation. (`MobileSigningModal.jsx`, `useApi.js`)
 - ✅ **5.2 Wire signing into trade execution** — 3 action handlers (release, refund, rating) create pending tasks + show signing modal. Pending state buttons (dashed orange, tappable to re-open modal). Contract polling detects status change and clears pending state. Cancel Trade button hidden for seller. (`trade-execution/index.jsx`, `components.jsx`)
+- ✅ **3.6 Sell Offer Submission** — `POST /v1/offer` + `POST /v1/offer/:id/escrow` with version 2 non-hardened key derivation from xpub. Escrow key at `m/84'/{coin}'/3/{offerId}`, return address at `m/84'/{coin}'/1/{index}` (P2WPKH). Uses `@scure/bip32` + `@scure/btc-signer`. Blocked on `GET /v1/user/returnAddressIndex` endpoint. (`offer-creation/index.jsx`, `utils/escrow.js`)
 - ✅ **6.2 QR Auth Handshake** — real QR-based web-to-mobile authentication. Ephemeral PGP keypair → POST to `/v069/desktop/desktopConnection` → display QR → poll for mobile response → decrypt credentials → validate → PGP key verification → set `window.__PEACH_AUTH__`. Auto-refresh on expiry. Mobile view shows app instructions. "Can't scan?" shows connection ID. Dev auth kept as fallback. (`peach-auth.jsx`, `useQRAuth.js`, `pgp.js`)
 
 ---
@@ -97,14 +98,20 @@ These are completed and kept for reference.
 
 ### ~~3.5 Pre-Contract Chat (v069)~~ ✅
 
-### 3.6 Sell Offer Submission
-- **File**: `src/screens/peach-offer-creation.jsx`
-- **Endpoint**: `POST /v069/sellOffer`
-- **Requires**: `escrowPublicKey` and `releaseAddress` (Bitcoin key management dependency → Phase 5)
+### 3.6 Sell Offer Submission ✅ (partially — blocked on return address index endpoint)
+- **File**: `src/screens/offer-creation/index.jsx`, `src/utils/escrow.js`
+- **Endpoint**: `POST /v1/offer` (type: "ask") → `POST /v1/offer/:id/escrow` (two-step)
+- **Library**: `@scure/bip32` (key derivation), `@scure/btc-signer` (P2WPKH address encoding)
+- **Escrow key**: derived from xpub at `m/84'/{coin}'/3/{offerId}` (non-hardened, version 2 path). `version: 2` sent in escrow creation call so backend knows the derivation path.
+- **Return address**: derived from xpub at `m/84'/{coin}'/1/{index}` (non-hardened, P2WPKH). Index must increment per offer to avoid address reuse.
+- **Return address index**: currently derived by counting total sell offers (active from `GET /v069/sellOffer?ownOffers=true` + historical from `GET /v1/offers/summary` filtered to `type:"ask"`). Monotonically increasing, server-derived, no localStorage. ⚠️ Should eventually be replaced with `GET /v1/user/returnAddressIndex` (dedicated backend endpoint) for robustness — the count approach assumes the server never purges offer history.
+- **Network handling**: xpub prefix auto-detected (`xpub` → mainnet `bc1q`, `tpub` → regtest `bcrt1q`)
 
-### 3.7 Escrow Funding (sell offers)
-- **File**: `src/screens/peach-offer-creation.jsx`
-- Currently has a "Simulate funding (demo)" button. Needs real escrow address display + funding status polling.
+### 3.7 Escrow Funding (sell offers) ✅ (partially)
+- **File**: `src/screens/offer-creation/index.jsx`
+- Real escrow address + real QR code (bitcoin: URI with amount) now shown after offer + escrow creation.
+- Clipboard copy wired. "Simulate funding" button only shows when logged out.
+- **TODO**: Escrow funding status polling (`GET /v1/offer/:id/escrow`) — not yet wired. Currently the "Waiting for confirmation" spinner is static.
 
 ### 3.8 Create Multiple Offers
 - **File**: `src/screens/offer-creation/index.jsx`
@@ -187,8 +194,11 @@ Architecture confirmed with backend dev. No QR code for signing — server links
 - `POST /v1/task/create` (browser-exclusive) — create a signing task
 - `GET /v1/pendingTasks` (mobile-exclusive) — mobile fetches tasks to sign
 - `POST /v1/task/:id/sign` (mobile-exclusive) — mobile submits signature
+- `GET /v1/user/returnAddressIndex` — returns next unused index for return address derivation (needed for sell offers)
 - Server auto-applies signature (releases escrow, submits rating, etc.)
-- Push notification sent to mobile when task is created
+- Push notification sent to mobile when task is created (no QR for signing — device already paired from auth)
+- **Release + Rating bundled**: seller's release and rating are sent as one task to mobile. Mobile signs both (release PSBT + SHA256(userId)) in one interaction.
+- **Refund**: separate task type, same protocol
 - **Status**: Waiting on backend team to implement. Web side uses mock `createTask()` for now.
 
 ### 5.4 Mobile pending tasks UI (mobile team)
@@ -200,18 +210,18 @@ Architecture confirmed with backend dev. No QR code for signing — server links
 - Replace mock `createTask()` in `useApi.js` with real `POST /v1/task/create`
 - End-to-end testing on regtest
 
-### 5.6 Sell Offer Signing
-- Sell offer creation needs `escrowPublicKey` + `returnAddress` from mobile
-- Same pending task flow, but wired into `offer-creation/index.jsx`
-- Deferred — needs separate design pass (different screen, no existing polling)
+### ~~5.6 Sell Offer Signing~~ → Solved without mobile signing
+- Escrow public key now derived browser-side from xpub (non-hardened path `m/84'/{coin}'/3/{offerId}`, version 2)
+- Return address derived browser-side from xpub (`m/84'/{coin}'/1/{index}`, P2WPKH)
+- No mobile signing needed for sell offer creation
+- **Remaining blocker**: `GET /v1/user/returnAddressIndex` endpoint (backend team)
 
 ### Features unlocked by pending tasks
 | Feature | Task type | What mobile signs | Server auto-applies |
 |---------|-----------|-------------------|---------------------|
-| Seller payment release | `release` | Signs release PSBT with escrow key | Broadcasts release tx |
+| Seller payment release + Rating | `release` (bundled) | Signs release PSBT + signs SHA256(counterpartyUserId) | Broadcasts release tx + submits rating |
 | Refund | `refund` | Signs refund PSBT with escrow key | Broadcasts refund tx |
-| Rating | `rate` | Bitcoin message signature over counterparty userId | Submits rating to contract |
-| Sell offer creation | `escrow` | Derives escrow keypair from offer | Registers escrow pubkey + return address |
+| ~~Sell offer creation~~ | — | ~~No longer needs mobile~~ | ✅ Browser derives escrow key + return address from xpub |
 
 ---
 
@@ -229,7 +239,7 @@ Architecture confirmed with backend dev. No QR code for signing — server links
 |---------|---------|--------|
 | ~~Refund flow~~ | ~~PSBT signing~~ | ✅ Browser-side wired (mock). Waiting on backend endpoints (Phase 5.3) |
 | Wallet visualization | Needs UI design + bitcoinjs-lib for address derivation | xpub now available in `window.__PEACH_AUTH__.xpub` via QR auth |
-| Sell offer submission | Needs escrowPublicKey from mobile | Browser-side deferred (Phase 5.6). Waiting on backend endpoints |
+| ~~Sell offer submission~~ | ~~Needs escrowPublicKey from mobile~~ | ✅ Browser-side derivation (version 2 path). Blocked on `GET /v1/user/returnAddressIndex` endpoint |
 | ~~Seller release TX~~ | ~~Needs PSBT signing~~ | ✅ Browser-side wired (mock). Waiting on backend endpoints (Phase 5.3) |
 
 ---

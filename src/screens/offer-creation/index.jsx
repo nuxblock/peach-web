@@ -9,7 +9,7 @@ import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
 import { extractPMsFromProfile, isApiError, hashPaymentFields } from "../../utils/pgp.js";
-import { deriveEscrowPubKey } from "../../utils/escrow.js";
+import { deriveEscrowPubKey, deriveReturnAddress } from "../../utils/escrow.js";
 import { QRCodeSVG } from "qrcode.react";
 import { MOCK_SAVED_OFFER_PMS as MOCK_SAVED, MOCK_ESCROW } from "../../data/mockData.js";
 import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE_INIT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur } from "../../utils/format.js";
@@ -224,13 +224,29 @@ export default function OfferCreation({ initialType="buy" }) {
         try{
           const { meansOfPayment, paymentData } = await buildPaymentPayload();
 
-          // 1. POST /v1/offer — create sell offer
+          // 1. Derive return address from xpub at m/84'/{coin}'/1/{index}
+          // Index = total sell offers ever created (active + historical). Monotonically increasing.
+          const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
+          const [activeSellRes, historySellRes] = await Promise.all([
+            fetch(`${v069Base}/sellOffer?ownOffers=true`, { headers: { Authorization: `Bearer ${auth.token}` } }),
+            get('/offers/summary'),
+          ]);
+          const activeSell  = await activeSellRes.json().catch(()=>[]);
+          const historySell = await historySellRes.json().catch(()=>[]);
+          const activeCount  = Array.isArray(activeSell) ? activeSell.length : 0;
+          const historyCount = Array.isArray(historySell) ? historySell.filter(o => o.type === "ask").length : 0;
+          const addrIdx = activeCount + historyCount;
+          const returnAddress = deriveReturnAddress(auth.xpub, addrIdx);
+          console.log("[OfferCreation] Return address:", returnAddress, "at index", addrIdx, `(${activeCount} active + ${historyCount} history)`);
+
+          // 2. POST /v1/offer — create sell offer
           const offerRes = await post('/offer', {
             type: "ask",
             amount: form.amtFixed,
             premium: parseFloat(form.premium) || 0,
             meansOfPayment,
             paymentData,
+            returnAddress,
           });
           const offerData = await offerRes.json().catch(()=>null);
           if(!offerRes.ok){
