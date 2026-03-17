@@ -9,6 +9,8 @@ import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
 import { extractPMsFromProfile, isApiError, hashPaymentFields } from "../../utils/pgp.js";
+import { deriveEscrowPubKey } from "../../utils/escrow.js";
+import { QRCodeSVG } from "qrcode.react";
 import { MOCK_SAVED_OFFER_PMS as MOCK_SAVED, MOCK_ESCROW } from "../../data/mockData.js";
 import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE_INIT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur } from "../../utils/format.js";
 import { CSS } from "./styles.js";
@@ -37,6 +39,8 @@ export default function OfferCreation({ initialType="buy" }) {
   const [pmError,      setPmError]      = useState(false);
   const [publishing,   setPublishing]   = useState(false);
   const [publishError, setPublishError] = useState(null);
+  const [escrowAddress, setEscrowAddress] = useState(null);
+  const [sellOfferId,   setSellOfferId]   = useState(null);
 
   // ── FETCH LIVE SAVED PMs ──
   useEffect(() => {
@@ -144,7 +148,7 @@ export default function OfferCreation({ initialType="buy" }) {
 
   function setF(k,v){ setForm(f=>({...f,[k]:v})); }
   function reset(){
-    setStep(0);setDone(false);setEscrowFunded(false);setPublishError(null);setForm(initForm());
+    setStep(0);setDone(false);setEscrowFunded(false);setPublishError(null);setEscrowAddress(null);setSellOfferId(null);setForm(initForm());
   }
   function switchType(t){ setType(t); reset(); }
 
@@ -181,41 +185,98 @@ export default function OfferCreation({ initialType="buy" }) {
   const premOk = form.premium!=="";
   const configOk = amtOk&&payOk&&premOk;
 
+  // Build meansOfPayment + paymentData from selected PMs (shared by buy & sell)
+  async function buildPaymentPayload(){
+    const meansOfPayment = {};
+    for(const pm of selectedSaved){
+      const methodType = (pm.type||"").toLowerCase();
+      for(const cur of (pm.currencies||[])){
+        if(!meansOfPayment[cur]) meansOfPayment[cur] = [];
+        if(!meansOfPayment[cur].includes(methodType)) meansOfPayment[cur].push(methodType);
+      }
+    }
+    const paymentData = {};
+    for(const pm of selectedSaved){
+      const methodType = (pm.type||"").toLowerCase();
+      if(paymentData[methodType]) continue;
+      const details = pm.details || {};
+      const hashed = await hashPaymentFields(methodType, details, details.country);
+      Object.assign(paymentData, hashed);
+    }
+    return { meansOfPayment, paymentData };
+  }
+
   async function handleNext(){
     if(step===0){ setStep(1); setPublishError(null); return; }
     if(step===1){
-      if(isSell){ setStep(2); return; }
+
+      // ── SELL OFFER SUBMISSION ──
+      if(isSell){
+        if(!auth){ setStep(2); return; } // mock mode when logged out
+
+        if(!auth.xpub){
+          setPublishError("No xpub available — please re-authenticate");
+          return;
+        }
+
+        setPublishing(true);
+        setPublishError(null);
+        try{
+          const { meansOfPayment, paymentData } = await buildPaymentPayload();
+
+          // 1. POST /v1/offer — create sell offer
+          const offerRes = await post('/offer', {
+            type: "ask",
+            amount: form.amtFixed,
+            premium: parseFloat(form.premium) || 0,
+            meansOfPayment,
+            paymentData,
+          });
+          const offerData = await offerRes.json().catch(()=>null);
+          if(!offerRes.ok){
+            throw new Error(offerData?.error || offerData?.message || `Server error ${offerRes.status}`);
+          }
+
+          const newOfferId = offerData.offerId || offerData.id;
+          console.log("[OfferCreation] Sell offer created:", newOfferId);
+
+          // 2. Derive escrow public key (non-hardened: /3/{offerId})
+          const pubKeyHex = deriveEscrowPubKey(auth.xpub, Number(newOfferId));
+          console.log("[OfferCreation] Derived escrow pubkey:", pubKeyHex);
+
+          // 3. POST /v1/offer/:id/escrow — register key, get escrow address
+          const escrowRes = await post(`/offer/${newOfferId}/escrow`, {
+            publicKey: pubKeyHex,
+            version: 2,
+          });
+          const escrowData = await escrowRes.json().catch(()=>null);
+          if(!escrowRes.ok){
+            throw new Error(escrowData?.error || escrowData?.message || `Escrow creation failed ${escrowRes.status}`);
+          }
+
+          console.log("[OfferCreation] Escrow created:", escrowData);
+          setSellOfferId(newOfferId);
+          setEscrowAddress(escrowData.escrow);
+          setStep(2);
+        }catch(err){
+          console.error("[OfferCreation] Sell offer failed:", err);
+          setPublishError(err.message || "Failed to publish sell offer");
+        }finally{
+          setPublishing(false);
+        }
+        return;
+      }
 
       // ── BUY OFFER SUBMISSION ──
       if(!auth){
-        // Not logged in — just show success (mock mode)
         setDone(true); return;
       }
 
       setPublishing(true);
       setPublishError(null);
       try{
-        // 1. Build meansOfPayment: { "EUR": ["revolut","sepa"], "GBP": ["revolut"] }
-        const meansOfPayment = {};
-        for(const pm of selectedSaved){
-          const methodType = (pm.type||"").toLowerCase();
-          for(const cur of (pm.currencies||[])){
-            if(!meansOfPayment[cur]) meansOfPayment[cur] = [];
-            if(!meansOfPayment[cur].includes(methodType)) meansOfPayment[cur].push(methodType);
-          }
-        }
+        const { meansOfPayment, paymentData } = await buildPaymentPayload();
 
-        // 2. Build paymentData (hashed PM fields per method type)
-        const paymentData = {};
-        for(const pm of selectedSaved){
-          const methodType = (pm.type||"").toLowerCase();
-          if(paymentData[methodType]) continue; // already hashed this type
-          const details = pm.details || {};
-          const hashed = await hashPaymentFields(methodType, details, details.country);
-          Object.assign(paymentData, hashed);
-        }
-
-        // 3. POST to v069/buyOffer
         const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
         const res = await fetch(`${v069Base}/buyOffer`, {
           method: 'POST',
@@ -688,8 +749,12 @@ export default function OfferCreation({ initialType="buy" }) {
                   </div>
                   <label className="field-label" style={{marginBottom:6}}>Escrow address</label>
                   <div className="escrow-addr"
-                    onClick={()=>{setCopiedAddr(true);setTimeout(()=>setCopiedAddr(false),2000);}}>
-                    {MOCK_ESCROW}
+                    onClick={()=>{
+                      const addr = escrowAddress || MOCK_ESCROW;
+                      navigator.clipboard.writeText(addr).catch(()=>{});
+                      setCopiedAddr(true);setTimeout(()=>setCopiedAddr(false),2000);
+                    }}>
+                    {escrowAddress || MOCK_ESCROW}
                   </div>
                   <div style={{fontSize:".7rem",fontWeight:700,color:"var(--success)",
                     minHeight:18,marginTop:4,marginBottom:20}}>
@@ -699,100 +764,10 @@ export default function OfferCreation({ initialType="buy" }) {
                   <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
                     <div style={{padding:12,background:"white",borderRadius:12,
                       border:"1px solid var(--black-10)",display:"inline-block"}}>
-                      <svg width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        {/* Outer border squares */}
-                        <rect x="8" y="8" width="38" height="38" rx="4" fill="none" stroke="#2B1911" strokeWidth="4"/>
-                        <rect x="16" y="16" width="22" height="22" rx="2" fill="#2B1911"/>
-                        <rect x="94" y="8" width="38" height="38" rx="4" fill="none" stroke="#2B1911" strokeWidth="4"/>
-                        <rect x="102" y="16" width="22" height="22" rx="2" fill="#2B1911"/>
-                        <rect x="8" y="94" width="38" height="38" rx="4" fill="none" stroke="#2B1911" strokeWidth="4"/>
-                        <rect x="16" y="102" width="22" height="22" rx="2" fill="#2B1911"/>
-                        {/* Data modules — center area */}
-                        <rect x="54" y="8" width="6" height="6" fill="#2B1911"/>
-                        <rect x="62" y="8" width="6" height="6" fill="#2B1911"/>
-                        <rect x="70" y="8" width="6" height="6" fill="#2B1911"/>
-                        <rect x="78" y="8" width="6" height="6" fill="#2B1911"/>
-                        <rect x="54" y="16" width="6" height="6" fill="#2B1911"/>
-                        <rect x="70" y="16" width="6" height="6" fill="#2B1911"/>
-                        <rect x="54" y="24" width="6" height="6" fill="#2B1911"/>
-                        <rect x="62" y="24" width="6" height="6" fill="#2B1911"/>
-                        <rect x="78" y="24" width="6" height="6" fill="#2B1911"/>
-                        <rect x="54" y="32" width="6" height="6" fill="#2B1911"/>
-                        <rect x="70" y="32" width="6" height="6" fill="#2B1911"/>
-                        <rect x="54" y="40" width="6" height="6" fill="#2B1911"/>
-                        <rect x="62" y="40" width="6" height="6" fill="#2B1911"/>
-                        <rect x="70" y="40" width="6" height="6" fill="#2B1911"/>
-                        <rect x="78" y="40" width="6" height="6" fill="#2B1911"/>
-                        {/* Left column data */}
-                        <rect x="8" y="54" width="6" height="6" fill="#2B1911"/>
-                        <rect x="16" y="54" width="6" height="6" fill="#2B1911"/>
-                        <rect x="32" y="54" width="6" height="6" fill="#2B1911"/>
-                        <rect x="40" y="54" width="6" height="6" fill="#2B1911"/>
-                        <rect x="8" y="62" width="6" height="6" fill="#2B1911"/>
-                        <rect x="24" y="62" width="6" height="6" fill="#2B1911"/>
-                        <rect x="40" y="62" width="6" height="6" fill="#2B1911"/>
-                        <rect x="16" y="70" width="6" height="6" fill="#2B1911"/>
-                        <rect x="32" y="70" width="6" height="6" fill="#2B1911"/>
-                        <rect x="8" y="78" width="6" height="6" fill="#2B1911"/>
-                        <rect x="24" y="78" width="6" height="6" fill="#2B1911"/>
-                        <rect x="40" y="78" width="6" height="6" fill="#2B1911"/>
-                        <rect x="8" y="86" width="6" height="6" fill="#2B1911"/>
-                        <rect x="16" y="86" width="6" height="6" fill="#2B1911"/>
-                        <rect x="32" y="86" width="6" height="6" fill="#2B1911"/>
-                        {/* Center data modules */}
-                        <rect x="54" y="54" width="6" height="6" fill="#2B1911"/>
-                        <rect x="70" y="54" width="6" height="6" fill="#2B1911"/>
-                        <rect x="78" y="54" width="6" height="6" fill="#2B1911"/>
-                        <rect x="62" y="62" width="6" height="6" fill="#2B1911"/>
-                        <rect x="78" y="62" width="6" height="6" fill="#2B1911"/>
-                        <rect x="54" y="70" width="6" height="6" fill="#2B1911"/>
-                        <rect x="70" y="70" width="6" height="6" fill="#2B1911"/>
-                        <rect x="62" y="78" width="6" height="6" fill="#2B1911"/>
-                        <rect x="78" y="78" width="6" height="6" fill="#2B1911"/>
-                        <rect x="54" y="86" width="6" height="6" fill="#2B1911"/>
-                        <rect x="62" y="86" width="6" height="6" fill="#2B1911"/>
-                        <rect x="70" y="86" width="6" height="6" fill="#2B1911"/>
-                        {/* Right column data */}
-                        <rect x="94" y="54" width="6" height="6" fill="#2B1911"/>
-                        <rect x="110" y="54" width="6" height="6" fill="#2B1911"/>
-                        <rect x="126" y="54" width="6" height="6" fill="#2B1911"/>
-                        <rect x="94" y="62" width="6" height="6" fill="#2B1911"/>
-                        <rect x="118" y="62" width="6" height="6" fill="#2B1911"/>
-                        <rect x="102" y="70" width="6" height="6" fill="#2B1911"/>
-                        <rect x="126" y="70" width="6" height="6" fill="#2B1911"/>
-                        <rect x="94" y="78" width="6" height="6" fill="#2B1911"/>
-                        <rect x="110" y="78" width="6" height="6" fill="#2B1911"/>
-                        <rect x="118" y="78" width="6" height="6" fill="#2B1911"/>
-                        <rect x="102" y="86" width="6" height="6" fill="#2B1911"/>
-                        <rect x="126" y="86" width="6" height="6" fill="#2B1911"/>
-                        {/* Bottom data modules */}
-                        <rect x="54" y="94" width="6" height="6" fill="#2B1911"/>
-                        <rect x="70" y="94" width="6" height="6" fill="#2B1911"/>
-                        <rect x="78" y="94" width="6" height="6" fill="#2B1911"/>
-                        <rect x="54" y="102" width="6" height="6" fill="#2B1911"/>
-                        <rect x="62" y="102" width="6" height="6" fill="#2B1911"/>
-                        <rect x="78" y="102" width="6" height="6" fill="#2B1911"/>
-                        <rect x="70" y="110" width="6" height="6" fill="#2B1911"/>
-                        <rect x="78" y="110" width="6" height="6" fill="#2B1911"/>
-                        <rect x="54" y="118" width="6" height="6" fill="#2B1911"/>
-                        <rect x="62" y="118" width="6" height="6" fill="#2B1911"/>
-                        <rect x="78" y="118" width="6" height="6" fill="#2B1911"/>
-                        <rect x="54" y="126" width="6" height="6" fill="#2B1911"/>
-                        <rect x="70" y="126" width="6" height="6" fill="#2B1911"/>
-                        <rect x="78" y="126" width="6" height="6" fill="#2B1911"/>
-                        {/* Bottom right */}
-                        <rect x="94" y="94" width="6" height="6" fill="#2B1911"/>
-                        <rect x="110" y="94" width="6" height="6" fill="#2B1911"/>
-                        <rect x="126" y="94" width="6" height="6" fill="#2B1911"/>
-                        <rect x="102" y="102" width="6" height="6" fill="#2B1911"/>
-                        <rect x="118" y="102" width="6" height="6" fill="#2B1911"/>
-                        <rect x="94" y="110" width="6" height="6" fill="#2B1911"/>
-                        <rect x="110" y="110" width="6" height="6" fill="#2B1911"/>
-                        <rect x="126" y="110" width="6" height="6" fill="#2B1911"/>
-                        <rect x="102" y="118" width="6" height="6" fill="#2B1911"/>
-                        <rect x="94" y="126" width="6" height="6" fill="#2B1911"/>
-                        <rect x="118" y="126" width="6" height="6" fill="#2B1911"/>
-                      </svg>
+                      <QRCodeSVG
+                        value={`bitcoin:${escrowAddress || MOCK_ESCROW}?amount=${(form.amtFixed / 1e8).toFixed(8)}`}
+                        size={140} level="L" bgColor="white" fgColor="#2B1911"
+                      />
                     </div>
                   </div>
                   <label className="field-label" style={{marginBottom:6}}>Exact amount to send</label>
@@ -817,13 +792,15 @@ export default function OfferCreation({ initialType="buy" }) {
                       </div>
                     </div>
                   </div>
-                  <button onClick={()=>setEscrowFunded(true)} style={{
-                    width:"100%",padding:"10px",borderRadius:999,
-                    border:"1.5px solid var(--black-10)",background:"transparent",
-                    color:"var(--black-65)",fontFamily:"var(--font)",fontSize:".8rem",
-                    fontWeight:700,cursor:"pointer"}}>
-                    ⚡ Simulate funding (demo)
-                  </button>
+                  {!auth&&(
+                    <button onClick={()=>setEscrowFunded(true)} style={{
+                      width:"100%",padding:"10px",borderRadius:999,
+                      border:"1.5px solid var(--black-10)",background:"transparent",
+                      color:"var(--black-65)",fontFamily:"var(--font)",fontSize:".8rem",
+                      fontWeight:700,cursor:"pointer"}}>
+                      Simulate funding (demo)
+                    </button>
+                  )}
                 </>
               ):(
                 <div style={{display:"flex",flexDirection:"column",alignItems:"center",
