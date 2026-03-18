@@ -7,7 +7,7 @@ import { useApi } from "../hooks/useApi.js";
 import { extractPMsFromProfile, isApiError } from "../utils/pgp.js";
 import { getCached, setCache, clearCache } from "../hooks/useApi.js";
 import { MOCK_OFFERS, MOCK_USER_PMS as USER_PMS, MOCK_ALL_METHODS as ALL_METHODS } from "../data/mockData.js";
-import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat } from "../utils/format.js";
+import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat, formatTradeId } from "../utils/format.js";
 import { PeachRating } from "./trades-dashboard/components.jsx";
 
 /** Convert API rating (-1…+1) to Peach scale (0…5) */
@@ -134,11 +134,11 @@ const css = `
   .offer-table td:last-child{border-right:1px solid var(--black-10);border-radius:0 10px 10px 0}
 
   /* ── REP ── */
-  .rep-cell{display:flex;align-items:center;gap:8px}
-  .rep-avatar{width:34px;height:34px;border-radius:50%;flex-shrink:0;background:var(--grad);
-    display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;color:white;
+  .rep-cell{display:flex;flex-direction:column;gap:2px}
+  .rep-avatar{width:27px;height:27px;border-radius:50%;flex-shrink:0;background:var(--grad);
+    display:flex;align-items:center;justify-content:center;font-size:.56rem;font-weight:800;color:white;
     position:relative}
-  .rep-avatar .online-dot{position:absolute;bottom:0px;right:0px;width:9px;height:9px;
+  .rep-avatar .online-dot{position:absolute;bottom:0px;right:0px;width:7px;height:7px;
     border-radius:50%;background:var(--success);border:2px solid var(--surface)}
   .rep-info{display:flex;flex-direction:column;gap:2px}
   .rep-row{display:flex;align-items:center;gap:4px}
@@ -163,7 +163,7 @@ const css = `
     background:var(--primary-mild);border:1px solid rgba(245,101,34,.25);
     padding:1px 7px;border-radius:999px;white-space:nowrap;letter-spacing:.03em}
   .offer-id-label{font-size:.62rem;font-weight:600;color:var(--black-50);
-    font-family:monospace;white-space:nowrap;letter-spacing:.02em}
+    font-family:inherit;white-space:nowrap;letter-spacing:.02em;margin-bottom:-2px}
   /* mobile own card */
   .offer-card.own-card{border-left:3px solid var(--primary);background:linear-gradient(135deg,rgba(245,101,34,.04),var(--surface))}
   .my-offers-btn{padding:7px 16px;border-radius:999px;background:var(--surface);
@@ -203,7 +203,7 @@ const css = `
     background:var(--black-5);color:var(--black-65);border:1px solid var(--black-10)}
 
   /* ── CURRENCIES ── */
-  .currencies{display:flex;gap:3px;flex-wrap:wrap}
+  .currencies{display:grid;grid-template-columns:repeat(2,auto);gap:3px;justify-content:start}
   .currency-chip{padding:2px 7px;border-radius:4px;font-size:.69rem;font-weight:700;
     background:var(--primary-mild);color:var(--primary-dark);letter-spacing:.04em}
 
@@ -596,42 +596,44 @@ function MultiSelect({ label, options, value, onChange }) {
 
 const MAX_CHIPS = 4;
 function Chips({ items, className }) {
-  const visible = items.slice(0, MAX_CHIPS);
-  const extra = items.length - MAX_CHIPS;
+  const hasOverflow = items.length > MAX_CHIPS;
+  const visible = hasOverflow ? items.slice(0, MAX_CHIPS - 1) : items;
+  const extra = items.length - (MAX_CHIPS - 1);
   return <>
     {visible.map(v => <span key={v} className={className}>{v}</span>)}
-    {extra > 0 && <span className={className} style={{opacity:.55}}>+{extra}</span>}
+    {hasOverflow && <span className={className} style={{opacity:.55}}>+{extra}</span>}
   </>;
 }
 
-// isSellTab: when true, seller perspective → high premium is GOOD
-function PremiumCell({ p, isSellTab }) {
-  let cls;
-  if (p === 0)       cls = "prem-zero";
-  else if (isSellTab) cls = p > 0 ? "prem-good" : "prem-bad";
-  else                cls = p < 0 ? "prem-good" : "prem-bad";
-  return <span className={cls}>{p > 0 ? "+" : ""}{p.toFixed(2)}%</span>;
+// Premium color: seller perspective → high premium is GOOD
+function premiumCls(p, isSellTab) {
+  if (p === 0) return "prem-zero";
+  if (isSellTab) return p > 0 ? "prem-good" : "prem-bad";
+  return p < 0 ? "prem-good" : "prem-bad";
 }
 
 function RepCell({ offer }) {
   const initials = offer.id.toUpperCase().slice(0, 2);
   return (
     <div className="rep-cell">
-      <div className="rep-avatar">
-        {initials}
-        {offer.online && <span className="online-dot"/>}
-      </div>
-      <div className="rep-info">
-        <div className="rep-row">
-          <PeachRating rep={offer.rep} size={14}/>
-          <span className="rep-trades">({offer.trades})</span>
+      <span className="offer-id-label">{offer.tradeId}</span>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <div className="rep-avatar">
+          {initials}
+          {offer.online && <span className="online-dot"/>}
         </div>
-        {offer.badges.length > 0 && (
-          <div className="badges-row">
-            {offer.badges.includes("supertrader") && <span className="badge badge-super">🏆 Super</span>}
-            {offer.badges.includes("fast")        && <span className="badge badge-fast">⚡ Fast</span>}
+        <div className="rep-info">
+          <div className="rep-row">
+            <PeachRating rep={offer.rep} size={14}/>
+            <span className="rep-trades">({offer.trades})</span>
           </div>
-        )}
+          {offer.badges.length > 0 && (
+            <div className="badges-row">
+              {offer.badges.includes("supertrader") && <span className="badge badge-super">🏆 Super</span>}
+              {offer.badges.includes("fast")        && <span className="badge badge-fast">⚡ Fast</span>}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -652,12 +654,14 @@ function AmountCell({ offer, btcPrice, currency }) {
   );
 }
 
-function PriceCell({ offer, btcPrice, currency }) {
+function PriceCell({ offer, btcPrice, currency, isSellTab }) {
   const rate = Math.round(btcPrice * (1 + offer.premium / 100));
   const sym  = currSym(currency);
+  const p = offer.premium;
   return (
     <div className="price-cell">
       <span className="price-rate">{rate.toLocaleString("fr-FR")} {sym}</span>
+      <span className={premiumCls(p, isSellTab)}>{p > 0 ? "+" : ""}{p.toFixed(2)}%</span>
     </div>
   );
 }
@@ -840,15 +844,16 @@ export default function PeachMarket() {
   // ── Offer normalizers (stable references, used by fetchMarket + refresh) ──
   const peachId = auth?.peachId ?? null;
 
-  function normalizeOffer(o) {
+  function normalizeOffer(o, typeHint) {
     const currencies = o.meansOfPayment ? Object.keys(o.meansOfPayment) : [];
     const methods = o.meansOfPayment
       ? [...new Set(Object.values(o.meansOfPayment).flat())]
       : [];
     return {
-      id: o.id,
-      type: o.type,
-      amount: Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0),
+      id: String(o.id),
+      tradeId: formatTradeId(o.id, "offer"),
+      type: o.type ?? typeHint,
+      amount: o.amountSats ?? (Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0)),
       premium: o.premium ?? 0,
       methods,
       currencies,
@@ -865,9 +870,10 @@ export default function PeachMarket() {
     const methods = o.meansOfPayment ? Object.values(o.meansOfPayment).flat() : [];
     const currencies = o.meansOfPayment ? Object.keys(o.meansOfPayment) : [];
     return {
-      id: o.id,
+      id: String(o.id),
+      tradeId: formatTradeId(o.id, "offer"),
       type,
-      amount: Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0),
+      amount: o.amountSats ?? (Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0)),
       premium: o.premium ?? 0,
       methods: [...new Set(methods)],
       currencies,
@@ -882,53 +888,47 @@ export default function PeachMarket() {
 
   async function fetchMarket() {
     try {
-      const [bidsRes, asksRes] = await Promise.all([
-        post('/offer/search', { type: 'bid', size: 50 }),
-        post('/offer/search', { type: 'ask', size: 50 }),
-      ]);
-      if (!bidsRes.ok || !asksRes.ok) {
-        console.warn("[MarketView] offer/search status:", bidsRes.status, asksRes.status);
-      }
-      const [bids, asks] = await Promise.all([
-        bidsRes.ok ? bidsRes.json() : [],
-        asksRes.ok ? asksRes.json() : [],
-      ]);
-      const bidsArr = Array.isArray(bids) ? bids : bids?.offers ?? [];
-      const asksArr = Array.isArray(asks) ? asks : asks?.offers ?? [];
-      console.log("[MarketView] bids:", bidsArr.length, "asks:", asksArr.length);
-      if (bidsArr[0]) console.log("[MarketView] sample bid keys:", Object.keys(bidsArr[0]), "type:", bidsArr[0].type);
-      if (asksArr[0]) console.log("[MarketView] sample ask keys:", Object.keys(asksArr[0]), "type:", asksArr[0].type);
-      const all = [
-        ...bidsArr.map(normalizeOffer),
-        ...asksArr.map(normalizeOffer),
-      ];
-      console.log("[MarketView] normalized sample:", all[0]);
+      let all = [];
 
-      // Fetch own active offers from v069 (when authenticated)
       if (auth) {
-        try {
-          const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
-          const hdrs = { Authorization: `Bearer ${auth.token}` };
-          const [ownBuysRes, ownSellsRes] = await Promise.all([
-            fetch(`${v069Base}/buyOffer?ownOffers=true`, { headers: hdrs }),
-            fetch(`${v069Base}/sellOffer?ownOffers=true`, { headers: hdrs }),
-          ]);
-          const ownBuys  = ownBuysRes.ok  ? await ownBuysRes.json()  : [];
-          const ownSells = ownSellsRes.ok ? await ownSellsRes.json() : [];
-          const ownBuysArr  = Array.isArray(ownBuys)  ? ownBuys  : [];
-          const ownSellsArr = Array.isArray(ownSells) ? ownSells : [];
-          const ownOffers = [
-            ...ownBuysArr.map(o => normalizeOwnOffer(o, "bid")),
-            ...ownSellsArr.map(o => normalizeOwnOffer(o, "ask")),
-          ];
-          // Deduplicate: own offers take priority
-          const ownIds = new Set(ownOffers.map(o => o.id));
-          const deduped = all.filter(o => !ownIds.has(o.id));
-          all.splice(0, all.length, ...deduped, ...ownOffers);
-        } catch (err) {
-          console.warn("[MarketView] Own offers fetch failed:", err.message);
-        }
+        // Authenticated: use v069 endpoints (same as mobile app)
+        const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
+        const hdrs = { Authorization: `Bearer ${auth.token}` };
+        const [buyOffersRes, sellOffersRes] = await Promise.all([
+          fetch(`${v069Base}/buyOffer`, { headers: hdrs }),
+          fetch(`${v069Base}/sellOffer`, { headers: hdrs }),
+        ]);
+        const buyOffersJson  = buyOffersRes.ok  ? await buyOffersRes.json()  : {};
+        const sellOffersJson = sellOffersRes.ok ? await sellOffersRes.json() : {};
+        // v069 response: { offers: [...], stats: {...} }
+        const bidsArr = Array.isArray(buyOffersJson) ? buyOffersJson : buyOffersJson?.offers ?? [];
+        const asksArr = Array.isArray(sellOffersJson) ? sellOffersJson : sellOffersJson?.offers ?? [];
+        console.log("[MarketView] v069 bids:", bidsArr.length, "asks:", asksArr.length);
+        console.log("[MarketView] all bids:", bidsArr.map(o => ({ id: o.id, amount: o.amount, premium: o.premium })));
+        console.log("[MarketView] all asks:", asksArr.map(o => ({ id: o.id, amount: o.amount, premium: o.premium })));
+        all = [
+          ...bidsArr.map(o => normalizeOffer(o, "bid")),
+          ...asksArr.map(o => normalizeOffer(o, "ask")),
+        ];
+      } else {
+        // Not authenticated: use v1 public search
+        const [bidsRes, asksRes] = await Promise.all([
+          post('/offer/search', { type: 'bid', size: 50 }),
+          post('/offer/search', { type: 'ask', size: 50 }),
+        ]);
+        const [bids, asks] = await Promise.all([
+          bidsRes.ok ? bidsRes.json() : [],
+          asksRes.ok ? asksRes.json() : [],
+        ]);
+        const bidsArr = Array.isArray(bids) ? bids : bids?.offers ?? [];
+        const asksArr = Array.isArray(asks) ? asks : asks?.offers ?? [];
+        console.log("[MarketView] v1 bids:", bidsArr.length, "asks:", asksArr.length);
+        all = [
+          ...bidsArr.map(normalizeOffer),
+          ...asksArr.map(normalizeOffer),
+        ];
       }
+      console.log("[MarketView] normalized sample:", all[0]);
 
       setCache("market-offers", all);
       setLiveOffers(all);
@@ -1124,7 +1124,7 @@ export default function PeachMarket() {
           <div className="popup-header">
             <span className="popup-title">
               {isOwn ? "Your offer" : isReq ? "Trade requested" : "Offer details"}
-              <span className="offer-id-label" style={{marginLeft:8}}>#{offer.id.slice(0,8)}</span>
+              <span className="offer-id-label" style={{marginLeft:8}}>{offer.tradeId}</span>
             </span>
             <button className="popup-close" onClick={closePopup}>✕</button>
           </div>
@@ -1133,7 +1133,7 @@ export default function PeachMarket() {
           <div className="popup-body">
             {/* Peer row */}
             <div className="popup-peer-row">
-              <div className="rep-avatar" style={{width:38,height:38,fontSize:".75rem"}}>
+              <div className="rep-avatar" style={{width:30,height:30,fontSize:".6rem"}}>
                 {offer.id.toUpperCase().slice(0,2)}
                 {offer.online && <span className="online-dot"/>}
               </div>
@@ -1542,10 +1542,9 @@ export default function PeachMarket() {
               <table className="offer-table">
                 <thead>
                   <tr>
-                    <SortTh col="rep"     label="User" />
+                    <SortTh col="rep"     label="User & Trade ID" />
                     <SortTh col="amount"  label="Amount" />
-                    <th>Price (€ / BTC)</th>
-                    <SortTh col="premium" label="Premium" />
+                    <SortTh col="premium" label="Price" />
                     <th>Payment</th>
                     <th>Currencies</th>
                     <th></th>
@@ -1561,8 +1560,7 @@ export default function PeachMarket() {
                       style={{cursor: isLoggedIn ? "pointer" : "default"}} onClick={() => isLoggedIn && openPopup(offer)}>
                       <td><RepCell offer={offer}/></td>
                       <td><AmountCell offer={offer} btcPrice={btcPrice} currency={selectedCurrency}/></td>
-                      <td><PriceCell offer={offer} btcPrice={btcPrice} currency={selectedCurrency}/></td>
-                      <td><PremiumCell p={offer.premium} isSellTab={isSellTab}/></td>
+                      <td><PriceCell offer={offer} btcPrice={btcPrice} currency={selectedCurrency} isSellTab={isSellTab}/></td>
                       <td>
                         <div className="methods">
                           <Chips items={offer.methods} className="method-chip"/>
@@ -1575,7 +1573,6 @@ export default function PeachMarket() {
                       </td>
                       <td>
                         <div className="action-cell">
-                          <span className="offer-id-label">#{offer.id.slice(0,8)}</span>
                           {offer.isOwn && <span className="own-label">Your offer</span>}
                           {offer.auto && <span className="auto-badge">⚡ Instant Match</span>}
                           {offer.isOwn
@@ -1613,7 +1610,8 @@ export default function PeachMarket() {
             ) : displayOffers.map(offer => (
             <div key={offer.id} className={`offer-card${offer.isOwn?" own-card":""}${effectiveRequested.has(offer.id)&&!offer.auto&&!offer.isOwn?" requested-card":""}${undoAnim===offer.id?" undo-card":""}`}
               style={{cursor: isLoggedIn ? "pointer" : "default"}} onClick={() => isLoggedIn && openPopup(offer)}>
-                {/* Row 1: avatar · rep/badges (left) | action buttons (right) */}
+                {/* Row 1: tradeID + avatar · rep/badges (left) | action buttons (right) */}
+                <span className="offer-id-label">{offer.tradeId}</span>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <div className="rep-avatar" style={{flexShrink:0}}>
                     {offer.id.toUpperCase().slice(0,2)}
@@ -1627,7 +1625,6 @@ export default function PeachMarket() {
                     {offer.badges.includes("fast")&&<span className="badge badge-fast">⚡</span>}
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-                    <span className="offer-id-label">#{offer.id.slice(0,8)}</span>
                     {offer.auto&&<span className="auto-badge">⚡ Instant Match</span>}
                     {offer.isOwn
                       ? <button className="action-btn edit-btn">✏ Edit</button>

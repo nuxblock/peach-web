@@ -222,6 +222,11 @@ const IconChevronRight = () => (
     <polyline points="9 18 15 12 9 6"/>
   </svg>
 );
+const IconChevronLeft = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+);
 
 // ─── SETTINGS ROW ─────────────────────────────────────────────────────────────
 function SettingsRow({ label, description, icon, right, warning, onClick, noBorder }) {
@@ -345,16 +350,53 @@ function OutlineBtn({ label, onClick }) {
 // SUB-SCREENS
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Convert API rating (-1…+1) to Peach scale (0…5) */
+function toPeaches(apiRating) {
+  return (apiRating + 1) / 2 * 5;
+}
+
 function ProfileSubScreen({ onBack }) {
-  const auth = window.__PEACH_AUTH__;
+  const { get, auth, isLoggedIn } = useApi();
+  const liveProfile = auth?.profile ?? null;
+
+  // ── Profile fields — live when logged in, mock when logged out ──
   const peachId = auth?.peachId ? formatPeachId(auth.peachId) : "PEACH03CF9E9A";
-  const pubkey  = "03CF9E9A9DFB2951CEFC6107BCD63D963D85A00C50FCB93B7240C54C8E4053EEFA";
-  const badges  = ["supertrader ⭐", "fast trader ⚡", "early adopter 🐣"];
-  const rating  = 5.0;
-  const volumes = [
-    { label:"daily traded volume",              current:0,    max:1095,   currency:"EUR" },
-    { label:"monthly anonymous traded volume:", current:0,    max:1095,   currency:"EUR" },
-    { label:"yearly traded volume:",            current:4218, max:109501, currency:"EUR" },
+  const pubkey  = auth?.peachId ?? "03CF9E9A9DFB2951CEFC6107BCD63D963D85A00C50FCB93B7240C54C8E4053EEFA";
+  const badges  = isLoggedIn ? (liveProfile?.medals ?? liveProfile?.badges ?? []) : ["supertrader", "fast trader", "early adopter"];
+  const rating  = isLoggedIn ? toPeaches(liveProfile?.rating ?? 0) : 5.0;
+  const trades  = isLoggedIn ? (liveProfile?.trades ?? 0) : 40;
+
+  // ── Disputes — API returns number or object ──
+  const rawDisputes = liveProfile?.disputes;
+  const disputeObj = isLoggedIn
+    ? (typeof rawDisputes === "object" && rawDisputes
+        ? rawDisputes
+        : { opened: typeof rawDisputes === "number" ? rawDisputes : 0, won: 0, lost: 0, resolved: 0 })
+    : { opened: 2, won: 0, lost: 0, resolved: 0 };
+
+  // ── Account created ──
+  const creationDate = liveProfile?.creationDate ? new Date(liveProfile.creationDate) : null;
+  const createdStr = isLoggedIn
+    ? (creationDate
+        ? `${creationDate.toLocaleDateString("en-GB")} (${Math.floor((Date.now() - creationDate) / 86400000)} days ago)`
+        : "—")
+    : "02/09/2025 (183 days ago)";
+
+  // ── Trading limits (fetch from API) ──
+  const [liveLimit, setLiveLimit] = useState(null);
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    get("/user/tradingLimit").then(async r => { if (r.ok) setLiveLimit(await r.json()); });
+  }, [isLoggedIn]);
+
+  const volumes = isLoggedIn ? [
+    { label:"daily traded volume",            current: liveLimit?.dailyAmount ?? 0,              max: liveLimit?.daily ?? 1000,            currency:"CHF" },
+    { label:"monthly anonymous traded volume", current: liveLimit?.monthlyAnonymousAmount ?? 0,  max: liveLimit?.monthlyAnonymous ?? 1000, currency:"CHF" },
+    { label:"yearly traded volume",            current: liveLimit?.yearlyAmount ?? 0,             max: liveLimit?.yearly ?? 100000,         currency:"CHF" },
+  ] : [
+    { label:"daily traded volume",            current:0,    max:1095,   currency:"EUR" },
+    { label:"monthly anonymous traded volume", current:0,    max:1095,   currency:"EUR" },
+    { label:"yearly traded volume",            current:4218, max:109501, currency:"EUR" },
   ];
 
   return (
@@ -420,15 +462,17 @@ function ProfileSubScreen({ onBack }) {
       <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
         <div>
           <div style={{ fontSize:".72rem", color:"#7D675E" }}>account created:</div>
-          <div style={{ fontSize:".88rem", fontWeight:700, color:"#2B1911" }}>02/09/2025 (183 days ago)</div>
+          <div style={{ fontSize:".88rem", fontWeight:700, color:"#2B1911" }}>{createdStr}</div>
         </div>
         <div>
           <div style={{ fontSize:".72rem", color:"#7D675E" }}>disputes:</div>
-          <div style={{ fontSize:".88rem", fontWeight:700, color:"#2B1911" }}>2 opened &nbsp; 0 won &nbsp; 0 lost &nbsp; 0 resolved</div>
+          <div style={{ fontSize:".88rem", fontWeight:700, color:"#2B1911" }}>
+            {disputeObj.opened ?? 0} opened &nbsp; {disputeObj.won ?? 0} won &nbsp; {disputeObj.lost ?? 0} lost &nbsp; {disputeObj.resolved ?? 0} resolved
+          </div>
         </div>
         <div>
           <div style={{ fontSize:".72rem", color:"#7D675E" }}>number of trades:</div>
-          <div style={{ fontSize:".88rem", fontWeight:700, color:"#2B1911" }}>40</div>
+          <div style={{ fontSize:".88rem", fontWeight:700, color:"#2B1911" }}>{trades}</div>
         </div>
       </div>
     </SubScreenWrapper>
