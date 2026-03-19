@@ -245,8 +245,8 @@ export default function OfferCreation({ initialType="buy" }) {
       if(isSell){
         if(!auth){ setStep(2); return; } // mock mode when logged out
 
-        if(!auth.xpub){
-          setPublishError("No xpub available — please re-authenticate");
+        if(!auth.multisigXpub){
+          setPublishError("No multisigXpub available — please re-authenticate");
           return;
         }
 
@@ -255,7 +255,7 @@ export default function OfferCreation({ initialType="buy" }) {
         try{
           const { meansOfPayment, paymentData } = await buildPaymentPayload();
 
-          // 1. Derive return address from xpub at m/84'/{coin}'/1/{index}
+          // 1. Derive return address from multisigXpub at m/84'/{coin}'/1/{index}
           // Index = total sell offers ever created (active + historical). Monotonically increasing.
           const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
           const hdrs = { Authorization: `Bearer ${auth.token}` };
@@ -270,7 +270,7 @@ export default function OfferCreation({ initialType="buy" }) {
           const activeCount = activeSell.length;
           const historyCount = Array.isArray(historySell) ? historySell.filter(o => o.type === "ask").length : 0;
           const addrIdx = activeCount + historyCount;
-          const returnAddress = deriveReturnAddress(auth.xpub, addrIdx);
+          const returnAddress = deriveReturnAddress(auth.multisigXpub, addrIdx);
           console.log("[OfferCreation] Return address:", returnAddress, "at index", addrIdx, `(${activeCount} active + ${historyCount} history)`);
 
           // 2. POST /v1/offer — create sell offer
@@ -292,7 +292,7 @@ export default function OfferCreation({ initialType="buy" }) {
           console.log("[OfferCreation] Sell offer created:", newOfferId);
 
           // 2. Derive escrow public key (non-hardened: /3/{offerId})
-          const pubKeyHex = deriveEscrowPubKey(auth.xpub, Number(newOfferId));
+          const pubKeyHex = deriveEscrowPubKey(auth.multisigXpub, Number(newOfferId));
           console.log("[OfferCreation] Derived escrow pubkey:", pubKeyHex);
 
           // 3. POST /v1/offer/:id/escrow — register key, get escrow address

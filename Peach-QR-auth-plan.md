@@ -9,11 +9,11 @@ The backend dev has provided a working proof of concept for QR-based web-to-mobi
 1. Generate ephemeral PGP keypair → POST public key to `/v069/desktop/desktopConnection`
 2. Decrypt connection ID + verify server signature
 3. Display QR with `{ desktopConnectionId, ephemeralPgpPublicKey (base64), peachDesktopConnectionVersion: 1 }`
-4. Poll every 2s → mobile scans → sends encrypted `{ validationPassword, pgpPrivateKey, xpub }`
+4. Poll every 2s → mobile scans → sends encrypted `{ validationPassword, pgpPrivateKey, multisigXpub }`
 5. Decrypt → POST password to `.../validate` → get JWT `accessToken`
 6. Fetch profile with token → auth complete
 
-**Result**: `window.__PEACH_AUTH__` gets `{ token, pgpPrivKey, xpub, peachId, baseUrl, profile }`
+**Result**: `window.__PEACH_AUTH__` gets `{ token, pgpPrivKey, multisigXpub, peachId, baseUrl, profile }`
 
 ---
 
@@ -30,7 +30,7 @@ The backend dev has provided a working proof of concept for QR-based web-to-mobi
 
 ### Step 1: Install `qrcode.react`
 
-Only new dependency needed. We do NOT need `bitcoinjs-lib`/`bip32` — the POC's address derivation is a verification step we can skip. We store the xpub as-is.
+Only new dependency needed. We do NOT need `bitcoinjs-lib`/`bip32` — the POC's address derivation is a verification step we can skip. We store the multisigXpub as-is.
 
 ### Step 2: Add 2 PGP functions to `src/utils/pgp.js`
 
@@ -60,7 +60,7 @@ const { phase, qrPayload, secsLeft, error, profile, restart } = useQRAuth({ base
 window.__PEACH_AUTH__ = {
   token: accessToken,
   pgpPrivKey: pgpPrivateKey,  // armored, from mobile
-  xpub: xpub,                 // from mobile
+  multisigXpub: multisigXpub,  // from mobile
   peachId: profile.id || profile.publicKey,
   baseUrl: baseUrl + "/v1",
   profile
@@ -131,7 +131,7 @@ So `/api-regtest/v069/desktop/desktopConnection` → `https://api-regtest.peachb
 4. Navigate to auth screen on mobile viewport → shows instructions (not QR)
 5. "Can't scan?" shows the connection ID as copyable text
 6. Scan QR with Peach mobile app on regtest → auth succeeds → redirects to `/home`
-7. All screens work with the new auth (token, pgpPrivKey, xpub, profile all populated)
+7. All screens work with the new auth (token, pgpPrivKey, multisigXpub, profile all populated)
 8. Dev auth paste flow still works as before
 9. Network error during init → shows error message → retry works
 10. PGP key verification passes (check console for "PGP key verified" log)
