@@ -89,14 +89,9 @@ These are completed and kept for reference.
 
 ### ~~3.5 Pre-Contract Chat (v069)~~ ✅
 
-### 3.6 Sell Offer Submission ✅ (partially — blocked on return address index endpoint)
-- **File**: `src/screens/offer-creation/index.jsx`, `src/utils/escrow.js`
-- **Endpoint**: `POST /v1/offer` (type: "ask") → `POST /v1/offer/:id/escrow` (two-step)
-- **Library**: `@scure/bip32` (key derivation), `@scure/btc-signer` (P2WPKH address encoding)
-- **Escrow key**: derived from xpub at `m/84'/{coin}'/3/{offerId}` (non-hardened, version 2 path). `derivationPathVersion: 2` sent in escrow creation call so backend knows the derivation path.
-- **Return address**: derived from xpub at `m/84'/{coin}'/1/{index}` (non-hardened, P2WPKH). Index must increment per offer to avoid address reuse.
-- **Return address index**: currently derived by counting total sell offers (active from `GET /v069/sellOffer?ownOffers=true` + historical from `GET /v1/offers/summary` filtered to `type:"ask"`). Monotonically increasing, server-derived, no localStorage. ⚠️ Should eventually be replaced with `GET /v1/user/returnAddressIndex` (dedicated backend endpoint) for robustness — the count approach assumes the server never purges offer history.
-- **Network handling**: xpub prefix auto-detected (`xpub` → mainnet `bc1q`, `tpub` → regtest `bcrt1q`)
+### ~~3.6 Sell Offer Submission~~ ✅
+- Browser-side derivation complete (version 2 non-hardened path from xpub). See "Already done" section.
+- **Remaining blocker**: `GET /v1/user/returnAddressIndex` endpoint (backend team, tracked in Phase 5.3). Current workaround counts total sell offers — works but fragile.
 
 ### ~~3.7 Escrow Funding (sell offers)~~ ✅
 
@@ -165,14 +160,15 @@ These are completed and kept for reference.
 ### 4.12 My Profile (settings)
 - Reads from `window.__PEACH_AUTH__.profile`. Remaining: referral, daily limits, memberSince.
 
-### 4.13 Backups (settings)
+### ~~4.13 Backups (settings)~~ ✅
 - Static info screen (mobile-only, no API needed). Already built.
 
 ---
 
-## Phase 5: Mobile-Assist Signing via Pending Tasks
+## Phase 5: Mobile-Assist Signing via Pending Tasks — ✅ COMPLETE (browser side)
 
 Architecture confirmed with backend dev. No QR code for signing — server links browser and mobile by userId via JWT `isDesktop` flag.
+Remaining items (5.3–5.5) are blocked on backend/mobile teams.
 
 ### ~~5.1 MobileSigningModal + createTask helper~~ ✅
 ### ~~5.2 Wire signing into trade execution (release, refund, rating)~~ ✅
@@ -233,38 +229,33 @@ Architecture confirmed with backend dev. No QR code for signing — server links
 
 ## UI Fixes & Polish
 
-Items that don't add new API wiring but improve existing screens.
+Items that don't add new API wiring but improve existing screens. Organized by priority tier.
 
-### Global (all screens)
-- **Peach Web logo file** — replace inline SVG with a proper logo asset used consistently
-- **Colour uniformisation** — reduce gradient usage on orange bars, make them flatter/more subdued. ⚠️ Needs confirmation before any changes.
-- **Lingo consistency with mobile app** — audit all labels and copy to match mobile terminology
-- **Mobile responsive review** — all page layouts, especially topbar and home news card on small viewports
-- **Payment method user labels** — custom labels (e.g. "SEPA - main", "SEPA - 2") to distinguish multiple PMs of same type. Applies to: Offer Creation PM selector, Payment Methods add/edit, anywhere saved PMs are shown.
+### Functional gaps (wire missing data or add missing UI)
+- **Trade Execution: wrong amount escrow modal** — modal when seller funds with wrong amount. Options: continue (if close enough) or request refund. (`trade-execution/index.jsx`)
+- **Trade Execution: escrow funding timer (buyer POV)** — countdown at "Waiting for escrow" stage. `instantTrade` determines duration (1H instant, 12H normal). Source: `SellOffer.funding.expiry`. (`trade-execution/index.jsx`)
+- **Trade Execution: escrow funding timer (seller POV)** — big, prominent countdown for how long seller has left to fund. Same data source. (`trade-execution/index.jsx`)
+- **Trades Dashboard: MatchesPopup avatars/reputation wiring** — match cards currently show placeholder/missing data for counterparty avatars, reputation scores, and trade counts. Wire from match/user API data. (`trades-dashboard/MatchesPopup.jsx`)
+- **Offer Creation: wire validators into PM add flow** — mini PM-add modal accepts IBAN/phone/holder with zero validation. Inline validators from `peach-validators.js` + add `onBlur` validation. (`offer-creation/index.jsx`)
+- **Home: wire Top PMs & Top Currencies cards** — currently show mock/static data. Wire to live API so they reflect real platform activity when logged in. (`peach-home.jsx`)
+- **Trade Execution: copy buttons mobile layout** — "Copy Address" and "Copy BTC" buttons don't render well on mobile. (`trade-execution/index.jsx`)
+- **Market View: filter parity with mobile app** — implement same filter set as mobile. Exact filter list TBD. (`peach-market-view.jsx`)
 
-### Home (`peach-home.jsx`)
-- **My Profile card improvements** — distinguish public info (trade count, rating, badges) from private info (referral, daily limits). Use Peach standard Bitcoin format for all amounts. Details TBD.
-- **Peach Bitcoin price card** — average and highest Bitcoin price on Peach over 24h, 7d, 30d, and all time.
-- **Wire Top Payment Methods & Top Currencies cards** — these cards currently show mock/static data. Wire them to live API data so they reflect real platform activity when logged in.
+### Polish (visual/consistency)
+- **Global: Peach Web logo file** — replace inline SVG with a proper logo asset used consistently
+- **Global: colour uniformisation** — reduce gradient usage on orange bars, make them flatter/more subdued. ⚠️ Needs confirmation before any changes.
+- **Global: lingo consistency with mobile app** — audit all labels and copy to match mobile terminology
+- **Global: mobile responsive review** — all page layouts, especially topbar and home news card on small viewports
+- **Global: PM user labels** — custom labels (e.g. "SEPA - main", "SEPA - 2") to distinguish multiple PMs of same type. Applies to: Offer Creation PM selector, Payment Methods add/edit, anywhere saved PMs are shown.
+- **Home: profile card improvements** — distinguish public info (trade count, rating, badges) from private info (referral, daily limits). Use Peach standard Bitcoin format for all amounts. Details TBD. (`peach-home.jsx`)
+- **Home: Peach Bitcoin price card** — average and highest Bitcoin price on Peach over 24h, 7d, 30d, and all time. (`peach-home.jsx`)
 
-### Trades Dashboard (`trades-dashboard/MatchesPopup.jsx`)
-- **MatchesPopup — avatars, reputation & trades not wired** — match cards currently show placeholder/missing data for counterparty avatars, reputation scores, and trade counts. Wire these from the match/user data returned by the API.
+### Already done
+- ~~**Offer Creation: "No new users" filter**~~ ✅ — `noNewUsers` checkbox sends `minReputation: 0.5` on buy offers + inside `instantTradeCriteria` on sell offers.
+- ~~**Offer Creation: "Instant Match" checkbox**~~ ✅ — `instantMatch` checkbox sends `instantTradeCriteria: { minReputation, minTrades, badges }` on both buy and sell offers.
 
-### Market View (`peach-market-view.jsx`)
-- **Own offers not visible** — own offers don't appear in the market view when logged in. v069 own-offers fetch may be returning unexpected data, or the `isOwn` / `type` mapping may be off. Debug with browser console (check `[MarketView]` logs and v069 response shape).
-- **Filter parity with mobile app** — implement same filter set as mobile. Exact filter list TBD.
-
-### Offer Creation (`offer-creation/index.jsx`)
-- ~~**"No new users" filter**~~ ✅ — `noNewUsers` checkbox sends `minReputation: 0.5` on buy offers + inside `instantTradeCriteria` on sell offers.
-- ~~**"Instant Match" checkbox**~~ ✅ — `instantMatch` checkbox sends `instantTradeCriteria: { minReputation, minTrades, badges }` on both buy and sell offers.
-- **Wire validators into PM add flow** — mini PM-add modal accepts IBAN/phone/holder with zero validation. Inline validators from `peach-validators.js` + add `onBlur` validation.
-
-### Trade Execution (`trade-execution/index.jsx`)
-- **Wrong amount escrow modal** — modal when seller funds with wrong amount. Options: continue (if close enough) or request refund.
-- **Copy buttons mobile layout** — "Copy Address" and "Copy BTC" buttons don't render well on mobile.
-- **Escrow funding timer (buyer POV)** — countdown at "Waiting for escrow" stage. `instantTrade` determines duration (1H instant, 12H normal). Source: `SellOffer.funding.expiry`.
-- **Escrow funding timer (seller POV)** — big, prominent countdown for how long seller has left to fund. Same data source.
-- **/totest — Rating modal** — `MobileSigningModal` wired to `RatingPanel.onRate`. Mock `createTask("rate", ...)` fires, modal appears. Needs real regtest trade in `rateUser` status to test. Verify: select rating → submit → modal shows → cancel closes it.
+### To verify (needs regtest)
+- **Trade Execution: rating modal** — `MobileSigningModal` wired to `RatingPanel.onRate`. Mock `createTask("rate", ...)` fires, modal appears. Needs real regtest trade in `rateUser` status to test. Verify: select rating → submit → modal shows → cancel closes it.
 
 ---
 
@@ -287,15 +278,27 @@ Items that don't add new API wiring but improve existing screens.
 | ~~11~~ | ~~5.1–5.2 Mobile signing (browser side)~~ | ✅ Done | |
 | ~~12~~ | ~~6.2 QR Auth handshake~~ | ✅ Done | |
 | ~~13~~ | ~~3.1–3.2 Reject + edit/withdraw~~ | ✅ Done | |
-| 14 | 4.1–4.2 Contact + About | ~1 session | Easy settings wins |
-| 15 | 4.3–4.4 Block users + fee save | ~1 session | Settings completion |
-| 16 | 4.10 Dark mode | ~1-2 sessions | User experience |
-| 17 | 4.5–4.9 Remaining settings | ~2-3 sessions | Settings completion |
-| 18 | 3.3–3.4 Republish, instant trade | ~1 session | Advanced offer features |
-| 19 | 5.3–5.5 Backend endpoints + end-to-end | Backend team | Unlocks real signing |
-| 20 | 5.6 Sell offer signing | ~1 session | After backend endpoints land |
-| 21 | 4.11 Referrals | ~1 session | Nice-to-have |
-| — | UI fixes & polish | Ongoing | Sprinkle between phases |
+| 14 | 4.1–4.2 Contact Peach + About Peach | ~1 session | Easy settings wins |
+| 15 | 4.3–4.4 Block/Unblock Users + Network Fees Save | ~1 session | Settings completion |
+| 16 | 4.10 Dark Mode | ~1-2 sessions | High UX impact |
+| 17 | 4.5–4.6 Language + Notification settings | ~1 session | Settings sub-screens |
+| 18 | 4.7–4.8 Account & Sessions + PIN Code | ~1 session | Settings sub-screens |
+| 19 | 4.9 Custom Node | ~0.5 session | Settings sub-screen |
+| 20 | 4.11 Referrals | ~1 session | Wire mock to real data |
+| 21 | 4.12 My Profile (settings) | ~0.5 session | Wire referral, daily limits, memberSince |
+| 22 | 3.3–3.4 Offer Republish + Instant Trade | ~1 session | Advanced offer features |
+| 23 | 3.8 Create Multiple Offers | ~1 session | Offer creation enhancement |
+| 24 | `useApi()` v069 param support | ~0.5 session | Engineering cleanup |
+| — | UI fixes & polish | Ongoing | See prioritized tiers below |
+
+**Blocked on backend/mobile teams:**
+
+| Item | Blocker | What it unlocks |
+|------|---------|-----------------|
+| 5.3 Backend endpoints (`task/create`, `pendingTasks`, `task/:id/sign`, `returnAddressIndex`) | Backend team | Real mobile signing + sell offer return address |
+| 5.4 Mobile pending tasks UI | Mobile team | End-to-end signing flow |
+| 5.5 Swap mock `createTask` for real endpoint | Needs 5.3 first | Completes signing integration |
+| Wallet visualization | Needs UI design | Future feature |
 
 ---
 
@@ -303,22 +306,20 @@ Items that don't add new API wiring but improve existing screens.
 
 - ~~**Chat encryption key compatibility** — mobile app keypair must be importable/derivable in the browser.~~ ✅ Resolved — works with openpgp.js v6.
 - ~~**Dispute symmetric key encryption** — encrypt chat symmetric key with platform PGP public key (from `GET /info`).~~ ✅ Resolved — `encryptForPublicKey()` in pgp.js. PM fields use symmetric-then-asymmetric decryption fallback.
-- **`useApi()` v069 support** — consider adding a version parameter to avoid manual URL string manipulation in every screen.
+- ~~**`useApi()` v069 support** — consider adding a version parameter to avoid manual URL string manipulation in every screen.~~ → Tracked as execution order #24.
 
 ---
 
 ## Key Files to Modify
 
-| File | Changes |
-|------|---------|
+| File | Remaining changes |
+|------|-------------------|
 | `src/screens/trade-execution/index.jsx` | Wrong amount escrow modal, escrow timers |
-| `src/screens/trades-dashboard/index.jsx` | Reject, republish, unread counts, instant trade |
-| `src/screens/peach-market-view.jsx` | Edit/withdraw own offers, filter parity |
-| `src/screens/offer-creation/index.jsx` | Sell offer, "no new users" flag, PM validators |
-| `src/screens/peach-settings.jsx` | 7 empty sub-screens + fee save + block users + referrals |
-| `src/screens/peach-home.jsx` | Profile card, price card |
-| `src/screens/peach-auth.jsx` | ✅ QR auth done. Future: production CORS via Cloudflare Worker |
+| `src/screens/trades-dashboard/index.jsx` | Republish, instant trade |
+| `src/screens/peach-market-view.jsx` | Filter parity |
+| `src/screens/offer-creation/index.jsx` | PM validators, multiple offers |
+| `src/screens/peach-settings.jsx` | 9 sub-screens (4.1–4.9) + referrals (4.11) + profile (4.12) |
+| `src/screens/peach-home.jsx` | Profile card, price card, wire top PMs & currencies |
 | `src/styles/global.css` | Dark mode theme variables |
-| `src/utils/pgp.js` | Already complete — reuse existing functions |
-| `src/components/MobileSigningModal.jsx` | Swap mock createTask for real endpoint when backend ready |
-| `src/hooks/useApi.js` | Swap mock createTask, consider v069 param addition |
+| `src/hooks/useApi.js` | Swap mock createTask (when 5.3 lands), v069 param support (#24) |
+| `src/components/MobileSigningModal.jsx` | Swap mock createTask (when 5.3 lands) |

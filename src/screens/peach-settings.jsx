@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { SideNav, Topbar, formatPeachId } from "../components/Navbars.jsx";
+import { useNavigate, useLocation } from "react-router-dom";
+import { SideNav, Topbar, formatPeachId, PeachIcon } from "../components/Navbars.jsx";
 import { IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi } from "../hooks/useApi.js";
@@ -1144,23 +1144,179 @@ function NodeSubScreen({ onBack }) {
 }
 
 function ContactSubScreen({ onBack }) {
-  return <ComingSoonPlaceholder title="Contact Peach" icon="💬"
-    description="Get in touch with the Peach team for support, feedback, or partnership inquiries."
-    onBack={onBack}/>;
+  const { post, auth } = useApi();
+  const [topic, setTopic] = useState("general");
+  const [reason, setReason] = useState("");
+  const [message, setMessage] = useState("");
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const canSubmit = topic && message.trim().length > 0 && !submitting;
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      if (auth) {
+        const res = await post('/contact/report', {
+          topic,
+          reason: reason.trim() || undefined,
+          message: message.trim(),
+          email: email.trim() || undefined,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          setError(err.message || "Failed to send — try again");
+          setSubmitting(false);
+          return;
+        }
+      } else {
+        await new Promise(r => setTimeout(r, 800));
+      }
+      setSubmitting(false);
+      setShowSuccess(true);
+    } catch {
+      setError("Network error — check your connection");
+      setSubmitting(false);
+    }
+  }
+
+  if (showSuccess) {
+    return (
+      <SubScreenWrapper title="Contact Peach" onBack={onBack}>
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 20px", textAlign:"center" }}>
+          <div style={{ width:64, height:64, borderRadius:"50%", background:"#E8F5E0", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:20 }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#65A519" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <div style={{ fontSize:"1.1rem", fontWeight:800, color:"#2B1911", marginBottom:8 }}>Message sent!</div>
+          <div style={{ fontSize:".88rem", color:"#7D675E", lineHeight:1.5 }}>The Peach team will get back to you soon.</div>
+          <div style={{ marginTop:32, width:"100%" }}>
+            <PrimaryBtn label="DONE" onClick={onBack}/>
+          </div>
+        </div>
+      </SubScreenWrapper>
+    );
+  }
+
+  const inputStyle = {
+    width:"100%", padding:"10px 14px", borderRadius:10,
+    border:"1.5px solid #C4B5AE", background:"#FFFFFF",
+    fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"#2B1911", outline:"none",
+  };
+  const labelStyle = { fontSize:".75rem", fontWeight:700, color:"#2B1911", marginBottom:6 };
+
+  return (
+    <SubScreenWrapper title="Contact Peach" onBack={onBack}>
+      <p style={{ fontSize:".82rem", color:"#7D675E", marginBottom:20, lineHeight:1.6 }}>
+        Get in touch with the Peach team for support, feedback, or partnership inquiries.
+      </p>
+
+      {/* Topic */}
+      <div style={{ marginBottom:16 }}>
+        <div style={labelStyle}>topic</div>
+        <select value={topic} onChange={e => setTopic(e.target.value)}
+          style={{ ...inputStyle, cursor:"pointer", appearance:"auto" }}>
+          <option value="general">General inquiry</option>
+          <option value="support">Support</option>
+          <option value="bug">Bug report</option>
+          <option value="feedback">Feedback</option>
+          <option value="partnership">Partnership</option>
+        </select>
+      </div>
+
+      {/* Reason */}
+      <div style={{ marginBottom:16 }}>
+        <div style={labelStyle}>subject</div>
+        <input value={reason} onChange={e => setReason(e.target.value)}
+          placeholder="Brief summary (optional)"
+          style={inputStyle}/>
+      </div>
+
+      {/* Message */}
+      <div style={{ marginBottom:16 }}>
+        <div style={labelStyle}>message <span style={{ color:"#F56522" }}>*</span></div>
+        <textarea value={message} onChange={e => setMessage(e.target.value)}
+          placeholder="Describe your question or issue…"
+          rows={5}
+          style={{ ...inputStyle, resize:"vertical", minHeight:100 }}/>
+      </div>
+
+      {/* Email */}
+      <div style={{ marginBottom:28 }}>
+        <div style={labelStyle}>email <span style={{ color:"#7D675E", fontWeight:500 }}>(optional)</span></div>
+        <input value={email} onChange={e => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          type="email"
+          style={inputStyle}/>
+      </div>
+
+      <FieldError error={error}/>
+      <PrimaryBtn label={submitting ? "SENDING…" : "SEND MESSAGE"} disabled={!canSubmit} onClick={handleSubmit}/>
+    </SubScreenWrapper>
+  );
 }
 
 function AboutSubScreen({ onBack }) {
-  return <ComingSoonPlaceholder title="About Peach" icon="ℹ️"
-    description="Peach Bitcoin Web · v0.1.0 — Version info, licenses, legal notices, and links."
-    onBack={onBack}/>;
+  const links = [
+    { icon:"🌐", label:"Website",  url:"https://peachbitcoin.com" },
+    { icon:"𝕏",  label:"Twitter / X", url:"https://x.com/peachbitcoin" },
+    { icon:"💬", label:"Telegram", url:"https://t.me/peachtopeach" },
+    { icon:"📖", label:"GitHub",   url:"https://github.com/Peach2Peach" },
+  ];
+
+  return (
+    <SubScreenWrapper title="About Peach" onBack={onBack}>
+      {/* Branding header */}
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"32px 20px 28px", textAlign:"center" }}>
+        <div style={{ width:64, height:64, borderRadius:16, background:"#FEEDE5",
+          display:"flex", alignItems:"center", justifyContent:"center", marginBottom:16 }}>
+          <PeachIcon size={36}/>
+        </div>
+        <div style={{ fontSize:"1.1rem", fontWeight:800, color:"#2B1911", marginBottom:4 }}>Peach Bitcoin Web</div>
+        <div style={{ fontSize:".78rem", fontWeight:600, color:"#C4B5AE" }}>v0.1.0</div>
+      </div>
+
+      {/* Description */}
+      <SettingsSection title="About">
+        <div style={{ padding:"14px 16px" }}>
+          <p style={{ fontSize:".82rem", color:"#7D675E", lineHeight:1.6, margin:0 }}>
+            Buy and sell Bitcoin peer-to-peer. No KYC. No middlemen.
+          </p>
+        </div>
+      </SettingsSection>
+
+      {/* Links */}
+      <SettingsSection title="Links">
+        {links.map((l, i) => (
+          <SettingsRow key={l.url} icon={l.icon} label={l.label}
+            description={l.url.replace(/^https?:\/\//, "")}
+            right={<IconExternalLink size={14}/>}
+            onClick={() => window.open(l.url, "_blank", "noopener")}
+            noBorder={i === links.length - 1}/>
+        ))}
+      </SettingsSection>
+
+      <div style={{ textAlign:"center", fontSize:".72rem", color:"#C4B5AE", fontWeight:600, marginTop:24 }}>
+        Made with 🍑 · Open source
+      </div>
+    </SubScreenWrapper>
+  );
 }
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 export default function SettingsScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [currentView, setCurrentView] = useState("main");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
+
+  // Reset to main view when sidenav "Settings" is clicked (same-route navigation)
+  useEffect(() => { setCurrentView("main"); }, [location.key]);
 
   // ── AUTH STATE ──
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();

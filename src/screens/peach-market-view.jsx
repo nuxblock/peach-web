@@ -166,11 +166,39 @@ const css = `
     font-family:inherit;white-space:nowrap;letter-spacing:.02em;margin-bottom:-2px}
   /* mobile own card */
   .offer-card.own-card{border-left:3px solid var(--primary);background:linear-gradient(135deg,rgba(245,101,34,.04),var(--surface))}
-  .my-offers-btn{padding:7px 16px;border-radius:999px;background:var(--surface);
-    color:var(--black);font-family:var(--font);font-size:.85rem;font-weight:700;
-    border:1.5px solid var(--black-10);cursor:pointer;letter-spacing:.02em;
-    transition:border-color .14s,color .14s;white-space:nowrap}
-  .my-offers-btn:hover{border-color:var(--primary);color:var(--primary-dark)}
+  .my-offers-check{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;
+    border-radius:999px;background:var(--surface);border:1.5px solid var(--black-10);
+    font-family:var(--font);font-size:.85rem;font-weight:700;color:var(--black);
+    cursor:pointer;white-space:nowrap;transition:border-color .14s,color .14s;
+    user-select:none;letter-spacing:.02em}
+  .my-offers-check:hover{border-color:var(--primary);color:var(--primary-dark)}
+  .my-offers-check input{position:absolute;opacity:0;pointer-events:none}
+  .my-offers-check-box{width:16px;height:16px;border-radius:4px;border:2px solid var(--black-25);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    transition:background .14s,border-color .14s}
+  .my-offers-check input:checked~.my-offers-check-box{background:var(--primary);border-color:var(--primary)}
+  .my-offers-check input:checked~.my-offers-check-box::after{content:"✓";color:white;font-size:.7rem;font-weight:800}
+  .my-offers-check-disabled{opacity:.45;cursor:not-allowed}
+  .my-offers-check-disabled:hover{border-color:var(--black-10);color:var(--black)}
+  .my-offers-wrap{position:relative;display:inline-flex;align-items:center;gap:4px}
+  .info-dot{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--black-25);
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:.7rem;font-weight:800;font-style:italic;color:var(--black-50);
+    cursor:pointer;transition:border-color .14s,color .14s;flex-shrink:0;
+    font-family:serif;user-select:none}
+  .info-dot:hover{border-color:var(--primary);color:var(--primary-dark)}
+  .info-popup{position:absolute;top:calc(100% + 8px);left:0;z-index:200;
+    background:var(--surface);border:1px solid var(--black-10);border-radius:12px;
+    box-shadow:0 4px 20px rgba(0,0,0,.12);padding:14px 16px;width:280px;
+    font-size:.82rem;font-weight:500;color:var(--black);line-height:1.45}
+  .info-popup strong{display:block;margin-bottom:6px;font-size:.85rem}
+  .info-popup p{margin:0 0 6px}
+  .info-popup ul{margin:0 0 6px;padding-left:18px}
+  .info-popup li{margin-bottom:3px}
+  .refresh-btn{padding:6px 10px;min-width:0;border-radius:999px;background:var(--surface);
+    border:1.5px solid var(--black-10);font-size:1rem;cursor:pointer;
+    transition:border-color .14s;line-height:1}
+  .refresh-btn:hover{border-color:var(--primary)}
 
   /* ── AMOUNT ── */
   .amount-cell{display:flex;flex-direction:column;gap:4px}
@@ -677,7 +705,9 @@ export default function PeachMarket() {
   const [selPaymentTypes,  setSelPaymentTypes]  = useState([]);   // [] = all
   const [searchQuery,      setSearchQuery]      = useState("");
 
-  const [myOffersOnly,        setMyOffersOnly]        = useState(false);
+  const [showMyOffers,        setShowMyOffers]        = useState(true);
+  const [showMyOffersInfo,    setShowMyOffersInfo]    = useState(false);
+  const infoRef = useRef(null);
   const [allPrices,           setAllPrices]           = useState({ EUR: BTC_PRICE });
   const [availableCurrencies, setAvailableCurrencies] = useState(ALL_CURRENCIES);
   const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
@@ -698,6 +728,16 @@ export default function PeachMarket() {
     document.addEventListener("click", close);
     return () => document.removeEventListener("click", close);
   }, [showAvatarMenu]);
+
+  // Close info popup on outside click
+  useEffect(() => {
+    if (!showMyOffersInfo) return;
+    function handler(e) {
+      if (infoRef.current && !infoRef.current.contains(e.target)) setShowMyOffersInfo(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showMyOffersInfo]);
 
   // ── Popup state ──
   const [popupOffer,     setPopupOffer]     = useState(null);   // offer object or null
@@ -862,7 +902,7 @@ export default function PeachMarket() {
       badges: o.user?.medals ?? o.user?.badges ?? [],
       auto: false,
       online: o.user?.online ?? false,
-      isOwn: !!peachId && o.user?.id === peachId,
+      isOwn: !!peachId && (o.user?.id === peachId || o.user?.id?.toLowerCase?.() === peachId?.toLowerCase?.()),
     };
   }
 
@@ -909,7 +949,7 @@ export default function PeachMarket() {
         const asksArr = Array.isArray(sellOffersJson) ? sellOffersJson : sellOffersJson?.offers ?? [];
         const ownBidsArr = Array.isArray(ownBuyJson) ? ownBuyJson : ownBuyJson?.offers ?? [];
         const ownAsksArr = Array.isArray(ownSellJson) ? ownSellJson : ownSellJson?.offers ?? [];
-        console.log("[MarketView] v069 bids:", bidsArr.length, "asks:", asksArr.length, "own bids:", ownBidsArr.length, "own asks:", ownAsksArr.length);
+        console.log("[MarketView] v069 bids:", bidsArr.length, "asks:", asksArr.length, "own bids:", ownBidsArr.length, "own asks:", ownAsksArr.length, "own ask IDs:", ownAsksArr.map(o => o.id));
 
         // Merge market + own offers, deduplicating by ID
         const seen = new Set();
@@ -1031,7 +1071,7 @@ export default function PeachMarket() {
 
   const filtered = marketOffers
     .filter(o => o.type === offerType)
-    .filter(o => !myOffersOnly || o.isOwn)
+    .filter(o => showMyOffers || !o.isOwn)
     .filter(o => selCurrencies.length === 0 || selCurrencies.some(c => o.currencies.includes(c)))
     .filter(o => selMethods.length === 0    || selMethods.some(m => o.methods.includes(m)))
     .filter(o => selPaymentTypes.length === 0 || selPaymentTypes.some(pt =>
@@ -1506,19 +1546,40 @@ export default function PeachMarket() {
               onChange={e => setSearchQuery(e.target.value)}
             />
 
+            <div className="my-offers-wrap" ref={infoRef}>
+              <label className={`my-offers-check${!isLoggedIn ? " my-offers-check-disabled" : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={showMyOffers}
+                  onChange={() => isLoggedIn && setShowMyOffers(v => !v)}
+                  disabled={!isLoggedIn}
+                />
+                <span className="my-offers-check-box"/>
+                My Offers
+              </label>
+              <span
+                className="info-dot"
+                onClick={(e) => { e.stopPropagation(); setShowMyOffersInfo(v => !v); }}
+                title="What is this?"
+              >i</span>
+              {showMyOffersInfo && (
+                <div className="info-popup">
+                  <strong>Why are my offers in the other tab?</strong>
+                  <p>Your offers appear where counterparties will find them:</p>
+                  <ul>
+                    <li><b>Buy BTC</b> tab shows sell offers — including yours</li>
+                    <li><b>Sell BTC</b> tab shows buy offers — including yours</li>
+                  </ul>
+                  <p>This way, the people you want to trade with can see and accept your offer.</p>
+                </div>
+              )}
+            </div>
             <button
-              className={isLoggedIn ? "my-offers-btn" : "my-offers-btn my-offers-btn-disabled"}
-              onClick={() => isLoggedIn && setMyOffersOnly(o => !o)}
-              style={myOffersOnly && isLoggedIn ? {borderColor:"var(--primary)",color:"var(--primary-dark)",background:"var(--primary-mild)"} : {}}
-            >
-              My Offers{myOffersOnly && isLoggedIn ? " ✕" : ""}
-            </button>
-            <button
-              className="my-offers-btn"
+              className="refresh-btn"
               onClick={handleRefreshOffers}
               title="Refresh offers"
               disabled={offersLoading}
-              style={{padding:"6px 10px",minWidth:0,fontSize:"1rem",opacity:offersLoading?0.5:1}}
+              style={{opacity:offersLoading?0.5:1}}
             >
               ↻
             </button>
