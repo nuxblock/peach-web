@@ -100,8 +100,9 @@ async function _poll(auth, base) {
 
   try {
     const peachId = window.__PEACH_AUTH__?.peachId;
-    const [contractsRes, ownOffersRes] = await Promise.all([
+    const [contractsRes, buyRes, ownOffersRes] = await Promise.all([
       fetch(`${base}/contracts/summary`, { headers: hdrs }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${v069Base}/buyOffer?ownOffers=true`, { headers: hdrs }).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(`${v069Base}/user/${peachId}/offers`, { headers: hdrs }).then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
 
@@ -109,8 +110,8 @@ async function _poll(auth, base) {
     const contracts = contractsRes
       ? (Array.isArray(contractsRes) ? contractsRes : (contractsRes.contracts ?? []))
       : [];
-    // Own offers from /v069/user/{id}/offers — returns { buyOffers: [...], sellOffers: [...] }
-    const buyOffers  = ownOffersRes?.buyOffers ?? [];
+    const buyOffers  = buyRes  ? (Array.isArray(buyRes)  ? buyRes  : (buyRes.offers ?? []))  : [];
+    // Own sell offers from /v069/user/{id}/offers (sellOffer endpoint doesn't support ownOffers param)
     const sellOffers = ownOffersRes?.sellOffers ?? [];
     const allOffers  = [
       ...buyOffers.map(o => ({ ...o, _dir: "buy" })),

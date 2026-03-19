@@ -119,6 +119,14 @@ export const PILL_CONFIG = {
   refundTxSignatureRequired: { bg:"var(--primary)", color:"white", label:"Sign refund",           passive:false },
 };
 
+// Direction-aware label overrides (buyer vs seller see different labels)
+const SELLER_LABEL = {
+  paymentRequired: "Waiting for Payment",
+};
+const BUYER_LABEL = {
+  confirmPaymentRequired: "Payment Sent",
+};
+
 // ─── PEACH RATING — fills proportionally like a cup ──────────────────────────
 export function PeachRating({ rep, size = 16 }) {
   const pct = Math.max(0, Math.min(1, rep / 5));
@@ -170,6 +178,7 @@ export function TradeCard({ trade, onSelect, layout = "grid" }) {
   const statusKey = trade.tradeStatus ?? "searchingForPeer";
   const pill = PILL_CONFIG[statusKey] || PILL_CONFIG.searchingForPeer;
   const isBuy = trade.direction === "buy";
+  const pillLabel = (isBuy ? BUYER_LABEL : SELLER_LABEL)[statusKey] ?? pill.label;
   const hasSatsRange = Array.isArray(trade.amount);
   const hasMatches = trade.tradeStatus === "hasMatchesAvailable" || trade.tradeStatus === "acceptTradeRequest";
 
@@ -225,7 +234,7 @@ export function TradeCard({ trade, onSelect, layout = "grid" }) {
         )}
         <span className="trade-row-pill" style={{ background: pill.bg, color: pill.color }}>
           {!pill.passive && <span style={{ width:6, height:6, borderRadius:"50%", background:pill.color, display:"inline-block", flexShrink:0 }}/>}
-          {pill.label}
+          {pillLabel}
         </span>
       </div>
     );
@@ -327,7 +336,7 @@ export function TradeCard({ trade, onSelect, layout = "grid" }) {
       <button className={`v3c-pill${pill.passive ? " v3c-pill-passive" : ""}`}
         style={{ background: pill.bg, color: pill.color }}>
         {!pill.passive && <span style={{ width:6, height:6, borderRadius:"50%", background:pill.color, display:"inline-block", flexShrink:0 }}/>}
-        {pill.label}
+        {pillLabel}
       </button>
 
     </div>

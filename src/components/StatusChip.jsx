@@ -12,7 +12,9 @@ const FALLBACK = { label: "Unknown", bg: "#F4EEEB", color: "#7D675E", action: fa
 
 export default function StatusChip({ status, large, showAction, role }) {
   const cfg = STATUS_CONFIG[status] || FALLBACK;
-  const label = (status === "paymentRequired" && role === "seller") ? "Confirm Payment" : cfg.label;
+  const label = (status === "paymentRequired" && role === "seller") ? "Waiting for Payment"
+    : (status === "confirmPaymentRequired" && role === "buyer") ? "Payment Sent"
+    : cfg.label;
   return (
     <span style={{
       display:"inline-flex", alignItems:"center", gap:4,

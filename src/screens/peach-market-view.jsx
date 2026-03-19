@@ -948,8 +948,6 @@ export default function PeachMarket() {
         // Own offers from /v069/user/{id}/offers — returns { buyOffers: [...], sellOffers: [...] }
         const ownBidsArr = ownOffersJson?.buyOffers ?? [];
         const ownAsksArr = ownOffersJson?.sellOffers ?? [];
-        console.log("[MarketView] v069 bids:", bidsArr.length, "asks:", asksArr.length, "own bids:", ownBidsArr.length, "own asks:", ownAsksArr.length, "own ask IDs:", ownAsksArr.map(o => o.id));
-
         // Merge market + own offers, deduplicating by ID
         const seen = new Set();
         const merged = [];
