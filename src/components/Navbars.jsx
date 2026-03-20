@@ -159,7 +159,7 @@ export function Topbar({
 
       const authRes = await fetch(regtestBase + "/nuxDesktopAuth");
       if (!authRes.ok) throw new Error("Failed to reach regtest auth");
-      const { token, pgpPrivKey } = await authRes.json();
+      const { token, pgpPrivKey, xpub, multisigXpub } = await authRes.json();
       if (!token) throw new Error("No token in response");
 
       const profileRes = await fetch(regtestBase + "/v1/user/me", {
@@ -171,6 +171,8 @@ export function Topbar({
       window.__PEACH_AUTH__ = {
         token,
         pgpPrivKey: pgpPrivKey || null,
+        xpub: xpub || null,
+        multisigXpub: multisigXpub || null,
         peachId: profile.id || profile.publicKey || null,
         baseUrl: regtestBase + "/v1",
         profile,

@@ -218,6 +218,7 @@ Remaining items (5.3–5.5) are blocked on backend/mobile teams.
 | ~~Seller release TX~~ | ~~Needs PSBT signing~~ | ✅ Browser-side wired (mock). Waiting on backend endpoints (Phase 5.3) |
 | Blocked users list sync | Backend team — needs `GET /user/blocked` endpoint | Web + mobile would show consistent blocked users list. Currently block/unblock works server-side, but there's no way to fetch the full list of who you've blocked. |
 | Network Fees preference sync | Backend team (nice-to-have) | `feeRate` is saved server-side via `PATCH /user` and consumed by the mobile app when signing transactions (escrow funding, wallet sends). Web app sets it as a cross-device convenience. Would benefit from loading saved preference on mount via `GET /user/me`. |
+| ~~PM decryption cross-compatibility~~ | ~~Mobile team investigation~~ | ✅ Fixed — mobile "can't find the private key" bug resolved. PMs encrypted in the browser now decrypt correctly on mobile. |
 
 ---
 

@@ -270,7 +270,7 @@ export default function OfferCreation({ initialType="buy" }) {
           const activeCount = activeSell.length;
           const historyCount = Array.isArray(historySell) ? historySell.filter(o => o.type === "ask").length : 0;
           const addrIdx = activeCount + historyCount;
-          const returnAddress = deriveReturnAddress(auth.multisigXpub, addrIdx);
+          const returnAddress = deriveReturnAddress(auth.xpub, addrIdx);
           console.log("[OfferCreation] Return address:", returnAddress, "at index", addrIdx, `(${activeCount} active + ${historyCount} history)`);
 
           // 2. POST /v1/offer — create sell offer

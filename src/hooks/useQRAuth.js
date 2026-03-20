@@ -163,7 +163,7 @@ export function useQRAuth({ baseUrl }) {
         const { data: decrypted } = await openpgp.decrypt({ message: encMsg, decryptionKeys: privKeyObj });
 
         const parsed = JSON.parse(decrypted);
-        const { validationPassword, pgpPrivateKey, multisigXpub } = parsed;
+        const { validationPassword, pgpPrivateKey, xpub, multisigXpub } = parsed;
 
         if (!mountedRef.current) return;
         setPhase("validating");
@@ -218,6 +218,7 @@ export function useQRAuth({ baseUrl }) {
         window.__PEACH_AUTH__ = {
           token: accessToken,
           pgpPrivKey: pgpPrivateKey,
+          xpub: xpub || null,
           multisigXpub: multisigXpub || null,
           peachId: userProfile.id || userProfile.publicKey || null,
           baseUrl: baseUrl + "/v1",
