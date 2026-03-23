@@ -441,7 +441,8 @@ export default function TradeExecution() {
         // Decrypt symmetric key (needed for both PM data and chat)
         if (symKeyEnc && auth.pgpPrivKey) {
           try {
-            symKey = await decryptPGPMessage(symKeyEnc, auth.pgpPrivKey);
+            const raw = await decryptPGPMessage(symKeyEnc, auth.pgpPrivKey);
+            symKey = raw ? raw.trim() : null;
             if (symKey) setChatSymKey(symKey);
           } catch (err) {
             console.warn("[Trade] Symmetric key decryption failed:", err.message);
@@ -1074,7 +1075,7 @@ export default function TradeExecution() {
               if (!chatSymKey || !auth?.pgpPrivKey) return false;
               try {
                 const encrypted = await encryptSymmetric(plaintext, chatSymKey);
-                const signature = await signPGPMessage(plaintext, auth.pgpPrivKey, { detached: true });
+                const signature = await signPGPMessage(plaintext, auth.pgpPrivKey);
                 const res = await post('/contract/' + contract.id + '/chat', { message: encrypted, signature });
                 return res.ok;
               } catch (e) {

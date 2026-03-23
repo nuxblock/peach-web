@@ -307,7 +307,7 @@ export default function MatchesPopup({
 
     try {
       const encrypted = await encryptSymmetric(plaintext, chatSymKey);
-      const signature = await signPGPMessage(plaintext, auth.pgpPrivKey, { detached: true });
+      const signature = await signPGPMessage(plaintext, auth.pgpPrivKey);
       const url = buildChatUrl(chatMatch);
       const res = await fetch(url, {
         method: "POST",
@@ -738,7 +738,7 @@ export function SentRequestPopup({ trade, onClose }) {
 
     try {
       const encrypted = await encryptSymmetric(plaintext, chatSymKey);
-      const signature = await signPGPMessage(plaintext, auth.pgpPrivKey, { detached: true });
+      const signature = await signPGPMessage(plaintext, auth.pgpPrivKey);
       const url = buildChatUrl();
       const res = await fetch(url, {
         method: "POST",

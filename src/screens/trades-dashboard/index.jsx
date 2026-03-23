@@ -1278,7 +1278,9 @@ export default function TradesDashboard() {
         const { decryptPGPMessage } = await import("../../utils/pgp.js");
         let symmetricKey = null;
         if (auth?.pgpPrivKey && match._raw?.symmetricKeyEncrypted) {
-          symmetricKey = await decryptPGPMessage(match._raw.symmetricKeyEncrypted, auth.pgpPrivKey);
+          const raw = await decryptPGPMessage(match._raw.symmetricKeyEncrypted, auth.pgpPrivKey);
+          symmetricKey = raw ? raw.trim() : null;
+          console.log("[Trades] decrypted symmetricKey:", symmetricKey ? `len=${symmetricKey.length} first8=${symmetricKey.slice(0,8)} rawLen=${raw.length}` : "null");
         }
 
         let paymentDataEncrypted = null;
@@ -1287,12 +1289,14 @@ export default function TradesDashboard() {
           const pmJson = JSON.stringify(cleanData);
           paymentDataEncrypted = await encryptSymmetric(pmJson, symmetricKey);
           paymentDataSignature = await signPGPMessage(pmJson, auth.pgpPrivKey);
-          // Debug: verify round-trip decryption works
-          console.log("[Trades] symmetricKey length:", symmetricKey.length, "first 8:", symmetricKey.slice(0, 8));
+          // Debug: verify round-trip + log formats
+          console.log("[Trades] pmJson length:", pmJson.length);
+          console.log("[Trades] encrypted starts:", paymentDataEncrypted?.slice(0, 60));
+          console.log("[Trades] signature starts:", paymentDataSignature?.slice(0, 80));
           try {
             const { decryptSymmetric: testDecrypt } = await import("../../utils/pgp.js");
             const roundTrip = await testDecrypt(paymentDataEncrypted, symmetricKey);
-            console.log("[Trades] Round-trip decrypt OK:", roundTrip === pmJson);
+            console.log("[Trades] Round-trip decrypt OK:", roundTrip === pmJson, "decrypted length:", roundTrip?.length);
           } catch (e) { console.warn("[Trades] Round-trip decrypt FAILED:", e.message); }
         }
 

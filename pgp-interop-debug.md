@@ -46,9 +46,11 @@ If step 2 fails, symmetric key is discarded as null, step 3 fails with null pass
 
 ## Issues found and fixed
 
-### 1. Signature format — FIXED
-- **Problem:** `openpgp.sign({ message: createMessage(...) })` produces `-----BEGIN PGP MESSAGE-----` (inline signed message). GopenPGP's `verify()` expects `-----BEGIN PGP SIGNED MESSAGE-----` (cleartext signed).
-- **Fix:** Changed `signPGPMessage()` and `encryptForRecipients()` to use `createCleartextMessage()` instead of `createMessage()`.
+### 1. Signature format — FIXED (revised twice)
+- **Problem (round 1):** `openpgp.sign({ message: createMessage(...) })` produces `-----BEGIN PGP MESSAGE-----` (inline signed). GopenPGP's `verify()` can't parse this at all.
+- **Fix (round 1):** Changed to `createCleartextMessage()` → produces `-----BEGIN PGP SIGNED MESSAGE-----`. This caused a crash on mobile (SHA-512 issue, see #3).
+- **Problem (round 2):** GopenPGP's `OpenPGP.verify()` maps to `Verify()` → `verifyBytes()` which is the **detached signature** path. It calls `readSignature()` + hashes the `message` parameter. Cleartext signed messages use different hash canonicalization than detached, causing a hash mismatch. GopenPGP's `Sign()` uses `DetachSign()` producing `-----BEGIN PGP SIGNATURE-----` (detached). Its `VerifyData()` handles cleartext but is NOT called by `Verify()`.
+- **Fix (round 2):** Changed ALL signing to use `detached: true` → produces `-----BEGIN PGP SIGNATURE-----`. Both `signPGPMessage()` and `encryptForRecipients()` now produce detached signatures matching GopenPGP's format.
 - **File:** `src/utils/pgp.js`
 
 ### 2. Salt notation — FIXED
@@ -73,29 +75,29 @@ If step 2 fails, symmetric key is discarded as null, step 3 fails with null pass
 
 ---
 
-## Current status: STILL FAILING (web → mobile direction)
+## Current status: ROOT CAUSE FOUND — detached signature fix applied (2026-03-20)
 
-After all fixes above, the mobile still shows "failed to decrypt buyer/seller payment data" on new trades. The web side now works (can decrypt mobile-encrypted PM data).
+### Root cause
+GopenPGP's `OpenPGP.verify(signature, message, publicKey)` maps to `Verify()` → `verifyBytes()`, which is the **detached signature** verification path. It calls `readSignature()` to parse the signature, then hashes the `message` parameter. GopenPGP's `OpenPGP.sign()` maps to `Sign()` → `DetachSign()`, producing `-----BEGIN PGP SIGNATURE-----` (detached format). The cleartext format (`-----BEGIN PGP SIGNED MESSAGE-----`) we were producing either fails to parse or uses different hash canonicalization → signature verification always fails → mobile discards the decrypted PM data.
 
-### What we know
-- The SKESK packet from `encryptSymmetric` is standard: v4, AES-256, iterated S2K with SHA-256, wrapped session key (33 bytes)
-- SEIPD v1 (no AEAD) — `aeadProtect: false`
-- `GOPENPGP_COMPAT` config applied to all encrypt/sign operations
-- Round-trip test on web (encrypt then decrypt) has not been verified yet — **debug logging added, needs testing**
+### Fix applied
+- All `signPGPMessage()` calls now produce **detached signatures** (`detached: true`)
+- `encryptForRecipients()` signature also changed to detached
+- `GOPENPGP_COMPAT` config expanded with: `aeadProtect: false`, `s2kIterationCountByte: 96`, `preferredSymmetricAlgorithm: aes256`
+- Symmetric key `.trim()` added as safety measure in both trade acceptance and trade execution
 
-### What to check next
-1. **Run the round-trip test** — the web accept flow now logs `[Trades] Round-trip decrypt OK:` and the decrypted symmetric key length. Create a new trade and check browser console.
-2. **If round-trip passes** — the encryption is valid and the problem is GopenPGP-specific. Possible causes:
-   - GopenPGP v0.38.2 has a specific S2K or session key handling bug with openpgp.js v6 output
-   - The `{ cipher: 2 }` option in GopenPGP's `decryptSymmetric` overrides the packet's algo byte
-   - Need to test if signing is still causing issues (try sending without signature as a test)
-3. **If round-trip fails** — we broke something in `encryptSymmetric` with the config changes
-4. **Signature verification** — even if decryption works, GopenPGP's `verify()` could fail on the cleartext signature. The mobile code throws if signature verification fails. Try creating a trade without `paymentDataSignature` to isolate.
-5. **Check counterparty keys** — for the v1 match path, verify `match._raw?.pgpPublicKeys` is populated (debug log added at line ~1332 of trades-dashboard/index.jsx)
+### Needs testing
+Create a **new** trade between web and mobile. Check:
+1. Browser console for `[Trades] signature starts: -----BEGIN PGP SIGNATURE-----` (confirms detached format)
+2. Browser console for `[Trades] Round-trip decrypt OK: true`
+3. Mobile: PM details should now be visible (no "could not decrypt" error)
+4. Mobile ADB logs: `adb logcat *:S ReactNativeJS:V | grep -v "Firebase\|rnfirebase\|deprecated"`
 
 ### Debug logging currently in place
-- `trades-dashboard/index.jsx` line ~1289: Round-trip decrypt test + symmetric key info
-- `trades-dashboard/index.jsx` line ~1332: counterpartyKeys count (v1 match path only)
+- `trades-dashboard/index.jsx` line ~1282: symmetric key info (length, first 8 chars, raw vs trimmed)
+- `trades-dashboard/index.jsx` line ~1293: encrypted message format, signature format
+- `trades-dashboard/index.jsx` line ~1296: round-trip decrypt test
+- `trades-dashboard/index.jsx` line ~1346: counterpartyKeys count (v1 match path only)
 
 ### Mobile debugging setup
 - GrapheneOS phone connected via USB
