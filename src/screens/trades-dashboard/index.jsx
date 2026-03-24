@@ -671,9 +671,17 @@ export default function TradesDashboard() {
       premium: c.premium ?? 0,
       fiatAmount: c.price != null ? String(c.price) : "—",
       currency: c.currency ?? "",
-      tradeStatus: c.tradeStatus ?? c.status ?? "unknown",
+      tradeStatus: (() => {
+        const raw = c.tradeStatus ?? c.status ?? "unknown";
+        // Summary endpoint returns tradeCanceled even when seller still has escrow to handle
+        if (raw === "tradeCanceled" && rawType === "ask"
+            && !c.refunded && !c.newTradeId) return "refundOrReviveRequired";
+        return raw;
+      })(),
       createdAt: new Date(c.creationDate ?? Date.now()),
       unread: c.unreadMessages ?? 0,
+      refunded: !!c.refunded,
+      newTradeId: c.newTradeId ?? null,
     };
   }
 
@@ -707,6 +715,13 @@ export default function TradesDashboard() {
           ...offersArr.map(normalizeOffer),
           ...contractsArr.map(normalizeContract),
         ];
+        // Cache revive/refund state per contract — trade execution page reads this
+        // since /contract/:id doesn't return these fields
+        contractsArr.forEach(c => {
+          if (c.refunded || c.newTradeId) {
+            try { sessionStorage.setItem(`contract-meta:${c.id}`, JSON.stringify({ refunded: !!c.refunded, newTradeId: c.newTradeId ?? null })); } catch {}
+          }
+        });
         setCache("trades-items", items);
         setLiveItems(items);
 

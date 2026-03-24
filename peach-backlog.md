@@ -295,6 +295,7 @@ Items that don't add new API wiring but improve existing screens. Organized by p
 | Item | Blocker | What it unlocks |
 |------|---------|-----------------|
 | Fix `GET /v069/sellOffer?ownOffers=true` | Backend team | Eliminates sell offer status blind spot + simplifies fetch logic in 4 screens. See `trades-dashboard-dual-fetch-report.md` |
+| Fix `GET /v1/contracts/summary` — return `refundOrReviveRequired` status | Backend team | Summary endpoint always returns `tradeCanceled` for cancelled contracts, even when seller still has escrow funds to deal with. Web app works around this by deriving the status client-side from `type`, `refunded`, and `newTradeId` fields. Backend fix would eliminate this workaround and align with how `/contract/:id` already returns the correct status. |
 | 5.3 Backend endpoints (`task/create`, `pendingTasks`, `task/:id/sign`, `returnAddressIndex`) | Backend team | Real mobile signing + sell offer return address |
 | 5.4 Mobile pending tasks UI | Mobile team | End-to-end signing flow |
 | 5.5 Swap mock `createTask` for real endpoint | Needs 5.3 first | Completes signing integration |

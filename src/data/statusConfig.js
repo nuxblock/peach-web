@@ -46,7 +46,7 @@ export const STATUS_CONFIG = {
 
   // ── Refund-related ──
   refundAddressRequired:     { label: "Refund Address Needed", bg: "#FEEDE5", color: "#C45104", action: true  },
-  refundOrReviveRequired:    { label: "Refund or Revive",      bg: "#FEEDE5", color: "#C45104", action: true  },
+  refundOrReviveRequired:    { label: "Refund or Revive",      bg: "#FEFCE5", color: "#9A7000", action: true  },
   refundTxSignatureRequired: { label: "Sign Refund",           bg: "#FEEDE5", color: "#C45104", action: true  },
 };
 

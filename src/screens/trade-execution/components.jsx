@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef } from "react";
 import { SatsAmount } from "../../components/BitcoinAmount.jsx";
 import { LIFECYCLE } from "../../data/statusConfig.js";
-import { relTime } from "../../utils/format.js";
+import { relTime, formatTradeId } from "../../utils/format.js";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 export const IconBack      = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="10,3 5,8 10,13"/></svg>;
@@ -1241,7 +1241,7 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
             borderRadius:8, padding:"10px 12px",
             fontSize:".83rem", color:"#05A85A", fontWeight:600, lineHeight:1.5,
           }}>
-            <span>Offer has been republished{scenario.newOfferId ? ` (new offer: ${scenario.newOfferId})` : ""}.</span>
+            <span>Offer has been republished{scenario.newOfferId ? ` (new offer: ${formatTradeId(scenario.newOfferId, "offer")})` : ""}.</span>
           </div>
         )}
 

@@ -371,6 +371,10 @@ export default function TradeExecution() {
 
     async function fetchContract() {
       let symKey = null;
+      // /contract/:id doesn't return refunded/newTradeId — read from sessionStorage
+      // (written by dashboard from /contracts/summary which has those fields)
+      let meta = null;
+      try { meta = JSON.parse(sessionStorage.getItem(`contract-meta:${routeId}`)); } catch {}
       try {
         const res = await get(`/contract/${routeId}`);
         if (!res.ok) return null;
@@ -430,24 +434,28 @@ export default function TradeExecution() {
           disputeOutcomeAcknowledgedBy: c.disputeOutcomeAcknowledgedBy ?? [],
           disputeAcknowledgedByCounterParty: c.disputeAcknowledgedByCounterParty ?? false,
           isEmailRequired: c.isEmailRequired ?? false,
-          // Revive/refund guard fields
-          revived: !!c.newOfferId,
-          refunded: !!c.refunded,
-          newOfferId: c.newOfferId ?? null,
+          // Revive/refund guard fields — /contract/:id doesn't return these,
+          // so we read from sessionStorage (written by dashboard from /contracts/summary)
+          revived: !!c.newOfferId || !!meta?.newTradeId,
+          refunded: !!c.refunded || !!meta?.refunded,
+          newOfferId: c.newOfferId ?? meta?.newTradeId ?? null,
         });
+
+        const isRevived = !!c.newOfferId || !!meta?.newTradeId;
+        const isRefunded = !!c.refunded || !!meta?.refunded;
 
         // Pin refundOrReviveRequired once seen — prevents flickering from server alternation
         const initialStatus = c.tradeStatus ?? c.status;
         if (initialStatus === "refundOrReviveRequired") {
           sawRefundOrReviveRef.current = true;
-          setShowPostCancel(true);
+          if (!isRefunded && !isRevived) setShowPostCancel(true);
         }
-        // Server sometimes returns tradeCanceled even when seller still has escrow to deal with
-        if (!isBuyer && !c.refunded && !c.newOfferId
-            && (initialStatus === "tradeCanceled" || initialStatus === "confirmCancelation")) {
+        // Server returns tradeCanceled for all cancelled seller contracts —
+        // normalize to refundOrReviveRequired so the correct UI renders
+        if (!isBuyer && (initialStatus === "tradeCanceled" || initialStatus === "confirmCancelation")) {
           sawRefundOrReviveRef.current = true;
           setLiveContract(prev => prev ? { ...prev, tradeStatus: "refundOrReviveRequired" } : prev);
-          setShowPostCancel(true);
+          if (!isRefunded && !isRevived) setShowPostCancel(true);
         }
 
         // Decrypt payment data if available
@@ -845,7 +853,7 @@ export default function TradeExecution() {
 
               {/* Payment deadline — inside actions */}
               {/* Payment deadline pill — not shown for seller when paymentRequired (has its own merged bar) */}
-              {deadlineStr && !(status === "paymentRequired" && role === "seller") && status !== "dispute" && status !== "disputeWithoutEscrowFunded" && status !== "tradeCanceled" && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding" && status !== "escrowWaitingForConfirmation" && (
+              {deadlineStr && !(status === "paymentRequired" && role === "seller") && status !== "dispute" && status !== "disputeWithoutEscrowFunded" && status !== "tradeCanceled" && status !== "refundOrReviveRequired" && status !== "confirmCancelation" && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding" && status !== "escrowWaitingForConfirmation" && (
                 <div style={{
                   display:"flex", alignItems:"center", gap:12,
                   background:"#FEEDE5", border:"1.5px solid rgba(196,81,4,.2)",
@@ -960,7 +968,7 @@ export default function TradeExecution() {
                         const data = await res.json().catch(() => ({}));
                         setLiveContract(prev => prev ? { ...prev, revived: true, newOfferId: data.newOfferId ?? null } : prev);
                         setShowPostCancel(false);
-                        setToast("Offer republished" + (data.newOfferId ? ` — new offer: ${data.newOfferId}` : ""));
+                        setToast("Offer republished" + (data.newOfferId ? ` — new offer: ${formatTradeId(data.newOfferId, "offer")}` : ""));
                         setTimeout(() => setToast(null), 4000);
                       } else {
                         const err = await res.json().catch(() => ({}));
