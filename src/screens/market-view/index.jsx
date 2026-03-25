@@ -158,14 +158,82 @@ export default function PeachMarket() {
     return userPMs.filter(pm => offer.methods.includes(pm.type));
   }
 
-  function handleRequestTrade(offer) {
-    // Show "trade requested" animation inside popup
-    setRequestAnim(true);
-    setTimeout(() => {
-      // Mark as requested and close popup
-      setLocalRequested(prev => new Set([...prev, offer.id]));
-      closePopup();
-    }, 1600);
+  async function handleRequestTrade(offer) {
+    if (!auth?.pgpPrivKey || !selectedPM || !popupCurrency) return;
+
+    const pmObj = userPMs.find(pm => pm.id === selectedPM);
+    if (!pmObj) return;
+
+    // Build clean PM data (strip structural fields, keep payment details only)
+    const STRUCTURAL = new Set(["id", "methodId", "type", "name", "label", "currencies", "hashes", "details", "data", "country", "anonymous"]);
+    const cleanData = {};
+    const pmDetails = pmObj.details || {};
+    for (const [k, v] of Object.entries(pmDetails)) {
+      if (!STRUCTURAL.has(k) && typeof v !== "object") cleanData[k] = v;
+    }
+
+    try {
+      // Encrypt PM data with symmetric key, encrypt symmetric key for counterparty
+      const symmetricKey = generateSymmetricKey();
+      const counterpartyKeys = (offer._raw?.user?.pgpPublicKeys ?? [])
+        .map(k => typeof k === "string" ? k : k?.publicKey)
+        .filter(Boolean);
+
+      let symmetricKeyEncrypted = null;
+      let symmetricKeySignature = null;
+      let paymentDataEncrypted = null;
+      let paymentDataSignature = null;
+      let paymentDataHashed = null;
+
+      const keyResult = await encryptForRecipients(symmetricKey, counterpartyKeys, auth.pgpPrivKey);
+      if (keyResult) {
+        symmetricKeyEncrypted = keyResult.encrypted;
+        symmetricKeySignature = keyResult.signature;
+      }
+
+      if (Object.keys(cleanData).length > 0 && symmetricKey) {
+        const pmJson = JSON.stringify(cleanData);
+        paymentDataEncrypted = await encryptSymmetric(pmJson, symmetricKey);
+        paymentDataSignature = await signPGPMessage(pmJson, auth.pgpPrivKey);
+        paymentDataHashed = await hashPaymentFields(pmObj.type, cleanData, pmDetails.country || undefined);
+      }
+
+      // POST trade request to v069
+      const offerType = offer.type === "bid" ? "buyOffer" : "sellOffer";
+      const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
+      const res = await fetch(`${v069Base}/${offerType}/${offer.id}/tradeRequestPerformed`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.token}`,
+        },
+        body: JSON.stringify({
+          paymentMethod: pmObj.type,
+          currency: popupCurrency,
+          paymentDataHashed,
+          paymentDataEncrypted,
+          paymentDataSignature,
+          symmetricKeyEncrypted,
+          symmetricKeySignature,
+        }),
+      });
+
+      if (res.ok) {
+        // Show animation, mark as requested, close popup
+        setRequestAnim(true);
+        setTimeout(() => {
+          setLocalRequested(prev => new Set([...prev, offer.id]));
+          closePopup();
+        }, 1600);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setToast("Trade request failed: " + (err.error || "try again"));
+        setTimeout(() => setToast(null), 4000);
+      }
+    } catch (e) {
+      setToast("Trade request error: " + e.message);
+      setTimeout(() => setToast(null), 4000);
+    }
   }
 
   async function handleInstantTrade(offer) {

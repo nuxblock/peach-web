@@ -1029,6 +1029,7 @@ function SellerPaymentCountdown({ deadline, onExtend }) {
 export function ActionPanel({ scenario, onAction, showPostCancel = false, pendingTask = null, onPendingClick = null }) {
   const { tradeStatus: status, role } = scenario;
   const [showConfirm, setShowConfirm] = useState(false);
+  const [buyerRating, setBuyerRating] = useState(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const Btn = ({ label, bg, color, onClick }) => (
@@ -1058,13 +1059,60 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
   return (
     <>
       {showConfirm && (
-        <ConfirmModal
-          title="Confirm payment received?"
-          body="This will immediately release the Bitcoin from escrow to the buyer. Only confirm if you have actually received the fiat payment in your account."
-          confirmLabel="Yes, release Bitcoin"
-          onConfirm={() => { setShowConfirm(false); onAction("release_bitcoin"); }}
-          onCancel={() => setShowConfirm(false)}
-        />
+        <div style={{
+          position:"fixed", inset:0, zIndex:500,
+          background:"rgba(43,25,17,.55)", display:"flex",
+          alignItems:"center", justifyContent:"center", padding:20,
+        }}>
+          <div style={{
+            background:"white", borderRadius:16, padding:"28px 24px",
+            maxWidth:380, width:"100%",
+            boxShadow:"0 20px 60px rgba(0,0,0,.25)",
+            animation:"modalIn .18s ease",
+          }}>
+            <div style={{ fontWeight:800, fontSize:"1.05rem", marginBottom:8 }}>Please rate the buyer in order to release the bitcoin</div>
+            <div style={{ fontSize:".88rem", color:"#7D675E", lineHeight:1.6, marginBottom:20 }}>Only confirm if you have actually received the fiat payment in your account.</div>
+            <div style={{ display:"flex", gap:12, marginBottom:24 }}>
+              <button
+                className={`rating-btn${buyerRating === "negative" ? " rating-selected-bad" : ""}`}
+                onClick={() => setBuyerRating("negative")}
+              >
+                <IconThumbDown/>
+                <span>Negative</span>
+              </button>
+              <button
+                className={`rating-btn${buyerRating === "positive" ? " rating-selected-good" : ""}`}
+                onClick={() => setBuyerRating("positive")}
+              >
+                <IconThumbUp/>
+                <span>Positive</span>
+              </button>
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button
+                style={{
+                  flex:1, border:"1.5px solid #EAE3DF", background:"white",
+                  borderRadius:999, fontFamily:"Baloo 2, cursive",
+                  fontWeight:700, fontSize:".87rem", color:"#2B1911",
+                  padding:"10px", cursor:"pointer",
+                }}
+                onClick={() => { setShowConfirm(false); setBuyerRating(null); }}
+              >Cancel</button>
+              <button
+                disabled={!buyerRating}
+                style={{
+                  flex:1, border:"none",
+                  background: buyerRating ? "#05A85A" : "#ccc", borderRadius:999,
+                  fontFamily:"Baloo 2, cursive", fontWeight:800,
+                  fontSize:".87rem", color:"white",
+                  padding:"10px", cursor: buyerRating ? "pointer" : "not-allowed",
+                  transition:"background .15s ease",
+                }}
+                onClick={() => { setShowConfirm(false); onAction("release_bitcoin", buyerRating); setBuyerRating(null); }}
+              >Release Bitcoin</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showCancelConfirm && (

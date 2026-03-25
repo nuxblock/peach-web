@@ -163,24 +163,29 @@ Remaining items (5.3–5.5) are blocked on backend/mobile teams.
 ### ~~5.1 MobileSigningModal + createTask helper~~ ✅
 ### ~~5.2 Wire signing into trade execution (release, refund, rating)~~ ✅
 
-### 5.3 Backend endpoints (backend team)
-- `POST /v1/task/create` (browser-exclusive) — create a signing task
-- `GET /v1/pendingTasks` (mobile-exclusive) — mobile fetches tasks to sign
-- `POST /v1/task/:id/sign` (mobile-exclusive) — mobile submits signature
+### 5.3 Backend endpoints
+
+**Confirmed endpoints (from backend dev, 2026-03-25):**
+- `POST /v1/contract/:contractId/payment/createPaymentMadePendingAction` — no body — buyer confirms payment sent from desktop
+- `POST /v1/contract/:contractId/payment/createPaymentConfirmedPendingAction` — body `{ buyerRating: "positive" | "negative" }` — seller confirms payment received from desktop (includes rating)
+- `POST /v1/offer/:offerId/refundPendingAction` — no body — seller requests refund from desktop (offer must already be cancelled)
+
+**Still waiting on backend team:**
 - `GET /v1/user/returnAddressIndex` — returns next unused index for return address derivation (needed for sell offers)
-- Server auto-applies signature (releases escrow, submits rating, etc.)
-- Push notification sent to mobile when task is created (no QR for signing — device already paired from auth)
-- **Release + Rating bundled**: seller's release and rating are sent as one task to mobile. Mobile signs both (release PSBT + SHA256(userId)) in one interaction.
-- **Refund**: separate task type, same protocol
-- **Status**: Waiting on backend team to implement. Web side uses mock `createTask()` for now.
+- More endpoints may come for other actions (e.g. standalone rating without release)
+
+**How it works:** Desktop calls the endpoint → server creates a pending action → mobile app picks it up → mobile signs → server applies the result. Device already paired from QR auth — no QR for signing.
 
 ### 5.4 Mobile pending tasks UI (mobile team)
 - Poll or receive push for `/pendingTasks`
 - Confirmation UI per task type
 - Sign + submit using existing mobile signing code
 
-### 5.5 Swap mock for real endpoint
-- Replace mock `createTask()` in `useApi.js` with real `POST /v1/task/create`
+### 5.5 Swap mock for real endpoints
+- Replace mock `createTask()` calls in `trade-execution/index.jsx` with real endpoint calls:
+  - `"confirmPayment"` → `POST /v1/contract/:contractId/payment/createPaymentMadePendingAction`
+  - `"release"` → `POST /v1/contract/:contractId/payment/createPaymentConfirmedPendingAction` (with `{ buyerRating }`)
+  - `"refund"` → `POST /v1/offer/:offerId/refundPendingAction`
 - End-to-end testing on regtest
 
 ### ~~5.6 Sell Offer Signing~~ → Solved without mobile signing
@@ -189,11 +194,12 @@ Remaining items (5.3–5.5) are blocked on backend/mobile teams.
 - No mobile signing needed for sell offer creation
 - **Remaining blocker**: `GET /v1/user/returnAddressIndex` endpoint (backend team)
 
-### Features unlocked by pending tasks
-| Feature | Task type | What mobile signs | Server auto-applies |
-|---------|-----------|-------------------|---------------------|
-| Seller payment release + Rating | `release` (bundled) | Signs release PSBT + signs SHA256(counterpartyUserId) | Broadcasts release tx + submits rating |
-| Refund | `refund` | Signs refund PSBT with escrow key | Broadcasts refund tx |
+### Features unlocked by pending action endpoints
+| Feature | Desktop endpoint | What mobile signs | Server auto-applies |
+|---------|-----------------|-------------------|---------------------|
+| Buyer payment confirmation | `POST /v1/contract/:id/payment/createPaymentMadePendingAction` | Confirms payment sent | Updates contract status |
+| Seller payment release + Rating | `POST /v1/contract/:id/payment/createPaymentConfirmedPendingAction` | Signs release PSBT + confirms rating | Broadcasts release tx + submits rating |
+| Refund | `POST /v1/offer/:id/refundPendingAction` | Signs refund PSBT with escrow key | Broadcasts refund tx |
 | ~~Sell offer creation~~ | — | ~~No longer needs mobile~~ | ✅ Browser derives escrow key + return address from xpub |
 
 ---
@@ -296,9 +302,9 @@ Items that don't add new API wiring but improve existing screens. Organized by p
 |------|---------|-----------------|
 | Fix `GET /v069/sellOffer?ownOffers=true` | Backend team | Eliminates sell offer status blind spot + simplifies fetch logic in 4 screens. See `trades-dashboard-dual-fetch-report.md` |
 | Fix `GET /v1/contracts/summary` — return `refundOrReviveRequired` status | Backend team | Summary endpoint always returns `tradeCanceled` for cancelled contracts, even when seller still has escrow funds to deal with. Web app works around this by deriving the status client-side from `type`, `refunded`, and `newTradeId` fields. Backend fix would eliminate this workaround and align with how `/contract/:id` already returns the correct status. |
-| 5.3 Backend endpoints (`task/create`, `pendingTasks`, `task/:id/sign`, `returnAddressIndex`) | Backend team | Real mobile signing + sell offer return address |
+| 5.3 Remaining endpoint: `GET /v1/user/returnAddressIndex` | Backend team | Sell offer return address derivation (3 pending action endpoints confirmed — see Phase 5.3) |
 | 5.4 Mobile pending tasks UI | Mobile team | End-to-end signing flow |
-| 5.5 Swap mock `createTask` for real endpoint | Needs 5.3 first | Completes signing integration |
+| 5.5 Swap mock `createTask` for real pending action endpoints | Ready to wire (3 endpoints confirmed) | Completes signing integration |
 | Wallet visualization | Needs UI design | Future feature |
 
 ---

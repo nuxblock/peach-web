@@ -8,6 +8,7 @@ import { SideNav, Topbar } from "../../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi, getCached, setCache, clearCache } from "../../hooks/useApi.js";
+import MobileSigningModal from "../../components/MobileSigningModal.jsx";
 import { useUnread } from "../../hooks/useUnread.js";
 import {
   extractPMsFromProfile, isApiError,
@@ -1046,6 +1047,7 @@ export default function TradesDashboard() {
   const [localMatches, setLocalMatches]   = useState({});      // tradeId → remaining matches
   const [matchError, setMatchError]       = useState(null);    // error message shown in popup
   const [toast, setToast]                 = useState(null);    // bottom toast message
+  const [signingModal, setSigningModal]   = useState(null);    // mobile signing modal
   const [matchesLoading, setMatchesLoading] = useState(false);  // loading matches on demand
   const [sentRequestPopup, setSentRequestPopup] = useState(null); // sent trade request detail/chat popup
 
@@ -1109,23 +1111,26 @@ export default function TradesDashboard() {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${auth.token}` },
         });
-      } else {
-        // Sell offers use v1 cancel (may return PSBT for escrow refund)
-        res = await post(`/offer/${offer.id}/cancel`, {});
-      }
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new Error(data?.error || data?.message || `Server error ${res.status}`);
-      }
-      if (data?.psbt) {
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(data?.error || data?.message || `Server error ${res.status}`);
         closeOfferDetail();
         setLivePending(prev => prev?.filter(o => String(o.id) !== String(offer.id)));
-        setToast("Refund sent to mobile for signing"); setTimeout(() => setToast(null), 4000);
-        return;
+        setToast("Offer withdrawn"); setTimeout(() => setToast(null), 3000);
+      } else {
+        // Sell offers: cancel first, then request refund via mobile pending action
+        res = await post(`/offer/${offer.id}/cancel`, {});
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(data?.error || data?.message || `Server error ${res.status}`);
+        // Offer is now cancelled — trigger refund pending action for mobile signing
+        const refundRes = await post(`/offer/${offer.id}/refundPendingAction`);
+        if (!refundRes.ok) {
+          const err = await refundRes.json().catch(() => null);
+          throw new Error(err?.error || err?.message || `Refund request failed: HTTP ${refundRes.status}`);
+        }
+        closeOfferDetail();
+        setLivePending(prev => prev?.filter(o => String(o.id) !== String(offer.id)));
+        setSigningModal({ title: "Refund Escrow", description: "Approve the escrow refund on your Peach mobile app. A push notification has been sent to your phone." });
       }
-      closeOfferDetail();
-      setLivePending(prev => prev?.filter(o => String(o.id) !== String(offer.id)));
-      setToast("Offer withdrawn"); setTimeout(() => setToast(null), 3000);
     } catch (err) {
       setOdWithdrawError(err.message || "Failed to withdraw");
     } finally {
@@ -1579,7 +1584,7 @@ export default function TradesDashboard() {
               <span>{urgentCount} trade{urgentCount > 1 ? "s" : ""} require{urgentCount === 1 ? "s" : ""} your attention</span>
             </div>
           )}
-          <button className="btn-cta" style={{marginLeft:"auto",flexShrink:0}}>+ New Offer</button>
+          <button className="btn-cta" onClick={() => navigate("/offer/new")} style={{marginLeft:"auto",flexShrink:0}}>+ Create Offer</button>
         </div>
 
         {/* ── PENDING OFFERS ── */}
@@ -1841,6 +1846,14 @@ export default function TradesDashboard() {
           </div>
         </div>
       )}
+
+      {/* ── MOBILE SIGNING MODAL ── */}
+      <MobileSigningModal
+        open={!!signingModal}
+        title={signingModal?.title}
+        description={signingModal?.description}
+        onCancel={() => setSigningModal(null)}
+      />
 
       {/* ── TOAST ── */}
       {toast && (

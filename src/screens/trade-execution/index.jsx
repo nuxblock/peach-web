@@ -806,7 +806,6 @@ export default function TradeExecution() {
               <div>
                 <div className="summary-item-label">Amount</div>
                 <div className="summary-item-val"><SatsAmount sats={contract.amount} size="lg"/></div>
-                <div className="summary-item-sub">≈ €{satsToFiat(contract.amount)}</div>
               </div>
               <div>
                 <div className="summary-item-label">You {role === "buyer" ? "pay" : "receive"}</div>
@@ -981,7 +980,11 @@ export default function TradeExecution() {
                     setActionError(null);
                     try {
                       const offerId = String(contract.id).split("-")[0];
-                      await createTask(post, "refund", { offerId });
+                      const res = await post(`/offer/${offerId}/refundPendingAction`);
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => null);
+                        throw new Error(err?.error || err?.message || `HTTP ${res.status}`);
+                      }
                       savePendingTask(routeId, "refund");
                       setPendingTaskType("refund");
                       setSigningModal({ title: "Refund Escrow", description: "Approve the escrow refund on your Peach mobile app. A push notification has been sent to your phone.", taskType: "refund" });
@@ -991,8 +994,11 @@ export default function TradeExecution() {
                   } else if (action === "payment_sent") {
                     setActionError(null);
                     try {
-                      // Desktop auth tokens cannot call payment/confirm — delegate to mobile app
-                      await createTask(post, "confirmPayment", { contractId: contract.id });
+                      const res = await post(`/contract/${contract.id}/payment/createPaymentMadePendingAction`);
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => null);
+                        throw new Error(err?.error || err?.message || `HTTP ${res.status}`);
+                      }
                       savePendingTask(routeId, "confirmPayment");
                       setPendingTaskType("confirmPayment");
                       setSigningModal({ title: "Confirm Payment", description: "Please confirm your payment on the Peach mobile app. Open the trade on your phone and slide to confirm you've sent the payment.", taskType: "confirmPayment" });
@@ -1002,7 +1008,12 @@ export default function TradeExecution() {
                   } else if (action === "release_bitcoin") {
                     setActionError(null);
                     try {
-                      await createTask(post, "release", { contractId: contract.id });
+                      const buyerRating = arg; // "positive" or "negative", passed from rating modal
+                      const res = await post(`/contract/${contract.id}/payment/createPaymentConfirmedPendingAction`, { buyerRating });
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => null);
+                        throw new Error(err?.error || err?.message || `HTTP ${res.status}`);
+                      }
                       savePendingTask(routeId, "release");
                       setPendingTaskType("release");
                       setSigningModal({ title: "Release Bitcoin", description: "Approve the Bitcoin release on your Peach mobile app. A push notification has been sent to your phone.", taskType: "release" });
@@ -1077,8 +1088,8 @@ export default function TradeExecution() {
               </div>
             )}
 
-            {/* Rating panel */}
-            {(status === "rateUser" || status === "tradeCompleted") && (
+            {/* Rating panel — buyer only (seller rates during release modal) */}
+            {(status === "rateUser" || status === "tradeCompleted") && role === "buyer" && (
               <div className="panel-section">
                 <RatingPanel counterparty={counterparty} pending={pendingTaskType === "rate"} onPendingClick={() => setSigningModal({ title: "Sign Rating", description: "Approve the rating on your Peach mobile app. A push notification has been sent to your phone.", taskType: "rate" })} onRate={async (r) => {
                   const rating = r === 5 ? 1 : -1;
