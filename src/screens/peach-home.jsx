@@ -4,8 +4,11 @@ import { SideNav, Topbar, formatPeachId } from "../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi, getCached, setCache } from "../hooks/useApi.js";
-import { STATUS_CONFIG } from "../data/statusConfig.js";
-import { BTC_PRICE_FALLBACK as BTC_PRICE, fmt as formatSats, fmtPct } from "../utils/format.js";
+import { STATUS_CONFIG, FINISHED_STATUSES } from "../data/statusConfig.js";
+import { BTC_PRICE_FALLBACK as BTC_PRICE, fmt as formatSats, fmtPct, relTime } from "../utils/format.js";
+
+// Convert API rating (-1 to +1) to Peach display scale (0–5)
+const toPeaches = (r) => ((r + 1) / 2 * 5).toFixed(1);
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const css = `
@@ -251,6 +254,8 @@ export default function PeachHome() {
   const [sidebarCollapsed,  setSidebarCollapsed]  = useState(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [marketStats, setMarketStats] = useState(null);
+  const [contractsData, setContractsData] = useState([]);
 
   // ── AUTH ──
   const { auth, isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
@@ -270,7 +275,7 @@ export default function PeachHome() {
                            : "—",
     trades:              liveProfile?.trades ?? 0,
     disputesTotal,
-    rating:              liveProfile?.rating ?? 0,
+    rating:              liveProfile?.rating != null ? toPeaches(liveProfile.rating) : "—",
     badges:              liveProfile?.medals ?? liveProfile?.badges ?? [],
     preferredMethods:    liveProfile?.preferredPaymentMethods ?? [],
     preferredCurrencies: liveProfile?.preferredCurrencies ?? [],
@@ -315,6 +320,22 @@ export default function PeachHome() {
     return () => clearInterval(iv);
   }, []);
 
+  // ── MARKET OFFERS STATS (public, platform-wide) ──
+  useEffect(() => {
+    async function fetchMarketStats() {
+      try {
+        const res = await get('/market/offers/stats');
+        if (res.ok) {
+          const data = await res.json();
+          if (data) setMarketStats(data);
+        }
+      } catch {}
+    }
+    fetchMarketStats();
+    const iv = setInterval(fetchMarketStats, 60000);
+    return () => clearInterval(iv);
+  }, []);
+
   // ── URGENT TRADES COUNT ──
   function countUrgent(items) {
     return items.filter(t => {
@@ -338,14 +359,15 @@ export default function PeachHome() {
           get('/offers/summary'),
           get('/contracts/summary'),
         ]);
-        const [offersData, contractsData] = await Promise.all([
+        const [offRaw, conRaw] = await Promise.all([
           offersRes.ok ? offersRes.json() : [],
           contractsRes.ok ? contractsRes.json() : [],
         ]);
-        const offers = Array.isArray(offersData) ? offersData : (offersData?.offers ?? []);
-        const contracts = Array.isArray(contractsData) ? contractsData : (contractsData?.contracts ?? []);
+        const offers = Array.isArray(offRaw) ? offRaw : (offRaw?.offers ?? []);
+        const contracts = Array.isArray(conRaw) ? conRaw : (conRaw?.contracts ?? []);
         const all = [...offers, ...contracts];
         setUrgentCount(countUrgent(all));
+        setContractsData(contracts);
         setCache("home-urgent", all);
       } catch {}
     }
@@ -353,6 +375,13 @@ export default function PeachHome() {
     const iv = setInterval(fetchUrgent, 30000);
     return () => clearInterval(iv);
   }, [auth]);
+
+  // ── DERIVED DATA FROM CONTRACTS ──
+  const completedContracts = contractsData.filter(c => c.tradeStatus === "tradeCompleted");
+  const totalVolumeSats = completedContracts.reduce((s, c) => s + (c.amount ?? 0), 0);
+  const lastTradeDate = completedContracts.length
+    ? new Date(Math.max(...completedContracts.map(c => new Date(c.lastModified).getTime())))
+    : null;
 
   const satsPerCur  = Math.round(100_000_000 / btcPrice);
   const navWidth = isMobile ? 0 : (sidebarCollapsed ? 44 : 68);
@@ -502,8 +531,9 @@ export default function PeachHome() {
                   <div className="profile-row">
                     <span className="profile-row-label">Badges</span>
                     <div className="profile-badges">
-                      {user.badges.includes("supertrader") && <span className="badge badge-super">🏆 Supertrader</span>}
-                      {user.badges.includes("fast") && <span className="badge badge-fast">⚡ Fast</span>}
+                      {user.badges.includes("superTrader") && <span className="badge badge-super">🏆 Supertrader</span>}
+                      {user.badges.includes("fastTrader") && <span className="badge badge-fast">⚡ Fast Trader</span>}
+                      {user.badges.includes("ambassador") && <span className="badge badge-fast">🎖️ Ambassador</span>}
                       {user.badges.length === 0 && <span style={{fontSize:".78rem",color:"var(--black-65)"}}>No badges yet</span>}
                     </div>
                   </div>
@@ -535,11 +565,11 @@ export default function PeachHome() {
                       <div className="profile-stat-lbl">Trades</div>
                     </div>
                     <div className="profile-stat">
-                      <div className="profile-stat-val">{user.totalVolumeBtc} BTC</div>
+                      <div className="profile-stat-val">{totalVolumeSats > 0 ? <SatsAmount sats={totalVolumeSats} fontSize=".95rem"/> : "—"}</div>
                       <div className="profile-stat-lbl">Total Volume</div>
                     </div>
                     <div className="profile-stat">
-                      <div className="profile-stat-val">{user.lastTradeDaysAgo}d ago</div>
+                      <div className="profile-stat-val">{lastTradeDate ? relTime(lastTradeDate) : "—"}</div>
                       <div className="profile-stat-lbl">Last Trade</div>
                     </div>
                   </div>
@@ -635,14 +665,14 @@ export default function PeachHome() {
                     {/* Active Offers */}
                     <div style={{display:"flex",flexDirection:"column",gap:4}}>
                       <span style={{fontSize:".72rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:"var(--black-65)"}}>Active Offers</span>
-                      <div className="stat-big">0</div>
+                      <div className="stat-big">{marketStats ? (marketStats.buy.open + marketStats.sell.open) : "—"}</div>
                       <div className="stat-sub">
-                        <span style={{color:"var(--success)",fontWeight:700}}>0 buy</span>
+                        <span style={{color:"var(--success)",fontWeight:700}}>{marketStats?.buy?.open ?? 0} buy</span>
                         {" · "}
-                        <span style={{color:"var(--error)",fontWeight:700}}>0 sell</span>
+                        <span style={{color:"var(--error)",fontWeight:700}}>{marketStats?.sell?.open ?? 0} sell</span>
                       </div>
                       <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-start",marginTop:2}}>
-                        <span className="stat-change neu" style={{width:"fit-content"}}>—</span>
+                        <span className="stat-change neu" style={{width:"fit-content"}}>{marketStats ? `avg ${marketStats.totalAvgPremium?.toFixed(1) ?? 0}% premium` : "—"}</span>
                       </div>
                     </div>
 
