@@ -190,6 +190,23 @@ export const CSS = `
   .amt-display-fiat{font-size:.82rem;color:var(--black-65);font-weight:600}
   .amt-sep{font-size:1.1rem;color:var(--black-25);font-weight:500}
 
+  /* Amount pills (editable sats + fiat display) */
+  .amt-pills{display:flex;gap:8px;margin-bottom:10px;align-items:center}
+  .amt-pill{display:inline-flex;align-items:center;gap:6px;padding:10px 14px;
+    border:2px solid var(--black-10);border-radius:999px;background:var(--bg);
+    transition:border-color .15s;cursor:text;overflow:hidden}
+  .amt-pill.focused{border-color:var(--primary)}
+  .fiat-pill{cursor:default}
+  .amt-pill-display{display:inline-flex;align-items:center;gap:5px;
+    white-space:nowrap;cursor:text;width:100%}
+  .amt-pill-grey{color:#C4B5AE;font-weight:700;font-size:.88rem}
+  .amt-pill-black{color:var(--black);font-weight:800;font-size:.88rem}
+  .amt-pill-input{border:none;background:transparent;outline:none;
+    font-family:var(--font);font-size:.92rem;font-weight:800;
+    color:var(--black);padding:0}
+  .amt-pill-fiat{font-size:.82rem;color:var(--black-65);font-weight:600;
+    white-space:nowrap}
+
   /* Limit warning */
   .limit-warn{display:flex;gap:9px;align-items:flex-start;background:#FFFBEB;
     border:1px solid #F5CE22;border-radius:10px;padding:10px 12px;

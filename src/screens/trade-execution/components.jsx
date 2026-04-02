@@ -3,6 +3,7 @@
 // All components are used only by the trade-execution screen.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { SatsAmount } from "../../components/BitcoinAmount.jsx";
 import { LIFECYCLE } from "../../data/statusConfig.js";
 import { relTime, formatTradeId } from "../../utils/format.js";
@@ -154,33 +155,6 @@ export function EscrowAddressCard({ address }) {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  // Simple QR placeholder — real impl would use a QR library
-  function MiniQR() {
-    return (
-      <div style={{
-        width:64, height:64, background:"white", border:"1px solid #EAE3DF",
-        borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center",
-        flexShrink:0,
-      }}>
-        <svg width="44" height="44" viewBox="0 0 9 9">
-          {/* Simplified QR pattern */}
-          {[0,1,2,3,4,5,6,7,8].map(r =>
-            [0,1,2,3,4,5,6,7,8].map(c => {
-              const isCorner = (r<3&&c<3)||(r<3&&c>5)||(r>5&&c<3);
-              const seed = (r * 9 + c) * 2654435761;
-              const fill = isCorner ? 1 : (seed % 3 === 0 ? 1 : 0);
-              return fill ? <rect key={`${r}${c}`} x={c} y={r} width={1} height={1} fill="#2B1911"/> : null;
-            })
-          )}
-          {/* Corner squares */}
-          {[[0,0],[0,6],[6,0]].map(([r,c]) => (
-            <rect key={`f${r}${c}`} x={c+1} y={r+1} width={1} height={1} fill="#2B1911"/>
-          ))}
-        </svg>
-      </div>
-    );
-  }
-
   return (
     <div style={{
       background:"#F4EEEB", border:"1px solid #EAE3DF", borderRadius:12,
@@ -190,7 +164,13 @@ export function EscrowAddressCard({ address }) {
         <IconQR/> Escrow Address
       </div>
       <div style={{ display:"flex", gap:10, alignItems:"center" }}>
-        <MiniQR/>
+        <div style={{
+          width:64, height:64, background:"white", border:"1px solid #EAE3DF",
+          borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center",
+          flexShrink:0, padding:4,
+        }}>
+          {address && <QRCodeSVG value={address} size={56} fgColor="#2B1911" bgColor="#ffffff" level="L"/>}
+        </div>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{
             fontFamily:"monospace", fontSize:".72rem", color:"#2B1911",
@@ -574,31 +554,16 @@ export function EscrowFundingCard({ address, sats, btcPrice }) {
     setTimeout(() => setter(false), 1500);
   }
 
-  function QRCode({ size = 160 }) {
-    const ref = useRef(null);
-    useEffect(() => {
-      if (!ref.current) return;
-      ref.current.innerHTML = '';
-      function render() {
-        new window.QRCode(ref.current, {
-          text: qrContent,
-          width: size,
-          height: size,
-          colorDark: "#2B1911",
-          colorLight: "#ffffff",
-          correctLevel: window.QRCode.CorrectLevel.M,
-        });
-      }
-      if (window.QRCode) {
-        render();
-      } else {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-        script.onload = render;
-        document.head.appendChild(script);
-      }
-    }, [qrContent, size]);
-    return <div ref={ref} style={{ width:size, height:size, borderRadius:6, overflow:"hidden" }}/>;
+  function EscrowQR({ size = 160 }) {
+    return (
+      <QRCodeSVG
+        value={qrContent}
+        size={size}
+        fgColor="#2B1911"
+        bgColor="#ffffff"
+        level="M"
+      />
+    );
   }
 
   return (
@@ -648,7 +613,7 @@ export function EscrowFundingCard({ address, sats, btcPrice }) {
           padding:10, background:"white", border:"1px solid #EAE3DF",
           borderRadius:10, display:"inline-block",
         }}>
-          <QRCode size={160}/>
+          <EscrowQR size={160}/>
         </div>
 
         {/* Toggle */}

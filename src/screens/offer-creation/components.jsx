@@ -2,8 +2,8 @@
 // Extracted from peach-offer-creation.jsx
 // Contains: getSteps, LivePreview, AmountSlider (merged Buy+Sell), PMModal
 // ─────────────────────────────────────────────────────────────────────────────
-import { useState } from "react";
-import { SatsAmount } from "../../components/BitcoinAmount.jsx";
+import { useState, useEffect, useRef } from "react";
+import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { QRCodeSVG } from "qrcode.react";
 import { createTask } from "../../hooks/useApi.js";
 import { SAT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur } from "../../utils/format.js";
@@ -126,7 +126,7 @@ export function LivePreview({ type, form, btcPrice, offerMethods, offerCurrencie
               {hasPrem&&p!==0&&(
                 <span style={{fontSize:".72rem",fontWeight:700,
                   color:isBuy?(p<0?"var(--success)":"var(--error)"):(p>0?"var(--success)":"var(--error)")}}>
-                  {p>0?"+":""}{p.toFixed(2)}%
+                  {p>0?"+":""}{p.toFixed(1)}%
                 </span>
               )}
             </div>
@@ -134,7 +134,7 @@ export function LivePreview({ type, form, btcPrice, offerMethods, offerCurrencie
 
           {/* Row 3: tags */}
           <div style={{display:"flex",flexWrap:"wrap",gap:3,paddingBottom:4}}>
-            {hasPrem&&<span className={`pt ${premCls}`}>{p===0?"0%":(p>0?"+":"")+p.toFixed(2)+"%"}</span>}
+            {hasPrem&&<span className={`pt ${premCls}`}>{p===0?"0%":(p>0?"+":"")+p.toFixed(1)+"%"}</span>}
             {offerMethods.slice(0,3).map(m=><span key={m} className="pt pt-m">{m}</span>)}
             {offerCurrencies.slice(0,3).map(c=><span key={c} className="pt pt-c">{c}</span>)}
             {form.instantMatch&&<span style={{
@@ -155,7 +155,6 @@ export function AmountSlider({ form, setF, btcPrice }) {
   const val = form.amtFixed || MIN_SATS;
   const pct = ((val - MIN_SATS) / (maxSats - MIN_SATS)) * 100;
 
-  const snap = (v) => Math.round(v / 1000) * 1000;
   const currentFiat = satsToFiat(val, btcPrice);
   const pctOfLimit  = currentFiat / LIMIT_EUR;
   const nearLimit   = pctOfLimit >= 0.9;
@@ -166,12 +165,62 @@ export function AmountSlider({ form, setF, btcPrice }) {
 
   const barColor = pctOfLimit < 0.9 ? "var(--success)" : "#E6A000";
 
+  // Editable sats input state
+  const [inputVal, setInputVal] = useState(String(val));
+  const [focused, setFocused]   = useState(false);
+  const inputRef = useRef(null);
+
+  // Sync display when value changes externally (slider drag)
+  useEffect(() => {
+    if (!focused) setInputVal(String(val));
+  }, [val, focused]);
+
+  // Peach-format parts — computed from live input when typing, committed val otherwise
+  const displayNum = focused ? (parseInt(inputVal,10)||0) : val;
+  const satsStr    = val.toLocaleString("fr-FR");
+  const liveDigits = Math.max(1, displayNum.toString().length);
+  const greyPart   = "0," + "0".repeat(Math.max(0, 8 - liveDigits));
+
+  function handleInputChange(e) {
+    const raw = e.target.value.replace(/[^0-9]/g, "");
+    setInputVal(raw);
+    const n = parseInt(raw, 10);
+    if (!isNaN(n) && n >= MIN_SATS && n <= maxSats) {
+      setF("amtFixed", n);
+    }
+  }
+
+  function handleBlur() {
+    setFocused(false);
+    let n = parseInt(inputVal, 10);
+    if (isNaN(n) || n < MIN_SATS) n = MIN_SATS;
+    if (n > maxSats) n = maxSats;
+    setInputVal(String(n));
+    setF("amtFixed", n);
+  }
+
   return (
     <>
-      {/* Display */}
-      <div className="amt-display">
-        <SatsAmount sats={val}/>
-        <span className="amt-display-fiat">≈ €{fmtEur(currentFiat)}</span>
+      {/* Editable sats pill + fiat pill */}
+      <div className="amt-pills">
+        <div className={`amt-pill sats-pill${focused?" focused":""}`}
+          onClick={()=>{ if(!focused){ setInputVal(String(val)); setFocused(true); setTimeout(()=>inputRef.current?.focus(),0); } }}>
+          <IcoBtc size={15}/>
+          <span className="amt-pill-grey">{greyPart}</span>
+          {focused ? (
+            <input ref={inputRef} className="amt-pill-input" type="text"
+              inputMode="numeric" autoFocus value={inputVal}
+              style={{width:`${Math.max(inputVal.length,1)}ch`}}
+              onChange={handleInputChange} onBlur={handleBlur}
+              onKeyDown={e=>{ if(e.key==="Enter") e.target.blur(); }}/>
+          ) : (
+            <span className="amt-pill-black">{satsStr}</span>
+          )}
+          <span className="amt-pill-black">Sats</span>
+        </div>
+        <div className="amt-pill fiat-pill">
+          <span className="amt-pill-fiat">≈ €{fmtEur(currentFiat)}</span>
+        </div>
       </div>
 
       {/* Slider */}
@@ -179,9 +228,9 @@ export function AmountSlider({ form, setF, btcPrice }) {
         <div className="amt-slider-track"/>
         <div className="amt-slider-fill" style={{left:0,right:`${100-pct}%`}}/>
         <input type="range" className="amt-slider"
-          min={MIN_SATS} max={maxSats} step={1000}
+          min={MIN_SATS} max={maxSats} step={1}
           value={val}
-          onChange={e=>setF("amtFixed",snap(+e.target.value))}/>
+          onChange={e=>setF("amtFixed",+e.target.value)}/>
       </div>
 
       {/* Labels */}

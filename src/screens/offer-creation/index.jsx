@@ -841,7 +841,7 @@ export default function OfferCreation({ initialType="buy" }) {
                 <div className="section-header">
                   <div className={`section-num${amtOk?" filled":""}`}>1</div>
                   <span className="section-title">
-                    {isSell?"Amount to sell":"Amount"}
+                    {isSell?"Amount to sell":"Amount to buy"}
                   </span>
                   {amtOk&&<span className="section-done">✓ Done</span>}
                 </div>
@@ -944,14 +944,14 @@ export default function OfferCreation({ initialType="buy" }) {
                       color:isSell?(prem>0?"var(--success)":"var(--error)"):(prem<0?"var(--success)":"var(--error)"),
                       background:isSell?(prem>0?"var(--success-bg)":"var(--error-bg)"):(prem<0?"var(--success-bg)":"var(--error-bg)")
                     }}>
-                      {prem>0?"+":""}{prem.toFixed(2)}%
+                      {prem>0?"+":""}{prem.toFixed(1)}%
                     </span>
                   )}
                 </div>
 
                 <div className="slider-val" style={{color:prem===0?"var(--black-65)":
                   isSell?(prem>0?"var(--success)":"var(--error)"):(prem<0?"var(--success)":"var(--error)")}}>
-                  {prem>0?"+":""}{prem.toFixed(2)}%
+                  {prem>0?"+":""}{prem.toFixed(1)}%
                 </div>
 
                 <div className="prem-row">
@@ -1148,7 +1148,7 @@ export default function OfferCreation({ initialType="buy" }) {
                   ["Premium",
                     <span style={{fontWeight:800,color:prem===0?"var(--black-65)":
                       isSell?(prem>0?"var(--success)":"var(--error)"):(prem<0?"var(--success)":"var(--error)")}}>
-                      {prem>0?"+":""}{prem.toFixed(2)}%
+                      {prem>0?"+":""}{prem.toFixed(1)}%
                     </span>],
                   ["Current effective price", `€${Math.round(effP).toLocaleString()}/BTC`],
                   ["Methods", offerMethods.join(", ")||"—"],
