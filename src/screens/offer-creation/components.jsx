@@ -4,6 +4,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState } from "react";
 import { SatsAmount } from "../../components/BitcoinAmount.jsx";
+import { QRCodeSVG } from "qrcode.react";
+import { createTask } from "../../hooks/useApi.js";
 import { SAT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur } from "../../utils/format.js";
 
 // ─── CONSTANTS (shared with index.jsx) ──────────────────────────────────────
@@ -220,6 +222,41 @@ export function AmountSlider({ form, setF, btcPrice }) {
 }
 
 
+// ─── MULTI-OFFER CONTROL ────────────────────────────────────────────────────
+
+export function MultiOfferControl({ enabled, count, onToggle, onCountChange }) {
+  return (
+    <div style={{marginTop:16}}>
+      <div className="check-row" onClick={onToggle}>
+        <div className="check-box" style={{
+          border:`2px solid ${enabled?"var(--primary)":"var(--black-10)"}`,
+          background:enabled?"var(--primary-mild)":"var(--surface)"}}>
+          {enabled&&"✓"}
+        </div>
+        <div>
+          <div style={{fontSize:".8rem",fontWeight:700}}>Create multiple offers</div>
+          <div style={{fontSize:".7rem",color:"var(--black-65)",fontWeight:500}}>
+            Publish identical copies of this offer
+          </div>
+        </div>
+      </div>
+      {enabled&&(
+        <div className="multi-counter" style={{marginLeft:32,marginTop:8}}>
+          <button className="multi-counter-btn" disabled={count<=2}
+            onClick={e=>{e.stopPropagation();onCountChange(Math.max(2,count-1))}}>−</button>
+          <span className="multi-counter-val">×{count}</span>
+          <button className="multi-counter-btn" disabled={count>=10}
+            onClick={e=>{e.stopPropagation();onCountChange(Math.min(10,count+1))}}>+</button>
+          <span style={{fontSize:".7rem",color:"var(--black-65)",fontWeight:500,marginLeft:10}}>
+            All {count} copies will be identical
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ─── PM MODAL (add + edit) ──────────────────────────────────────────────────
 
 export function PMModal({ onSave, onClose, initialData }) {
@@ -414,5 +451,154 @@ export function PMModal({ onSave, onClose, initialData }) {
         </div>
       </div>
     </div>
+  );
+}
+
+
+// ─── MULTI-ESCROW FUNDING ──────────────────────────────────────────────────
+
+export function MultiEscrowFunding({
+  results, selectedIdx, onSelectIdx, amtFixed, effP,
+  post, navigate, reset, allFunded,
+}) {
+  const [copiedKey, setCopiedKey] = useState(null); // "addr-0", "uri-2", etc.
+  const [sentToMobile, setSentToMobile] = useState(false);
+
+  const validResults = results.filter(r => r.status !== "failed" && r.escrowAddress);
+  const selected = validResults[selectedIdx] || validResults[0];
+
+  function copyAddr(addr, idx) {
+    navigator.clipboard.writeText(addr).catch(() => {});
+    setCopiedKey(`addr-${idx}`);
+    setTimeout(() => setCopiedKey(null), 2000);
+  }
+
+  function copyWithAmount(addr, idx) {
+    const uri = `bitcoin:${addr}?amount=${(amtFixed / 1e8).toFixed(8)}`;
+    navigator.clipboard.writeText(uri).catch(() => {});
+    setCopiedKey(`uri-${idx}`);
+    setTimeout(() => setCopiedKey(null), 2000);
+  }
+
+  async function handleSendToMobile() {
+    try {
+      const offerIds = validResults.map(r => r.offerId).filter(Boolean);
+      await createTask(post, "escrow", { offerIds });
+      setSentToMobile(true);
+      setTimeout(() => setSentToMobile(false), 4000);
+    } catch (e) {
+      console.error("[MultiEscrow] Send to mobile failed:", e);
+    }
+  }
+
+  function statusClass(r) {
+    if (r.fundingStatus === "FUNDED") return "funded";
+    if (r.fundingStatus === "MEMPOOL") return "mempool";
+    if (r.status === "failed") return "error";
+    return "waiting";
+  }
+
+  function statusLabel(r) {
+    if (r.fundingStatus === "FUNDED") return "Funded";
+    if (r.fundingStatus === "MEMPOOL") return "Mempool";
+    if (r.status === "failed") return "Failed";
+    return "Waiting";
+  }
+
+  // ── ALL FUNDED SUCCESS ──
+  if (allFunded) {
+    return (
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",
+        gap:20,paddingTop:32,textAlign:"center",animation:"stepFwd .4s ease both"}}>
+        <div className="success-icon">✓</div>
+        <div style={{fontSize:"1.4rem",fontWeight:800,color:"var(--success)"}}>
+          All {validResults.length} offers are live!
+        </div>
+        <p style={{fontSize:".88rem",color:"var(--black-65)",lineHeight:1.65,maxWidth:340}}>
+          Your {validResults.length} sell offers for <strong style={{color:"var(--black)"}}>
+            {fmt(amtFixed)} sats
+          </strong> each are now visible in the market.
+        </p>
+        <div style={{display:"flex",gap:12}}>
+          <button onClick={() => navigate("/market")} style={{padding:"10px 28px",borderRadius:999,
+            border:"1.5px solid var(--black-10)",background:"transparent",color:"var(--black-65)",
+            cursor:"pointer",fontFamily:"var(--font)",fontSize:".88rem",fontWeight:700}}>
+            View in market
+          </button>
+          <button onClick={reset} style={{padding:"10px 28px",borderRadius:999,
+            background:"var(--grad)",color:"white",border:"none",cursor:"pointer",
+            fontFamily:"var(--font)",fontSize:".88rem",fontWeight:800,
+            boxShadow:"0 2px 12px rgba(245,101,34,.3)"}}>
+            Create another offer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div style={{fontSize:".84rem",color:"var(--black-65)",fontWeight:500,
+        lineHeight:1.6,marginBottom:20}}>
+        Fund {validResults.length} escrow addresses to activate your offers.
+        You can fund them all in a single transaction with multiple outputs.
+      </div>
+
+      {/* ── PERSISTENT QR CODE ── */}
+      {selected && (
+        <div className="multi-escrow-qr">
+          <div style={{padding:12,background:"white",borderRadius:12,
+            border:"1px solid var(--black-10)",display:"inline-block"}}>
+            <QRCodeSVG
+              value={`bitcoin:${selected.escrowAddress}?amount=${(amtFixed / 1e8).toFixed(8)}`}
+              size={140} level="L" bgColor="white" fgColor="#2B1911"
+            />
+          </div>
+          <div className="multi-escrow-qr-label">
+            Address {selectedIdx + 1} of {validResults.length}
+          </div>
+        </div>
+      )}
+
+      {/* ── ADDRESS LIST ── */}
+      <div className="multi-escrow-list">
+        {validResults.map((r, i) => {
+          const isSel = i === selectedIdx;
+          const isFunded = r.fundingStatus === "FUNDED";
+          return (
+            <div key={r.offerId || i}
+              className={`multi-escrow-row${isSel ? " selected" : ""}${isFunded ? " funded" : ""}`}
+              onClick={() => onSelectIdx(i)}>
+              <div className="multi-escrow-radio" />
+              <span className="multi-escrow-id">P-{r.offerId}</span>
+              <div className="multi-escrow-addr">
+                {r.escrowAddress || "—"}
+              </div>
+              <div className="multi-escrow-actions">
+                <button className="multi-escrow-copy-btn"
+                  onClick={e => { e.stopPropagation(); copyAddr(r.escrowAddress, i); }}>
+                  {copiedKey === `addr-${i}` ? "✓" : "Copy"}
+                </button>
+                <button className="multi-escrow-copy-btn"
+                  onClick={e => { e.stopPropagation(); copyWithAmount(r.escrowAddress, i); }}>
+                  {copiedKey === `uri-${i}` ? "✓" : "Copy address + amount"}
+                </button>
+              </div>
+              <span className={`multi-escrow-status ${statusClass(r)}`}>
+                {statusLabel(r)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── SEND TO MOBILE ── */}
+      <div style={{display:"flex",justifyContent:"center",marginTop:8}}>
+        <button className={`btn-send-mobile${sentToMobile ? " sent" : ""}`}
+          onClick={handleSendToMobile} disabled={sentToMobile}>
+          {sentToMobile ? "✓ Sent to mobile" : "Send to mobile and fund all"}
+        </button>
+      </div>
+    </>
   );
 }

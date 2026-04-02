@@ -18,6 +18,7 @@ import {
   METHOD_CURRENCIES, METHOD_FIELDS, methodLabel,
   MIN_SATS, maxSatsAtPrice,
   getSteps, LivePreview, AmountSlider, PMModal,
+  MultiOfferControl, MultiEscrowFunding,
 } from "./components.jsx";
 
 
@@ -43,6 +44,13 @@ export default function OfferCreation({ initialType="buy" }) {
   const [publishError, setPublishError] = useState(null);
   const [escrowAddress, setEscrowAddress] = useState(null);
   const [sellOfferId,   setSellOfferId]   = useState(null);
+
+  // ── MULTI-OFFER STATE ──
+  const [multiEnabled,     setMultiEnabled]     = useState(false);
+  const [multiCount,       setMultiCount]       = useState(2);
+  const [multiResults,     setMultiResults]     = useState(null); // [{ offerId, escrowAddress, status, fundingStatus, error }]
+  const [selectedEscrowIdx, setSelectedEscrowIdx] = useState(0);
+  const [multiPublishProgress, setMultiPublishProgress] = useState(null); // { done, total }
 
   // ── FETCH LIVE SAVED PMs ──
   useEffect(() => {
@@ -177,9 +185,50 @@ export default function OfferCreation({ initialType="buy" }) {
     return () => { cancelled = true; clearInterval(iv); };
   }, [step, sellOfferId, auth, escrowFunded]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── MULTI-ESCROW POLLING ──
+  useEffect(() => {
+    if (step !== 2 || !multiResults || multiResults.length < 2) return;
+    const unfunded = multiResults.filter(r => r.offerId && r.status !== "failed" && r.fundingStatus !== "FUNDED");
+    if (unfunded.length === 0) return;
+
+    let cancelled = false;
+    async function checkAll() {
+      const updates = await Promise.allSettled(
+        unfunded.map(r => get('/offer/' + r.offerId + '/escrow').then(res => res.ok ? res.json() : null))
+      );
+      if (cancelled) return;
+      setMultiResults(prev => {
+        if (!prev) return prev;
+        const next = [...prev];
+        let changed = false;
+        unfunded.forEach((r, i) => {
+          const data = updates[i].status === "fulfilled" ? updates[i].value : null;
+          const idx = next.findIndex(x => x.offerId === r.offerId);
+          if (idx === -1 || !data) return;
+          const s = data?.funding?.status;
+          if (s === "MEMPOOL" && next[idx].fundingStatus !== "MEMPOOL") {
+            next[idx] = { ...next[idx], fundingStatus: "MEMPOOL" };
+            changed = true;
+          } else if (s === "FUNDED" && next[idx].fundingStatus !== "FUNDED") {
+            next[idx] = { ...next[idx], fundingStatus: "FUNDED", status: "funded" };
+            changed = true;
+          } else if (s === "WRONG_FUNDING_AMOUNT" && next[idx].fundingStatus !== "WRONG_FUNDING_AMOUNT") {
+            next[idx] = { ...next[idx], fundingStatus: "WRONG_FUNDING_AMOUNT" };
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+    checkAll();
+    const iv = setInterval(checkAll, 10000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [step, multiResults, auth]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function setF(k,v){ setForm(f=>({...f,[k]:v})); }
   function reset(){
     setStep(0);setDone(false);setEscrowFunded(false);setFundingStatus(null);setFundingAmounts(null);setPublishError(null);setEscrowAddress(null);setSellOfferId(null);setForm(initForm());
+    setMultiEnabled(false);setMultiCount(2);setMultiResults(null);setSelectedEscrowIdx(0);setMultiPublishProgress(null);
   }
   function switchType(t){ setType(t); reset(); }
 
@@ -323,8 +372,7 @@ export default function OfferCreation({ initialType="buy" }) {
           }
           const { meansOfPayment, paymentData } = await buildPaymentPayload(serverPGPKey);
 
-          // 1. Derive return address from multisigXpub at m/84'/{coin}'/1/{index}
-          // Index = total sell offers ever created (active + historical). Monotonically increasing.
+          // 1. Derive base return address index
           const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
           const hdrs = { Authorization: `Bearer ${auth.token}` };
           const [ownOffersRes, historySellRes] = await Promise.all([
@@ -333,53 +381,87 @@ export default function OfferCreation({ initialType="buy" }) {
           ]);
           const ownOffersData = await ownOffersRes.json().catch(() => ({}));
           const historySell = await historySellRes.json().catch(()=>[]);
-          // Own sell offers from /v069/user/{id}/offers
           const activeSell = ownOffersData?.sellOffers ?? [];
           const activeCount = activeSell.length;
           const historyCount = Array.isArray(historySell) ? historySell.filter(o => o.type === "ask").length : 0;
-          const addrIdx = activeCount + historyCount;
-          const returnAddress = deriveReturnAddress(auth.xpub, addrIdx);
+          const baseAddrIdx = activeCount + historyCount;
 
-          // 2. POST /v1/offer — create sell offer
-          const sellPayload = {
-            type: "ask",
-            amount: form.amtFixed,
-            premium: parseFloat(form.premium) || 0,
-            meansOfPayment,
-            paymentData,
-            returnAddress,
-            ...(buildInstantTradeCriteria() ? { instantTradeCriteria: buildInstantTradeCriteria() } : {}),
-            ...(form.experienceLevel ? { experienceLevelCriteria: form.experienceLevel } : {}),
-          };
-          const offerRes = await post('/offer', sellPayload);
-          const offerData = await offerRes.json().catch(()=>null);
-          if(!offerRes.ok){
-            throw new Error(offerData?.error || offerData?.message || `Server error ${offerRes.status}`);
+          const count = multiEnabled ? multiCount : 1;
+
+          if(count > 1) {
+            // ── MULTI SELL — sequential loop ──
+            setMultiPublishProgress({ done: 0, total: count });
+            const results = [];
+            for(let i = 0; i < count; i++){
+              try {
+                const returnAddress = deriveReturnAddress(auth.xpub, baseAddrIdx + i);
+                const sellPayload = {
+                  type: "ask", amount: form.amtFixed,
+                  premium: parseFloat(form.premium) || 0,
+                  meansOfPayment, paymentData, returnAddress,
+                  ...(buildInstantTradeCriteria() ? { instantTradeCriteria: buildInstantTradeCriteria() } : {}),
+                  ...(form.experienceLevel ? { experienceLevelCriteria: form.experienceLevel } : {}),
+                };
+                const offerRes = await post('/offer', sellPayload);
+                const offerData = await offerRes.json().catch(()=>null);
+                if(!offerRes.ok) throw new Error(offerData?.error || offerData?.message || `Server error ${offerRes.status}`);
+
+                const newOfferId = offerData.offerId || offerData.id;
+                const pubKeyHex = deriveEscrowPubKey(auth.multisigXpub, Number(newOfferId));
+
+                const escrowRes = await post(`/offer/${newOfferId}/escrow`, {
+                  publicKey: pubKeyHex, derivationPathVersion: 2,
+                });
+                const escrowData = await escrowRes.json().catch(()=>null);
+                if(!escrowRes.ok) throw new Error(escrowData?.error || escrowData?.message || `Escrow creation failed ${escrowRes.status}`);
+
+                results.push({ offerId: String(newOfferId), escrowAddress: escrowData.escrow, status: "escrow_ready", fundingStatus: null, error: null });
+              } catch(e) {
+                results.push({ offerId: null, escrowAddress: null, status: "failed", fundingStatus: null, error: e.message });
+              }
+              setMultiPublishProgress({ done: i + 1, total: count });
+            }
+            setMultiResults(results);
+            const ok = results.filter(r => r.status !== "failed");
+            if(ok.length === 0){
+              setPublishError("All sell offers failed to publish");
+            } else {
+              if(ok.length < count) setPublishError(`${results.filter(r=>r.status==="failed").length} of ${count} offers failed`);
+              setStep(2);
+            }
+          } else {
+            // ── SINGLE SELL ──
+            const returnAddress = deriveReturnAddress(auth.xpub, baseAddrIdx);
+            const sellPayload = {
+              type: "ask", amount: form.amtFixed,
+              premium: parseFloat(form.premium) || 0,
+              meansOfPayment, paymentData, returnAddress,
+              ...(buildInstantTradeCriteria() ? { instantTradeCriteria: buildInstantTradeCriteria() } : {}),
+              ...(form.experienceLevel ? { experienceLevelCriteria: form.experienceLevel } : {}),
+            };
+            const offerRes = await post('/offer', sellPayload);
+            const offerData = await offerRes.json().catch(()=>null);
+            if(!offerRes.ok) throw new Error(offerData?.error || offerData?.message || `Server error ${offerRes.status}`);
+
+            const newOfferId = offerData.offerId || offerData.id;
+            const pubKeyHex = deriveEscrowPubKey(auth.multisigXpub, Number(newOfferId));
+
+            const escrowRes = await post(`/offer/${newOfferId}/escrow`, {
+              publicKey: pubKeyHex, derivationPathVersion: 2,
+            });
+            const escrowData = await escrowRes.json().catch(()=>null);
+            if(!escrowRes.ok) throw new Error(escrowData?.error || escrowData?.message || `Escrow creation failed ${escrowRes.status}`);
+
+            setSellOfferId(newOfferId);
+            setEscrowAddress(escrowData.escrow);
+            setStep(2);
           }
-
-          const newOfferId = offerData.offerId || offerData.id;
-
-          // 2. Derive escrow public key (non-hardened: /3/{offerId})
-          const pubKeyHex = deriveEscrowPubKey(auth.multisigXpub, Number(newOfferId));
-
-          // 3. POST /v1/offer/:id/escrow — register key, get escrow address
-          const escrowRes = await post(`/offer/${newOfferId}/escrow`, {
-            publicKey: pubKeyHex,
-            derivationPathVersion: 2,
-          });
-          const escrowData = await escrowRes.json().catch(()=>null);
-          if(!escrowRes.ok){
-            throw new Error(escrowData?.error || escrowData?.message || `Escrow creation failed ${escrowRes.status}`);
-          }
-
-          setSellOfferId(newOfferId);
-          setEscrowAddress(escrowData.escrow);
-          setStep(2);
         }catch(err){
           console.error("[OfferCreation] Sell offer failed:", err);
           setPublishError(err.message || "Failed to publish sell offer");
         }finally{
           setPublishing(false);
+          setMultiPublishProgress(null);
         }
         return;
       }
@@ -406,39 +488,180 @@ export default function OfferCreation({ initialType="buy" }) {
         const { meansOfPayment, paymentData } = await buildPaymentPayload(buyServerPGPKey);
 
         const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
-        const res = await fetchWithSessionCheck(`${v069Base}/buyOffer`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${auth.token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            amount: form.amtFixed,
-            meansOfPayment,
-            paymentData,
-            premium: parseFloat(form.premium) || 0,
-            ...(buildInstantTradeCriteria() ? { instantTradeCriteria: buildInstantTradeCriteria() } : {}),
-            ...(form.experienceLevel ? { experienceLevelCriteria: form.experienceLevel } : {}),
-          }),
+        const buyBody = JSON.stringify({
+          amount: form.amtFixed,
+          meansOfPayment,
+          paymentData,
+          premium: parseFloat(form.premium) || 0,
+          ...(buildInstantTradeCriteria() ? { instantTradeCriteria: buildInstantTradeCriteria() } : {}),
+          ...(form.experienceLevel ? { experienceLevelCriteria: form.experienceLevel } : {}),
         });
 
-        const data = await res.json().catch(()=>null);
+        const count = multiEnabled ? multiCount : 1;
 
-        if(!res.ok){
-          const msg = data?.error || data?.message || `Server error ${res.status}`;
-          throw new Error(msg);
+        if(count > 1) {
+          // ── MULTI BUY ──
+          setMultiPublishProgress({ done: 0, total: count });
+          const results = [];
+          const settled = await Promise.allSettled(
+            Array.from({ length: count }, () =>
+              fetchWithSessionCheck(`${v069Base}/buyOffer`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
+                body: buyBody,
+              }).then(async r => {
+                const d = await r.json().catch(() => null);
+                if (!r.ok) throw new Error(d?.error || d?.message || `Error ${r.status}`);
+                return { status: "created", offerId: String(d?.id ?? d?.offerId ?? ""), error: null };
+              })
+            )
+          );
+          for (const s of settled) {
+            results.push(s.status === "fulfilled"
+              ? s.value
+              : { status: "failed", offerId: null, error: s.reason?.message || "Unknown error" });
+            setMultiPublishProgress(p => ({ ...p, done: (p?.done ?? 0) + 1 }));
+          }
+          setMultiResults(results);
+          const allOk = results.every(r => r.status === "created");
+          if (allOk) setDone(true);
+          else setPublishError(`${results.filter(r=>r.status==="failed").length} of ${count} offers failed`);
+        } else {
+          // ── SINGLE BUY ──
+          const res = await fetchWithSessionCheck(`${v069Base}/buyOffer`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
+            body: buyBody,
+          });
+          const data = await res.json().catch(()=>null);
+          if(!res.ok){
+            throw new Error(data?.error || data?.message || `Server error ${res.status}`);
+          }
+          setDone(true);
         }
-
-        setDone(true);
       }catch(err){
         console.error("[OfferCreation] Buy offer failed:", err);
         setPublishError(err.message || "Failed to publish offer");
       }finally{
         setPublishing(false);
+        setMultiPublishProgress(null);
       }
       return;
     }
   }
+  async function retryFailedBuy(){
+    if(!auth || !multiResults) return;
+    const failedIdxs = multiResults.map((r,i)=>r.status==="failed"?i:-1).filter(i=>i>=0);
+    if(failedIdxs.length===0) return;
+
+    setPublishing(true);
+    setPublishError(null);
+    let buyServerPGPKey = null;
+    if (form.instantMatch) {
+      try {
+        const infoRes = await get('/info');
+        const infoData = await infoRes.json().catch(()=>null);
+        buyServerPGPKey = infoData?.peach?.pgpPublicKey ?? null;
+      } catch(e){}
+    }
+    const { meansOfPayment, paymentData } = await buildPaymentPayload(buyServerPGPKey);
+    const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
+    const buyBody = JSON.stringify({
+      amount: form.amtFixed, meansOfPayment, paymentData,
+      premium: parseFloat(form.premium) || 0,
+      ...(buildInstantTradeCriteria() ? { instantTradeCriteria: buildInstantTradeCriteria() } : {}),
+      ...(form.experienceLevel ? { experienceLevelCriteria: form.experienceLevel } : {}),
+    });
+
+    const settled = await Promise.allSettled(
+      failedIdxs.map(() =>
+        fetchWithSessionCheck(`${v069Base}/buyOffer`, {
+          method:'POST',
+          headers:{ Authorization:`Bearer ${auth.token}`,'Content-Type':'application/json'},
+          body:buyBody,
+        }).then(async r => {
+          const d = await r.json().catch(()=>null);
+          if(!r.ok) throw new Error(d?.error||d?.message||`Error ${r.status}`);
+          return { status:"created", offerId:String(d?.id??d?.offerId??""), error:null };
+        })
+      )
+    );
+
+    setMultiResults(prev => {
+      const next = [...prev];
+      failedIdxs.forEach((idx, i) => {
+        next[idx] = settled[i].status === "fulfilled"
+          ? settled[i].value
+          : { status:"failed", offerId:null, error: settled[i].reason?.message || "Unknown error" };
+      });
+      return next;
+    });
+
+    setPublishing(false);
+    const updated = multiResults.map((r,i) => {
+      const fi = failedIdxs.indexOf(i);
+      if(fi===-1) return r;
+      return settled[fi].status==="fulfilled" ? settled[fi].value : { status:"failed", offerId:null, error:settled[fi].reason?.message||"Unknown error" };
+    });
+    if(updated.every(r=>r.status==="created")) { setDone(true); setPublishError(null); }
+    else setPublishError(`${updated.filter(r=>r.status==="failed").length} of ${updated.length} offers still failing`);
+  }
+
+  async function retryFailedSell(){
+    if(!auth || !multiResults) return;
+    const failedIdxs = multiResults.map((r,i)=>r.status==="failed"?i:-1).filter(i=>i>=0);
+    if(failedIdxs.length===0) return;
+
+    setPublishing(true);
+    setPublishError(null);
+    let serverPGPKey = null;
+    if (form.instantMatch) {
+      try { const r = await get('/info'); const d = await r.json().catch(()=>null); serverPGPKey=d?.peach?.pgpPublicKey??null; } catch(e){}
+    }
+    const { meansOfPayment, paymentData } = await buildPaymentPayload(serverPGPKey);
+    // Re-derive base index — count existing offers now (which includes the ones that succeeded earlier)
+    const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
+    const hdrs = { Authorization: `Bearer ${auth.token}` };
+    const [ownOffersRes, historySellRes] = await Promise.all([
+      fetchWithSessionCheck(`${v069Base}/user/${auth.peachId}/offers`, { headers: hdrs }),
+      get('/offers/summary'),
+    ]);
+    const ownOffersData = await ownOffersRes.json().catch(()=>({}));
+    const historySell = await historySellRes.json().catch(()=>[]);
+    const activeCount = (ownOffersData?.sellOffers??[]).length;
+    const historyCount = Array.isArray(historySell)?historySell.filter(o=>o.type==="ask").length:0;
+    let nextIdx = activeCount + historyCount;
+
+    const updated = [...multiResults];
+    for(const idx of failedIdxs){
+      try {
+        const returnAddress = deriveReturnAddress(auth.xpub, nextIdx++);
+        const payload = {
+          type:"ask", amount:form.amtFixed, premium:parseFloat(form.premium)||0,
+          meansOfPayment, paymentData, returnAddress,
+          ...(buildInstantTradeCriteria()?{instantTradeCriteria:buildInstantTradeCriteria()}:{}),
+          ...(form.experienceLevel?{experienceLevelCriteria:form.experienceLevel}:{}),
+        };
+        const offerRes = await post('/offer', payload);
+        const offerData = await offerRes.json().catch(()=>null);
+        if(!offerRes.ok) throw new Error(offerData?.error||offerData?.message||`Error ${offerRes.status}`);
+        const newOfferId = offerData.offerId||offerData.id;
+        const pubKeyHex = deriveEscrowPubKey(auth.multisigXpub, Number(newOfferId));
+        const escrowRes = await post(`/offer/${newOfferId}/escrow`, { publicKey:pubKeyHex, derivationPathVersion:2 });
+        const escrowData = await escrowRes.json().catch(()=>null);
+        if(!escrowRes.ok) throw new Error(escrowData?.error||escrowData?.message||`Escrow failed ${escrowRes.status}`);
+        updated[idx] = { offerId:String(newOfferId), escrowAddress:escrowData.escrow, status:"escrow_ready", fundingStatus:null, error:null };
+      } catch(e){
+        updated[idx] = { offerId:null, escrowAddress:null, status:"failed", fundingStatus:null, error:e.message };
+      }
+    }
+    setMultiResults(updated);
+    setPublishing(false);
+    const stillFailing = updated.filter(r=>r.status==="failed").length;
+    if(stillFailing===0) { setPublishError(null); setStep(2); }
+    else setPublishError(`${stillFailing} of ${updated.length} offers still failing`);
+  }
+
   function handleBack(){ setStep(s=>s-1); }
 
   const sliderBg=`linear-gradient(to right,var(--primary) 0%,var(--primary) ${((prem+21)/42)*100}%,var(--black-10) ${((prem+21)/42)*100}%,var(--black-10) 100%)`;
@@ -489,11 +712,16 @@ export default function OfferCreation({ initialType="buy" }) {
         marginLeft: sidebarCollapsed ? 44 : 68,
         textAlign:"center",animation:"stepFwd .4s ease both"}}>
         <div className="success-icon">✓</div>
-        <div style={{fontSize:"1.45rem",fontWeight:800,color:"var(--success)"}}>Offer published!</div>
+        <div style={{fontSize:"1.45rem",fontWeight:800,color:"var(--success)"}}>
+          {multiResults && multiResults.length > 1
+            ? `All ${multiResults.length} offers published!`
+            : "Offer published!"}
+        </div>
         <p style={{fontSize:".88rem",color:"var(--black-65)",lineHeight:1.65,maxWidth:360}}>
-          Your buy offer for <strong style={{color:"var(--black)"}}>
-            {fmt(form.amtFixed)} sats
-          </strong> is live in the market. You'll be notified when a seller matches.
+          {multiResults && multiResults.length > 1
+            ? <>{multiResults.length} buy offers for <strong style={{color:"var(--black)"}}>{fmt(form.amtFixed)} sats</strong> each are live in the market. You'll be notified when sellers match.</>
+            : <>Your buy offer for <strong style={{color:"var(--black)"}}>{fmt(form.amtFixed)} sats</strong> is live in the market. You'll be notified when a seller matches.</>
+          }
         </p>
         <div style={{display:"flex",gap:12}}>
           <button onClick={() => navigate("/market")} style={{padding:"10px 28px",borderRadius:999,
@@ -573,15 +801,17 @@ export default function OfferCreation({ initialType="buy" }) {
                 letterSpacing:".08em",color:"var(--black-65)",marginBottom:4}}>
                 New offer
               </div>
-              <div className="wizard-title">
-                {step===0?"Create your offer":step===1?"Review & publish":"Fund escrow"}
+              <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                <div className="wizard-title">
+                  {step===0?"Create your offer":step===1?"Review & publish":"Fund escrow"}
+                </div>
+                <div className="type-toggle" style={step===1?{opacity:0.45,pointerEvents:"none"}:{}}>
+                  <button className={`type-btn${!isSell?" buy-on":""}`}
+                    onClick={()=>switchType("buy")}>Buy BTC</button>
+                  <button className={`type-btn${isSell?" sell-on":""}`}
+                    onClick={()=>switchType("sell")}>Sell BTC</button>
+                </div>
               </div>
-            </div>
-            <div className="type-toggle" style={step===1?{opacity:0.45,pointerEvents:"none"}:{}}>
-              <button className={`type-btn${!isSell?" buy-on":""}`}
-                onClick={()=>switchType("buy")}>Buy BTC</button>
-              <button className={`type-btn${isSell?" sell-on":""}`}
-                onClick={()=>switchType("sell")}>Sell BTC</button>
             </div>
           </div>
 
@@ -881,6 +1111,14 @@ export default function OfferCreation({ initialType="buy" }) {
                     ))}
                   </div>
                 )}
+
+                {/* ── CREATE MULTIPLE OFFERS ── */}
+                <MultiOfferControl
+                  enabled={multiEnabled}
+                  count={multiCount}
+                  onToggle={() => { setMultiEnabled(e => !e); setMultiResults(null); }}
+                  onCountChange={setMultiCount}
+                />
               </div>
             </div>
           )}
@@ -920,6 +1158,7 @@ export default function OfferCreation({ initialType="buy" }) {
                   ...(form.minReputation?[["Min reputation", "4.5"]]:[]),
                   ...(form.instantMatchBadges.length>0?[["Badge filter", form.instantMatchBadges.map(b=>b==="fastTrader"?"Fast trader":"Super trader").join(", ")]]:[]),
                   ...(form.experienceLevel?[["Experience filter", form.experienceLevel==="newUsersOnly"?"New users only":"Experienced users only"]]:[]),
+                  ...(multiEnabled?[["Copies", `×${multiCount}`]]:[]),
                 ].map(([k,v])=>(
                   <div key={k} className="review-row">
                     <span className="rk">{k}</span>
@@ -927,11 +1166,60 @@ export default function OfferCreation({ initialType="buy" }) {
                   </div>
                 ))}
               </div>
+
+              {/* ── PUBLISH PROGRESS BAR (multi-offer) ── */}
+              {multiPublishProgress && (
+                <div className="multi-publish-progress" style={{marginTop:16}}>
+                  <div className="multi-publish-bar">
+                    <div className="multi-publish-fill"
+                      style={{width:`${(multiPublishProgress.done/multiPublishProgress.total)*100}%`}}/>
+                  </div>
+                  <div className="multi-publish-text">
+                    Creating offer {multiPublishProgress.done} of {multiPublishProgress.total}…
+                  </div>
+                </div>
+              )}
+
+              {/* ── PARTIAL FAILURE (multi-offer) ── */}
+              {multiResults && multiResults.some(r => r.status === "failed") && (
+                <div style={{marginTop:16,padding:"14px 16px",borderRadius:12,
+                  background:"var(--error-bg)",border:"1px solid var(--error)"}}>
+                  <div style={{fontSize:".82rem",fontWeight:700,color:"var(--error)",marginBottom:8}}>
+                    {multiResults.filter(r=>r.status==="created").length} of {multiResults.length} offers published
+                  </div>
+                  <div style={{fontSize:".72rem",color:"var(--black-65)",fontWeight:500,lineHeight:1.5,marginBottom:10}}>
+                    {multiResults.filter(r=>r.status==="failed").length} offer{multiResults.filter(r=>r.status==="failed").length>1?"s":""} failed.
+                    {multiResults.filter(r=>r.status==="failed").map((r,i)=>(
+                      <span key={i} style={{display:"block",color:"var(--error)",fontSize:".7rem",marginTop:2}}>
+                        Offer {multiResults.indexOf(r)+1}: {r.error}
+                      </span>
+                    ))}
+                  </div>
+                  <button className="btn-retry" onClick={isSell ? retryFailedSell : retryFailedBuy} disabled={publishing}>
+                    {publishing ? "Retrying…" : `Retry ${multiResults.filter(r=>r.status==="failed").length} failed`}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
           {/* ── STEP 2: ESCROW (sell only) ── */}
-          {step===2&&(
+          {step===2 && multiResults && multiResults.filter(r=>r.status!=="failed"&&r.escrowAddress).length > 1 && (
+            <div className="step-anim">
+              <MultiEscrowFunding
+                results={multiResults}
+                selectedIdx={selectedEscrowIdx}
+                onSelectIdx={setSelectedEscrowIdx}
+                amtFixed={form.amtFixed}
+                effP={effP}
+                post={post}
+                navigate={navigate}
+                reset={reset}
+                allFunded={multiResults.filter(r=>r.status!=="failed"&&r.escrowAddress).every(r=>r.fundingStatus==="FUNDED")}
+              />
+            </div>
+          )}
+          {step===2 && !(multiResults && multiResults.filter(r=>r.status!=="failed"&&r.escrowAddress).length > 1) && (
             <div className="step-anim">
               {!escrowFunded?(
                 <>
@@ -1096,7 +1384,7 @@ export default function OfferCreation({ initialType="buy" }) {
           )}
 
           {/* ── NAV ── */}
-          {!(step===2&&escrowFunded)&&(
+          {!(step===2&&(escrowFunded || (multiResults && multiResults.filter(r=>r.status!=="failed"&&r.escrowAddress).length > 1)))&&(
             <div className="oc-nav">
               {step>0
                 ? <button className="btn-back-nav" onClick={handleBack}>← Back</button>
@@ -1114,7 +1402,11 @@ export default function OfferCreation({ initialType="buy" }) {
                   </div>
                 )}
                 <button className={`btn-next btn-publish-${type}`} onClick={handleNext} disabled={publishing}>
-                  {publishing ? "Publishing…" : isSell?"Publish & get escrow →":"Publish offer →"}
+                  {publishing
+                    ? (multiPublishProgress ? `Publishing ${multiPublishProgress.done}/${multiPublishProgress.total}…` : "Publishing…")
+                    : multiEnabled
+                      ? (isSell?`Publish ${multiCount} offers & get escrows →`:`Publish ${multiCount} offers →`)
+                      : (isSell?"Publish & get escrow →":"Publish offer →")}
                 </button>
               </>)}
               {step===2&&!escrowFunded&&<div/>}

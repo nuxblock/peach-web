@@ -10,11 +10,13 @@ Completed items archived in `peach-completed.md`.
 
 ## Phase 3: Offer Management Completion
 
-### 3.8 Create Multiple Offers
-- **File**: `src/screens/offer-creation/index.jsx`
-- **Scope**: Add a "create multiple offers" option at the offer creation stage for both buy and sell flows.
-- **UI**: Allow the user to batch-create several offers at once (e.g. different amounts, currencies, or PM combinations) rather than submitting one at a time.
-- **Endpoints**: Same as single offer — `POST /v069/buyOffer` / `POST /v069/sellOffer` — called once per offer in the batch.
+### 3.8 Create Multiple Offers ✅
+- **File**: `src/screens/offer-creation/index.jsx`, `components.jsx`, `styles.js`
+- **Done**: Checkbox + counter (×2–10) below premium section. Identical copies. Both buy and sell.
+- Buy: parallel `POST /v069/buyOffer` × N. Sell: sequential loop with unique return addresses + escrow registration per offer.
+- Multi-escrow funding screen: persistent QR that swaps on address click, copy/copy+amount buttons, "Send to mobile and fund all" button.
+- Partial success + retry for both buy and sell. Progress bar during sequential sell creation.
+- **Remaining**: "Send to mobile and fund all" uses mock `createTask()` — wire to real endpoint when backend provides it.
 
 ---
 
@@ -101,10 +103,10 @@ Items that don't add new API wiring but improve existing screens. Organized by p
 - **Trade Execution: escrow funding timer (seller POV)** — big, prominent countdown for how long seller has left to fund. Same data source. (`trade-execution/index.jsx`)
 - **Trades Dashboard: MatchesPopup avatars/reputation wiring** — match cards currently show placeholder/missing data for counterparty avatars, reputation scores, and trade counts. Wire from match/user API data. (`trades-dashboard/MatchesPopup.jsx`)
 - **Offer Creation: full add-PM flow + validators** — Allow user to add a brand new payment method directly from the offer creation screen without leaving the flow (currently can only select from existing PMs). Also wire inline validators from `peach-validators.js` + `onBlur` validation for IBAN/phone/holder fields. (`offer-creation/index.jsx`)
-- **Home: wire Top PMs & Top Currencies cards** — currently show empty/zero defaults. Wire to live API so they reflect real platform activity when logged in. (`peach-home.jsx`)
+- **Home: wire remaining stats cards** — Active Offers now wired from `GET /market/offers/stats`. Still placeholder: 24h Volume, Trades Today, Top PMs, Top Currencies — all waiting for new backend endpoints (coordinating with backend dev week of 2026-04-07). Profile card rating, badges, volume, and last trade are now wired from real data. (`peach-home.jsx`)
 - **Trade Execution: copy buttons mobile layout** — "Copy Address" and "Copy BTC" buttons don't render well on mobile. (`trade-execution/index.jsx`)
 - **Market View: filter parity with mobile app** — implement same filter set as mobile. Exact filter list TBD. (`market-view/index.jsx`)
-- **Offer Creation: experience level filter improvements** — currently sell-only with a simple checkbox + two radio options. Two things to do: (1) improve the UI to match mobile app's toggle + slider style, and (2) add `experienceLevelCriteria` to buy offer submission as well (mobile supports it on both sides). (`offer-creation/index.jsx`)
+- ~~**Offer Creation: experience level filter improvements**~~ — ✅ Done. Experience level filter now available on both buy and sell. Instant Match section enhanced with "No new users", "Minimum reputation: 4.5", and badge filter chips (Fast trader / super trader). `experienceLevelCriteria` sent in both buy and sell payloads. Experience level badges shown in Market View and Trades Dashboard.
 - **Trade Execution: escrow funding link (not QR)** — the funded escrow "QR code" is not actually useful as a QR. Replace with a clickable link to mempool.space (or other block explorer) for the escrow address. (`trade-execution/index.jsx`)
 - **Trade Execution: remove QR/address on tx detection** — when a transaction is detected during escrow funding, remove or hide the QR code and funding address display since it's no longer needed. (`trade-execution/index.jsx`)
 - **Trade Execution: grouphug toggle (buyer POV)** — add a toggle in the trade execution screen from the buyer's perspective to enable/disable transaction batching (grouphug). (`trade-execution/index.jsx`)
@@ -142,7 +144,7 @@ Items that don't add new API wiring but improve existing screens. Organized by p
 | `src/screens/market-view/index.jsx` | Filter parity |
 | `src/screens/offer-creation/index.jsx` | PM validators, multiple offers |
 | `src/screens/settings/index.jsx` + `screens.jsx` | 5 remaining sub-screens (4.5–4.9) + referrals (4.11) + profile (4.12) |
-| `src/screens/peach-home.jsx` | Profile card, price card, wire top PMs & currencies |
+| `src/screens/peach-home.jsx` | Wire remaining stats (24h volume, trades today, top PMs, top currencies — needs backend endpoints) |
 | `src/styles/global.css` | Dark mode theme variables |
 | `src/hooks/useApi.js` | Delete mock `createTask()` once rating endpoint lands, v069 param support (#24) |
 | `src/components/MobileSigningModal.jsx` | Only used for rating now (3/4 actions wired directly) |

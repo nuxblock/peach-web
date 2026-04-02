@@ -422,6 +422,92 @@ export const CSS = `
   /* Divider */
   .divider{height:1px;background:var(--black-5);margin:16px 0}
 
+  /* ── Multi-offer control ── */
+  .multi-counter{display:flex;align-items:center;gap:0}
+  .multi-counter-btn{
+    width:30px;height:30px;border-radius:50%;border:1.5px solid var(--black-10);
+    background:var(--surface);color:var(--black-65);font-family:var(--font);
+    font-size:1rem;font-weight:800;cursor:pointer;display:flex;
+    align-items:center;justify-content:center;transition:all .12s;
+  }
+  .multi-counter-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary-dark);background:var(--primary-mild)}
+  .multi-counter-btn:disabled{opacity:.3;cursor:not-allowed}
+  .multi-counter-val{
+    min-width:40px;text-align:center;font-size:1rem;font-weight:800;color:var(--black);
+  }
+
+  /* ── Multi-escrow funding screen ── */
+  .multi-escrow-qr{display:flex;flex-direction:column;align-items:center;margin-bottom:20px}
+  .multi-escrow-qr-label{font-size:.72rem;font-weight:700;color:var(--black-65);margin-top:8px}
+
+  .multi-escrow-list{display:flex;flex-direction:column;gap:6px;margin-bottom:20px}
+  .multi-escrow-row{
+    display:flex;align-items:center;gap:8px;padding:10px 14px;
+    border-radius:12px;border:2px solid var(--black-10);background:var(--surface);
+    cursor:pointer;transition:all .12s;font-family:var(--font);
+  }
+  .multi-escrow-row:hover{border-color:var(--primary)}
+  .multi-escrow-row.selected{border-color:var(--primary);background:var(--primary-mild)}
+  .multi-escrow-row.funded{opacity:.65;border-color:var(--success);background:#E8F5E9}
+
+  .multi-escrow-radio{
+    width:16px;height:16px;border-radius:50%;border:2px solid var(--black-10);
+    flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .12s;
+  }
+  .multi-escrow-row.selected .multi-escrow-radio{border-color:var(--primary)}
+  .multi-escrow-row.selected .multi-escrow-radio::after{
+    content:'';width:8px;height:8px;border-radius:50%;background:var(--primary);
+  }
+  .multi-escrow-row.funded .multi-escrow-radio{border-color:var(--success)}
+  .multi-escrow-row.funded .multi-escrow-radio::after{
+    content:'✓';font-size:.55rem;font-weight:800;color:var(--success);
+  }
+
+  .multi-escrow-id{
+    font-size:.72rem;font-weight:800;color:var(--black-65);flex-shrink:0;
+  }
+  .multi-escrow-addr{
+    font-family:monospace;font-size:.68rem;color:var(--black-75);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;
+  }
+
+  .multi-escrow-status{
+    font-size:.65rem;font-weight:800;padding:2px 8px;border-radius:999px;
+    flex-shrink:0;text-transform:uppercase;letter-spacing:.04em;
+  }
+  .multi-escrow-status.waiting{background:var(--black-5);color:var(--black-65)}
+  .multi-escrow-status.mempool{background:#E8F5E9;color:var(--success)}
+  .multi-escrow-status.funded{background:var(--success);color:white}
+  .multi-escrow-status.error{background:var(--error-bg);color:var(--error)}
+
+  .multi-escrow-actions{display:flex;gap:4px;flex-shrink:0;margin-left:auto}
+  .multi-escrow-copy-btn{
+    padding:4px 10px;border-radius:6px;border:1.5px solid var(--black-10);
+    background:transparent;color:var(--black-65);font-family:var(--font);
+    font-size:.65rem;font-weight:700;cursor:pointer;transition:all .12s;white-space:nowrap;
+  }
+  .multi-escrow-copy-btn:hover{border-color:var(--primary);color:var(--primary-dark);background:var(--primary-mild)}
+
+  .btn-send-mobile{
+    padding:12px 32px;border-radius:999px;background:var(--grad);
+    color:white;font-family:var(--font);font-size:.88rem;font-weight:800;
+    border:none;cursor:pointer;box-shadow:0 2px 12px rgba(245,101,34,.3);
+    transition:all .12s;
+  }
+  .btn-send-mobile:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 18px rgba(245,101,34,.42)}
+  .btn-send-mobile:disabled{background:var(--black-10);color:var(--black-25);box-shadow:none;cursor:not-allowed}
+  .btn-send-mobile.sent{background:var(--success)}
+
+  /* Publishing progress bar */
+  .multi-publish-progress{margin-bottom:16px}
+  .multi-publish-bar{height:6px;border-radius:3px;background:var(--black-10);overflow:hidden}
+  .multi-publish-fill{height:100%;border-radius:3px;background:var(--grad);transition:width .3s}
+  .multi-publish-text{font-size:.72rem;font-weight:700;color:var(--black-65);margin-top:4px;text-align:center}
+
+  /* Retry button for partial failures */
+  .btn-retry{padding:8px 20px;border-radius:999px;border:1.5px solid var(--error);background:var(--error-bg);color:var(--error);font-family:var(--font);font-size:.82rem;font-weight:700;cursor:pointer;transition:all .12s}
+  .btn-retry:hover{background:var(--error);color:white}
+
   @media(max-width:900px){
     .layout{grid-template-columns:1fr}
     .preview-panel{display:none}
