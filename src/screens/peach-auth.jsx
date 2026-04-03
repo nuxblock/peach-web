@@ -2,24 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { useQRAuth } from "../hooks/useQRAuth.js";
-import peachLogo from "../assets/PEACH WEB-LOGO.svg";
-
-// ─── LOGO ─────────────────────────────────────────────────────────────────────
-const PeachIcon = ({ size = 28 }) => (
-  <svg width={size} height={size} viewBox="0 0 352 353" fill="none">
-    <rect y="0.38" width="352" height="352" rx="58.13" fill="#FFF9F6"/>
-    <path d="M151.8 45.5c11.2-1.2 21.1 5.35 24.2 16.02.54 1.88.82 3.89.88 5.86.13 4.2.05 8.41.05 12.62 0 .39-.33.69-.72.7-3.07.11-6.08-.02-9.02-1-9.21-3.03-15.33-11.47-15.42-21.35-.04-4-.01-8.01 0-12.01" fill="#05A85A"/>
-    <path d="M205.3 64.23c.99 8.75-5.26 16.21-13.69 16.46-4.77.14-9.15-3.93-7.14-8.26.95-2.06 2.42-3.88 4.47-5.44 2.3-1.76 4.93-2.69 7.82-2.74 2.83-.04 5.66 0 8.54 0" fill="#05A85A"/>
-    <path fillRule="evenodd" clipRule="evenodd" d="M276 155.69c0 49.73-43.64 96.87-97.47 96.87-19.52 0-37.71-6.2-52.95-16.48v49.48c0 12.29-9.96 22.26-22.26 22.26s-22.26-9.97-22.26-22.26V157.39h.02c-.01-.57-.02-1.13-.02-1.7 0-43.02 32.67-72.02 76.33-68.64 14.01 1.09 28.26 1.09 42.27 0 43.67-3.39 76.34 25.62 76.34 68.64zM125.61 163.8v-.39c.1-24.1 19.36-39.92 44.44-36.17 5.13.77 10.37.77 15.49 0 25.15-3.77 44.44 12.15 44.44 36.35 0 26.64-23.36 51.89-52.19 51.89-28.75 0-52.07-25.13-52.18-51.68z" fill="url(#pg)"/>
-    <defs>
-      <radialGradient id="pg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(276 88) rotate(159) scale(220 130)">
-        <stop stopColor="#FFA24C"/>
-        <stop offset=".5" stopColor="#FF7A50"/>
-        <stop offset="1" stopColor="#FF4D42"/>
-      </radialGradient>
-    </defs>
-  </svg>
-);
+import { SideNav, Topbar, PeachIcon, NAV_ROUTES } from "../components/Navbars.jsx";
+import { IcoBtc } from "../components/BitcoinAmount.jsx";
 
 // ─── QR CODE DISPLAY ─────────────────────────────────────────────────────────
 const QRDisplay = ({ qrPayload, size = 189 }) => {
@@ -97,8 +81,6 @@ const Step = ({ n, children }) => (
 );
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
-const NAV_ROUTES = { home:"/home", market:"/market", trades:"/trades", create:"/offer/new", "payment-methods":"/payment-methods", settings:"/settings" };
-
 export default function PeachAuth() {
   const navigate = useNavigate();
   const TOTAL = 30;
@@ -167,57 +149,14 @@ export default function PeachAuth() {
   const secs_  = String(secsLeft%60).padStart(2,"0");
   const urgent = secsLeft<=10 && phase==="waiting";
 
-  // ─── SHARED TOPBAR ────────────────────────────────────────────────────────
-  const Topbar = () => (
-    <header style={{
-      position:"fixed",top:0,left:0,right:0,height:56,
-      background:"#FFFFFF",borderBottom:"1px solid #EAE3DF",
-      display:"flex",alignItems:"center",padding:"0 20px",gap:12,zIndex:200
-    }}>
-      <button className="burger-btn" onClick={() => setSidebarMobileOpen(o => !o)}
-        style={{display:"flex",alignItems:"center",justifyContent:"center",
-          width:34,height:34,borderRadius:8,border:"none",
-          background:"transparent",cursor:"pointer",color:"#7D675E",flexShrink:0}}>
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <line x1="2" y1="4.5" x2="16" y2="4.5"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="13.5" x2="16" y2="13.5"/>
-        </svg>
-      </button>
-      <img src={peachLogo} alt="Peach" style={{ height: 28 }} />
-      {!isMobile && (
-        <div style={{display:"flex",alignItems:"center",gap:8,background:"linear-gradient(90deg,#FFBFA8,#FFD5BF)",borderRadius:999,padding:"5px 6px 5px 10px",fontSize:".78rem",fontWeight:600,color:"#2B1911",flexShrink:0}}>
-          <svg width="18" height="18" viewBox="0 0 32 32" fill="none" style={{flexShrink:0}}>
-            <circle cx="16" cy="16" r="16" fill="#F7931A"/>
-            <path d="M22.2 13.8c.3-2-1.2-3.1-3.3-3.8l.7-2.7-1.6-.4-.7 2.6c-.4-.1-.9-.2-1.3-.3l.7-2.6-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.3l-2.1-.5-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8.9l-.8 3.3c.1 0 .2 0 .3.1-.1 0-.2-.1-.3-.1L11.4 20c-.1.3-.4.7-1 .5 0 0-1.2-.3-1.2-.3l-.8 1.8 2 .5c.4.1.7.2 1.1.3l-.7 2.7 1.6.4.7-2.7c.4.1.9.2 1.4.3l-.7 2.7 1.6.4.7-2.7c2.8.5 4.9.3 5.8-2.2.7-2-.03-3.2-1.5-3.9 1.1-.25 1.9-1 2.1-2.5zm-3.8 5.3c-.5 2-3.9.9-5 .6l.9-3.5c1.1.3 4.6.8 4.1 2.9zm.5-5.3c-.45 1.8-3.3.9-4.2.7l.8-3.2c.9.2 3.8.6 3.4 2.5z" fill="white"/>
-          </svg>
-          <span style={{fontWeight:800,whiteSpace:"nowrap"}}>{btcPrice.toLocaleString("fr-FR")} {selectedCurrency}</span>
-          <span style={{fontWeight:500,color:"#7D675E",whiteSpace:"nowrap"}}>{Math.round(100_000_000/btcPrice).toLocaleString()} sats / {selectedCurrency.toLowerCase()}</span>
-          <div style={{position:"relative",display:"flex",alignItems:"center",background:"rgba(255,255,255,0.45)",borderRadius:999,padding:"2px 9px",cursor:"pointer",gap:4}}>
-            <span style={{fontSize:".76rem",fontWeight:800,color:"#2B1911",pointerEvents:"none"}}>{selectedCurrency}</span>
-            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7D675E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{pointerEvents:"none",flexShrink:0}}><polyline points="1,1 5,5 9,1"/></svg>
-            <select value={selectedCurrency} onChange={e => setSelectedCurrency(e.target.value)}
-              style={{position:"absolute",inset:0,opacity:0,cursor:"pointer",fontSize:".78rem",width:"100%"}}>
-              {availableCurrencies.map(cur => <option key={cur} value={cur}>{cur}</option>)}
-            </select>
-          </div>
-        </div>
-      )}
-      <div style={{marginLeft:"auto"}}>
-        <span style={{fontSize:".75rem",fontWeight:600,color:"#C4B5AE"}}>Sign in to trade</span>
-      </div>
-    </header>
-  );
+  const satsPerCur = btcPrice > 0 ? Math.round(100_000_000 / btcPrice) : 0;
 
   // ─── MOBILE VIEW ──────────────────────────────────────────────────────────
   if (isMobile) {
     return (
       <>
         <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&display=swap');
-          *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-          html{font-size:120%}
-          body{font-family:'Baloo 2',cursive;background:#FFF9F6;color:#2B1911}
           @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-          @keyframes fadeIn{from{opacity:0}to{opacity:1}}
           @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
           @keyframes successPop{
             0%{transform:scale(.5);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}
@@ -226,55 +165,33 @@ export default function PeachAuth() {
             0%,100%{transform:translateX(0)}
             20%{transform:translateX(-6px)}60%{transform:translateX(6px)}80%{transform:translateX(-3px)}
           }
-          .sidenav{
-            position:fixed;top:56px;left:0;bottom:0;
-            width:220px;background:#FFFFFF;border-right:1px solid #EAE3DF;
-            z-index:500;display:flex;flex-direction:column;align-items:flex-start;
-            padding:8px 0;gap:2px;
-            transform:translateX(-100%);
-            transition:transform .25s cubic-bezier(.4,0,.2,1);
-            box-shadow:none;
-          }
-          .sidenav.sidenav-mobile-open{transform:translateX(0);box-shadow:6px 0 28px rgba(43,25,17,.16)}
-          .sidenav-item{
-            width:calc(100% - 16px);display:flex;flex-direction:row;align-items:center;
-            justify-content:flex-start;gap:12px;padding:10px 14px;border-radius:10px;margin:0 8px;
-            border:none;background:transparent;cursor:pointer;color:#7D675E;
-            font-family:'Baloo 2',cursive;transition:all .14s;flex-shrink:0;
-          }
-          .sidenav-item:hover{background:#F4EEEB;color:#2B1911}
-          .sidenav-icon{display:flex;align-items:center;justify-content:center;height:22px;flex-shrink:0}
-          .sidenav-label{
-            font-size:.8rem;font-weight:600;letter-spacing:0;
-            white-space:nowrap;overflow:hidden;
-          }
-          .sidenav-backdrop{
-            display:none;position:fixed;inset:0;z-index:499;
-            background:rgba(43,25,17,.4);animation:fadeIn .2s ease;
-          }
-          .sidenav-backdrop.open{display:block}
-          .burger-btn{display:flex}
         `}</style>
-        <Topbar/>
-
-        {/* Mobile sidebar */}
-        <div className={`sidenav-backdrop${sidebarMobileOpen?" open":""}`} onClick={() => setSidebarMobileOpen(false)}/>
-        <nav className={`sidenav${sidebarMobileOpen?" sidenav-mobile-open":""}`}>
-          {[
-            {id:"home",    label:"Home",    icon:<PeachIcon size={20}/>},
-            {id:"market",  label:"Market",  icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="2,14 7,9 11,12 18,5"/><polyline points="13,5 18,5 18,10"/></svg>},
-            {id:"trades",  label:"Trades",  icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 7h10M13 4l3 3-3 3"/><path d="M15 13H5M7 10l-3 3 3 3"/></svg>},
-            {id:"create",  label:"Create",  icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6.5" x2="10" y2="13.5"/><line x1="6.5" y1="10" x2="13.5" y2="10"/></svg>},
-            {id:"payment-methods",label:"Payments",icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="18" height="13" rx="2"/><line x1="1" y1="9" x2="19" y2="9"/><line x1="5" y1="14" x2="8" y2="14"/></svg>},
-            {id:"settings",label:"Settings",icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="2.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/></svg>},
-          ].map(({id,label,icon})=>(
-            <button key={id} className="sidenav-item"
-              onClick={() => { setSidebarMobileOpen(false); const route = NAV_ROUTES[id]; if (route) navigate(route); }}>
-              <span className="sidenav-icon">{icon}</span>
-              <span className="sidenav-label">{label}</span>
-            </button>
-          ))}
-        </nav>
+        <Topbar
+          onBurgerClick={() => setSidebarMobileOpen(o => !o)}
+          isLoggedIn={false}
+          handleLogin={() => {}}
+          handleLogout={() => {}}
+          showAvatarMenu={false}
+          setShowAvatarMenu={() => {}}
+          btcPrice={btcPrice}
+          selectedCurrency={selectedCurrency}
+          availableCurrencies={availableCurrencies}
+          onCurrencyChange={c => setSelectedCurrency(c)}
+        />
+        <SideNav
+          mobileOpen={sidebarMobileOpen}
+          onClose={() => setSidebarMobileOpen(false)}
+          onNavigate={navigate}
+          mobilePriceSlot={
+            <div style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
+              <IcoBtc size={16}/>
+              <div style={{display:"flex",flexDirection:"column"}}>
+                <span style={{fontSize:".78rem",fontWeight:800,color:"var(--black)"}}>{btcPrice.toLocaleString("fr-FR")} {selectedCurrency}</span>
+                <span style={{fontSize:".65rem",fontWeight:500,color:"var(--black-65)"}}>{satsPerCur.toLocaleString()} sats / {selectedCurrency.toLowerCase()}</span>
+              </div>
+            </div>
+          }
+        />
 
         <div style={{
           minHeight:"100vh",paddingTop:56,
@@ -445,11 +362,7 @@ export default function PeachAuth() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&display=swap');
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:'Baloo 2',cursive;background:#FFF9F6;color:#2B1911;min-height:100vh}
         @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         @keyframes successPop{
           0%{transform:scale(.5);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}
@@ -462,69 +375,24 @@ export default function PeachAuth() {
           0%,100%{transform:translateX(0)}
           20%{transform:translateX(-6px)}60%{transform:translateX(6px)}80%{transform:translateX(-3px)}
         }
-        .sidenav{
-          position:fixed;top:56px;left:0;bottom:0;
-          width:68px;background:#FFFFFF;border-right:1px solid #EAE3DF;
-          z-index:150;display:flex;flex-direction:column;align-items:center;
-          padding:8px 0;gap:2px;overflow:hidden;
-        }
-        .sidenav-item{
-          width:calc(100% - 16px);display:flex;flex-direction:column;align-items:center;
-          justify-content:center;gap:3px;padding:8px 4px;border-radius:10px;
-          border:none;background:transparent;cursor:pointer;color:#7D675E;
-          font-family:'Baloo 2',cursive;transition:all .14s;flex-shrink:0;
-        }
-        .sidenav-item:hover{background:#F4EEEB;color:#2B1911}
-        .sidenav-icon{display:flex;align-items:center;justify-content:center;height:22px;flex-shrink:0}
-        .sidenav-label{
-          font-size:.57rem;font-weight:700;letter-spacing:.02em;
-          text-transform:uppercase;white-space:nowrap;overflow:hidden;
-          transition:opacity .15s,max-height .2s;max-height:20px;opacity:1;
-        }
-        .sidenav-backdrop{
-          display:none;position:fixed;inset:0;z-index:149;
-          background:rgba(43,25,17,.4);animation:fadeIn .2s ease;
-        }
-        .sidenav-backdrop.open{display:block}
-        .burger-btn{
-          display:none;align-items:center;justify-content:center;
-          width:34px;height:34px;border-radius:8px;border:none;
-          background:transparent;cursor:pointer;color:#7D675E;
-          flex-shrink:0;transition:background .14s;
-        }
-        .burger-btn:hover{background:#F4EEEB}
-        @media(max-width:767px){
-          .sidenav{
-            width:220px;transform:translateX(-100%);
-            transition:transform .25s cubic-bezier(.4,0,.2,1);
-            z-index:500;align-items:flex-start;box-shadow:none;
-          }
-          .sidenav.sidenav-mobile-open{transform:translateX(0);box-shadow:6px 0 28px rgba(43,25,17,.16)}
-          .sidenav-item{width:calc(100% - 16px);flex-direction:row;justify-content:flex-start;gap:12px;padding:10px 14px}
-          .sidenav-label{opacity:1!important;max-height:none!important;font-size:.8rem;text-transform:none;font-weight:600;letter-spacing:0}
-          .sidenav-backdrop.open{display:block}
-          .burger-btn{display:flex}
-        }
       `}</style>
-      <Topbar/>
-      {/* Sidebar */}
-      <div className={`sidenav-backdrop${sidebarMobileOpen?" open":""}`} onClick={() => setSidebarMobileOpen(false)}/>
-      <nav className={`sidenav${sidebarMobileOpen?" sidenav-mobile-open":""}`}>
-        {[
-          {id:"home",    label:"Home",    icon:<PeachIcon size={20}/>},
-          {id:"market",  label:"Market",  icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="2,14 7,9 11,12 18,5"/><polyline points="13,5 18,5 18,10"/></svg>},
-          {id:"trades",  label:"Trades",  icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 7h10M13 4l3 3-3 3"/><path d="M15 13H5M7 10l-3 3 3 3"/></svg>},
-          {id:"create",  label:"Create",  icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6.5" x2="10" y2="13.5"/><line x1="6.5" y1="10" x2="13.5" y2="10"/></svg>},
-          {id:"payment-methods",label:"Payments",icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="18" height="13" rx="2"/><line x1="1" y1="9" x2="19" y2="9"/><line x1="5" y1="14" x2="8" y2="14"/></svg>},
-          {id:"settings",label:"Settings",icon:<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10" cy="10" r="2.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/></svg>},
-        ].map(({id,label,icon})=>(
-          <button key={id} className="sidenav-item"
-            onClick={() => { const route = NAV_ROUTES[id]; if (route) navigate(route); }}>
-            <span className="sidenav-icon">{icon}</span>
-            <span className="sidenav-label">{label}</span>
-          </button>
-        ))}
-      </nav>
+      <Topbar
+        onBurgerClick={() => setSidebarMobileOpen(o => !o)}
+        isLoggedIn={false}
+        handleLogin={() => {}}
+        handleLogout={() => {}}
+        showAvatarMenu={false}
+        setShowAvatarMenu={() => {}}
+        btcPrice={btcPrice}
+        selectedCurrency={selectedCurrency}
+        availableCurrencies={availableCurrencies}
+        onCurrencyChange={c => setSelectedCurrency(c)}
+      />
+      <SideNav
+        mobileOpen={sidebarMobileOpen}
+        onClose={() => setSidebarMobileOpen(false)}
+        onNavigate={navigate}
+      />
 
       {/* Ghost market */}
       <div style={{position:"fixed",top:56,left:68,right:0,bottom:0,
@@ -593,14 +461,14 @@ export default function PeachAuth() {
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               <Step n="1"><strong style={{color:"#2B1911"}}>Open</strong> the Peach app on your phone</Step>
-              <Step n="2"><strong style={{color:"#2B1911"}}>Tap</strong> the QR icon in the top navigation bar</Step>
+              <Step n="2"><strong style={{color:"#2B1911"}}>Tap</strong> "connect to desktop" in the settings</Step>
               <Step n="3"><strong style={{color:"#2B1911"}}>Scan</strong> the code — you'll be signed in instantly</Step>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",
               borderRadius:10,background:"#F4EEEB",border:"1px solid #EAE3DF"}}>
               <span style={{fontSize:"1rem"}}>🔒</span>
               <span style={{fontSize:".73rem",color:"#7D675E",fontWeight:500,lineHeight:1.5}}>
-                Session tokens expire after <strong style={{color:"#2B1911"}}>60 minutes</strong>. Your keypair never leaves your device.
+                Session tokens expire after <strong style={{color:"#2B1911"}}>120 minutes</strong>. Your keypair never leaves your device.
               </span>
             </div>
 
@@ -654,7 +522,7 @@ export default function PeachAuth() {
               <>
                 <div style={{textAlign:"center"}}>
                   <div style={{fontSize:".92rem",fontWeight:800,color:"#2B1911",marginBottom:4}}>
-                    {qrPhase==="error" ? "Connection failed" : "Scan with Peach"}
+                    {qrPhase==="error" ? "Connection failed" : "Scan with Peach Mobile App"}
                   </div>
                   <div style={{fontSize:".73rem",color:"#C4B5AE",fontWeight:500}}>
                     {qrPhase==="error" ? "Something went wrong" : "Valid for 30 seconds"}

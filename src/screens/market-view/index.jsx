@@ -11,8 +11,25 @@ import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat, formatTradeId, toPeac
 import PeachRating from "../../components/PeachRating.jsx";
 import { CSS } from "./styles.js";
 import { premiumStats, premiumCls, currSym, MultiSelect, Chips, RepCell, AmountCell, PriceCell } from "./components.jsx";
+import { FALLBACK_METHODS, CATEGORY_META } from "../payment-methods/components.jsx";
 
-const ALL_CURRENCIES = ["EUR","CHF","GBP"];
+// ── Derived from FALLBACK_METHODS (static, computed once at module load) ──
+const METHOD_DISPLAY_NAMES = Object.fromEntries(
+  Object.entries(FALLBACK_METHODS).map(([id, m]) => [id, m.name])
+);
+const METHOD_ID_BY_DISPLAY = Object.fromEntries(
+  Object.entries(FALLBACK_METHODS).map(([id, m]) => [m.name, id])
+);
+const CATEGORY_METHOD_IDS = {};
+for (const [id, m] of Object.entries(FALLBACK_METHODS)) {
+  (CATEGORY_METHOD_IDS[m.category] ??= []).push(id);
+}
+const CATEGORY_ID_BY_LABEL = Object.fromEntries(
+  Object.entries(CATEGORY_META).map(([id, meta]) => [meta.label, id])
+);
+function methodDisplayName(id) {
+  return METHOD_DISPLAY_NAMES[id] || id;
+}
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function PeachMarket() {
@@ -29,7 +46,7 @@ export default function PeachMarket() {
   const [showMyOffersInfo,    setShowMyOffersInfo]    = useState(false);
   const infoRef = useRef(null);
   const [allPrices,           setAllPrices]           = useState({ EUR: BTC_PRICE });
-  const [availableCurrencies, setAvailableCurrencies] = useState(ALL_CURRENCIES);
+  const [availableCurrencies, setAvailableCurrencies] = useState(["EUR"]);
   const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
@@ -537,22 +554,24 @@ export default function PeachMarket() {
 
   const offerType = isSellTab ? "bid" : "ask";
 
-  const PAYMENT_TYPE_MAP = {
-    "Cash":      ["Cash"],
-    "Online":    ["SEPA","Revolut","Wise","PayPal"],
-    "Gift card": ["Amazon","iTunes"],
-  };
+  // Dynamic currency list derived from actual offers
+  const ALL_CURRENCIES = [...new Set(marketOffers.flatMap(o => o.currencies))].sort();
 
   const filtered = marketOffers
     .filter(o => o.type === offerType)
     .filter(o => showMyOffers || !o.isOwn)
     .filter(o => selCurrencies.length === 0 || selCurrencies.some(c => o.currencies.includes(c)))
-    .filter(o => selMethods.length === 0    || selMethods.some(m => o.methods.includes(m)))
-    .filter(o => selPaymentTypes.length === 0 || selPaymentTypes.some(pt =>
-      (PAYMENT_TYPE_MAP[pt] || []).some(m => o.methods.includes(m))
-    ))
+    .filter(o => selMethods.length === 0 || selMethods.some(displayName => {
+      const apiId = METHOD_ID_BY_DISPLAY[displayName] || displayName;
+      return o.methods.includes(apiId);
+    }))
+    .filter(o => selPaymentTypes.length === 0 || selPaymentTypes.some(label => {
+      const catId = CATEGORY_ID_BY_LABEL[label];
+      const catMethods = CATEGORY_METHOD_IDS[catId] || [];
+      return catMethods.some(m => o.methods.includes(m));
+    }))
     .filter(o => searchQuery.trim() === "" ||
-      o.methods.some(m => m.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      o.methods.some(m => methodDisplayName(m).toLowerCase().includes(searchQuery.toLowerCase())) ||
       o.currencies.some(c => c.toLowerCase().includes(searchQuery.toLowerCase())) ||
       o.id.toLowerCase().includes(searchQuery.toLowerCase())
     )
@@ -700,7 +719,7 @@ export default function PeachMarket() {
                 <span className="popup-label">Payment methods</span>
                 <span className="popup-value">
                   <span style={{display:"flex",gap:4,flexWrap:"wrap",justifyContent:"flex-end"}}>
-                    {offer.methods.map(m => <span key={m} className="method-chip">{m}</span>)}
+                    {offer.methods.map(m => <span key={m} className="method-chip">{methodDisplayName(m)}</span>)}
                   </span>
                 </span>
               </div>
@@ -733,7 +752,7 @@ export default function PeachMarket() {
                         No matching payment method
                       </div>
                       <div style={{fontSize:".76rem",color:"var(--black-65)",lineHeight:1.5}}>
-                        This offer accepts {offer.methods.join(", ")} but you haven't configured any of these.
+                        This offer accepts {offer.methods.map(methodDisplayName).join(", ")} but you haven't configured any of these.
                       </div>
                       <button className="popup-pm-link" onClick={() => navigate("/payment-methods")}>
                         Go to Payment Methods →
@@ -997,7 +1016,7 @@ export default function PeachMarket() {
             {/* Filters */}
             <MultiSelect
               label="Payment type"
-              options={["Cash","Online","Gift card"]}
+              options={Object.values(CATEGORY_META).map(m => m.label)}
               value={selPaymentTypes}
               onChange={setSelPaymentTypes}
             />
@@ -1009,7 +1028,7 @@ export default function PeachMarket() {
             />
             <MultiSelect
               label="Payment method"
-              options={[...new Set(marketOffers.flatMap(o => o.methods || []))].sort()}
+              options={[...new Set(marketOffers.flatMap(o => (o.methods || []).map(methodDisplayName)))].sort()}
               value={selMethods}
               onChange={setSelMethods}
             />
@@ -1107,7 +1126,7 @@ export default function PeachMarket() {
                       <td><PriceCell offer={offer} btcPrice={btcPrice} currency={selectedCurrency} isSellTab={isSellTab}/></td>
                       <td>
                         <div className="methods">
-                          <Chips items={offer.methods} className="method-chip"/>
+                          <Chips items={offer.methods.map(methodDisplayName)} className="method-chip"/>
                         </div>
                       </td>
                       <td>
@@ -1216,7 +1235,7 @@ export default function PeachMarket() {
                 })()}
                 {/* Row 4: tags */}
                 <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                  <Chips items={offer.methods} className="method-chip"/>
+                  <Chips items={offer.methods.map(methodDisplayName)} className="method-chip"/>
                   <Chips items={offer.currencies} className="currency-chip"/>
                 </div>
               </div>

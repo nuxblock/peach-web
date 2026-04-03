@@ -98,6 +98,9 @@ Archive of all completed features, fixes, and resolved blockers. Moved here from
 - **Offer Creation: "No new users" filter** — `noNewUsers` checkbox sends `minReputation: 0.5` on buy offers + inside `instantTradeCriteria` on sell offers.
 - **Offer Creation: "Instant Match" checkbox** — `instantMatch` checkbox sends `instantTradeCriteria: { minReputation, minTrades, badges }` on both buy and sell offers.
 - **Market View: own sell offers not showing in Buy BTC tab** — `GET /v069/sellOffer?ownOffers=true` is broken (backend ignores the param for sell offers). Fixed by switching all 4 screens to `GET /v069/user/{peachId}/offers` which returns `{ buyOffers, sellOffers }`. Also converted "My Offers" button to checkbox + added info tooltip.
+- **Market View: default "my offers" toggle to off** — "Show my offers" checkboxes now default unchecked and renamed from "My Offers". (`market-view/index.jsx`)
+- **Escrow funding QR code fix** — fixed QR code display in trade execution escrow funding step + improved amount input field formatting/validation in offer creation. (`trade-execution/components.jsx`, `offer-creation/components.jsx`)
+- **Peach rating: 5-peach display** — replaced single proportionally-filled peach icon with 5-peach display matching mobile app. Consolidated `toPeaches()` into `src/utils/format.js`, created shared `PeachRating` component in `src/components/PeachRating.jsx`. Fixed trade-execution bug where rating displayed raw API value (-1 to +1) instead of 0-5 scale. Updated all 6 screens.
 
 ---
 

@@ -101,7 +101,6 @@ Items that don't add new API wiring but improve existing screens. Organized by p
 - **Trade Execution: remove QR/address on tx detection** — when a transaction is detected during escrow funding, remove or hide the QR code and funding address display since it's no longer needed. (`trade-execution/index.jsx`)
 - **Trade Execution: grouphug toggle (buyer POV)** — add a toggle in the trade execution screen from the buyer's perspective to enable/disable transaction batching (grouphug). (`trade-execution/index.jsx`)
 - **Notifications: full audit** — create a comprehensive list of all notification types the app should support. Verify each one triggers correctly with proper title/body content. Current mapping may be incomplete or incorrect. (`hooks/useNotifications.js`, `components/NotificationPanel.jsx`)
-- **Market View: default "my offers" toggle to off** — when opening market view, the "my offers" filter should be off by default. (`market-view/index.jsx`)
 - **Market View / Trades Dashboard: visual cue for limit-paused offers** — own offers that are off the market because of trading limits should have a clear visual indicator (badge, dimmed state, or label) so the user knows why they're inactive. (`market-view/index.jsx`, `trades-dashboard/index.jsx`)
 - **Global: session timeout handling** — auth session lasts ~2 hours. After expiry, API calls silently fail. Detect expired session (e.g. 401 response from API) and show a clear message telling the user their session has expired and they need to log in again. Should apply globally across all screens. (`hooks/useApi.js`, auth popup)
 
@@ -132,7 +131,7 @@ Items that don't add new API wiring but improve existing screens. Organized by p
 | `src/screens/trade-execution/index.jsx` | Wrong amount escrow modal, escrow timers |
 | `src/screens/trades-dashboard/index.jsx` | Republish, instant trade |
 | `src/screens/market-view/index.jsx` | Filter parity |
-| `src/screens/offer-creation/index.jsx` | PM validators, multiple offers |
+| `src/screens/offer-creation/index.jsx` | PM validators |
 | `src/screens/settings/index.jsx` + `screens.jsx` | 5 remaining sub-screens (4.5–4.9) + referrals (4.11) + profile (4.12) |
 | `src/screens/peach-home.jsx` | Wire remaining stats (24h volume, trades today, top PMs, top currencies — needs backend endpoints) |
 | `src/styles/global.css` | Dark mode theme variables |

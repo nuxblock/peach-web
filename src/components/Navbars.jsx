@@ -108,7 +108,7 @@ export function Topbar({
   showPrice = true,
 }) {
   const { total: unreadTotal } = useUnread();
-  const { notifications, unreadCount: unreadNotifs, markAllRead } = useNotifications();
+  const { notifications, unreadCount: unreadNotifs, readIds, markAllRead, markRead } = useNotifications();
   const session = useSessionTimer();
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const navigate = useNavigate();
@@ -124,13 +124,6 @@ export function Topbar({
     return () => { document.removeEventListener("click", close); document.removeEventListener("keydown", esc); };
   }, [showNotifPanel]);
 
-  // Mark all read 1s after opening panel
-  useEffect(() => {
-    if (!showNotifPanel || unreadNotifs === 0) return;
-    const t = setTimeout(markAllRead, 1000);
-    return () => clearTimeout(t);
-  }, [showNotifPanel]);
-
   const openNotifPanel = (e) => {
     e.stopPropagation();
     setShowNotifPanel(v => !v);
@@ -142,16 +135,17 @@ export function Topbar({
     setShowNotifPanel(false);
   };
   const handleNotifNavigate = (n) => {
+    markRead(n.id);
     setShowNotifPanel(false);
-    if (n.contractId) navigate(`/trade/${n.contractId}`);
-    else if (n.offerId) navigate("/trades", { state: { openOfferId: n.offerId } });
-    else navigate("/trades");
+    if (n.contractId) {
+      navigate(`/trade/${n.contractId}`);
+    } else if (n.offerId) {
+      const tab = (n.type === "expiry") ? "history" : "pending";
+      navigate("/trades", { state: { openOfferId: n.offerId, tab } });
+    } else {
+      navigate("/trades");
+    }
   };
-
-  // Compute lastRead for the panel (to style unread items)
-  const lastRead = notifications.length > 0 && unreadNotifs === 0
-    ? Date.now()
-    : (parseInt(localStorage.getItem("peach_notif_last_read"), 10) || 0);
 
   return (
     <header className="topbar">
@@ -187,7 +181,7 @@ export function Topbar({
             {showNotifPanel && (
               <NotificationPanel
                 notifications={notifications}
-                lastRead={lastRead}
+                readIds={readIds}
                 onMarkAllRead={markAllRead}
                 onNavigate={handleNotifNavigate}
               />

@@ -10,6 +10,22 @@ function _notify() {
   _listeners.forEach(fn => fn({ ..._state }));
 }
 
+function _processContracts(arr) {
+  const byContract = {};
+  let total = 0;
+  for (const c of arr) {
+    const n = c.unreadMessages ?? 0;
+    if (n > 0) {
+      byContract[c.id] = n;
+      total += n;
+    }
+  }
+  _state = { total, byContract };
+  window.__PEACH_UNREAD__ = _state;
+  document.title = total > 0 ? `(${total}) Peach` : "Peach";
+  _notify();
+}
+
 async function _poll(auth, base) {
   // Re-check auth each cycle (handles logout between polls)
   if (!window.__PEACH_AUTH__) {
@@ -19,6 +35,13 @@ async function _poll(auth, base) {
     _notify();
     return;
   }
+  // Use shared contracts data from useNotifications if fresh (< 10s)
+  const shared = window.__PEACH_CONTRACTS__;
+  if (shared && (Date.now() - shared.ts) < 10_000) {
+    _processContracts(shared.data);
+    return;
+  }
+  // Fallback: fetch our own copy
   try {
     const res = await fetchWithSessionCheck(`${base}/contracts/summary`, {
       headers: { Authorization: `Bearer ${auth.token}` },
@@ -26,19 +49,7 @@ async function _poll(auth, base) {
     if (!res.ok) return;
     const data = await res.json();
     const arr = Array.isArray(data) ? data : (data?.contracts ?? []);
-    const byContract = {};
-    let total = 0;
-    for (const c of arr) {
-      const n = c.unreadMessages ?? 0;
-      if (n > 0) {
-        byContract[c.id] = n;
-        total += n;
-      }
-    }
-    _state = { total, byContract };
-    window.__PEACH_UNREAD__ = _state;
-    document.title = total > 0 ? `(${total}) Peach` : "Peach";
-    _notify();
+    _processContracts(arr);
   } catch {
     // Silently keep last known state on error
   }

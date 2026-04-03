@@ -5,8 +5,9 @@ import { fetchWithSessionCheck } from "../utils/sessionGuard.js";
 
 // ── Seller-specific overrides (keyed by status) ─────────────────────────────
 const SELLER_OVERRIDE = {
-  paymentRequired:        { title: "Waiting for buyer",      body: "Wait for buyer to mark the payment as done." },
-  confirmPaymentRequired: { title: "Payment marked as sent", body: "Check your account and confirm receipt." },
+  paymentRequired:        { title: "Waiting for buyer",        body: "Wait for buyer to mark the payment as done." },
+  confirmPaymentRequired: { title: "Payment marked as sent",   body: "Check your account and confirm receipt." },
+  releaseEscrow:          { title: "Confirm payment receipt",  body: "Check your account and release escrow." },
 };
 
 // ── Status → notification mapping ────────────────────────────────────────────
@@ -29,11 +30,18 @@ const STATUS_NOTIF = {
   paymentTooLate:               { title: "Payment overdue",         body: "Payment deadline has passed.",            type: "statusChange" },
   confirmCancelation:           { title: "Cancellation requested",  body: "Review the cancellation request.",        type: "statusChange" },
   rateUser:                     { title: "Rate your trade partner",  body: "",                                      type: "statusChange" },
+  createEscrow:                 { title: "Create escrow",            body: "Generate escrow address for your sell offer.", type: "statusChange" },
+  fundingAmountDifferent:       { title: "Wrong funding amount",     body: "Escrow funded with unexpected amount.",   type: "warning" },
+  payoutPending:                { title: "Payout pending",           body: "Bitcoin is being sent to your wallet.",   type: "statusChange" },
+  refundAddressRequired:        { title: "Refund address needed",    body: "Provide a refund address to continue.",   type: "warning" },
+  refundOrReviveRequired:       { title: "Action needed",            body: "Decide whether to refund or republish.",  type: "warning" },
+  wrongAmountFundedOnContract:  { title: "Wrong amount funded",      body: "Contract funded with incorrect amount.",  type: "warning" },
+  wrongAmountFundedOnContractRefundWaiting: { title: "Refund pending", body: "Waiting for refund of incorrect amount.", type: "warning" },
 };
 
 // ── localStorage helpers ─────────────────────────────────────────────────────
 const LS_NOTIFS    = "peach_notifications";
-const LS_LAST_READ = "peach_notif_last_read";
+const LS_READ_IDS  = "peach_notif_read_ids";
 const MAX_NOTIFS   = 50;
 
 function loadNotifs() {
@@ -42,23 +50,41 @@ function loadNotifs() {
 function saveNotifs(list) {
   localStorage.setItem(LS_NOTIFS, JSON.stringify(list.slice(0, MAX_NOTIFS)));
 }
-function loadLastRead() {
-  return parseInt(localStorage.getItem(LS_LAST_READ), 10) || 0;
+function loadReadIds(notifs) {
+  // Try new format first
+  try {
+    const arr = JSON.parse(localStorage.getItem(LS_READ_IDS));
+    if (Array.isArray(arr)) return new Set(arr);
+  } catch { /* fall through */ }
+  // Migrate from old timestamp-based format
+  const oldTs = parseInt(localStorage.getItem("peach_notif_last_read"), 10) || 0;
+  if (oldTs > 0 && notifs.length > 0) {
+    const ids = new Set(notifs.filter(n => n.createdAt <= oldTs).map(n => n.id));
+    localStorage.removeItem("peach_notif_last_read");
+    saveReadIds(ids, notifs);
+    return ids;
+  }
+  localStorage.removeItem("peach_notif_last_read");
+  return new Set();
 }
-function saveLastRead(ts) {
-  localStorage.setItem(LS_LAST_READ, String(ts));
+function saveReadIds(readIds, notifs) {
+  // Prune: only keep IDs that exist in current notifications
+  const validIds = new Set(notifs.map(n => n.id));
+  const pruned = [...readIds].filter(id => validIds.has(id));
+  localStorage.setItem(LS_READ_IDS, JSON.stringify(pruned));
 }
 
 // ── Singleton polling state ──────────────────────────────────────────────────
 let _interval      = null;
 let _listeners     = new Set();
-let _state         = { notifications: loadNotifs(), unreadCount: 0, lastRead: loadLastRead() };
+const _initNotifs  = loadNotifs();
+let _state         = { notifications: _initNotifs, unreadCount: 0, readIds: loadReadIds(_initNotifs) };
 let _prevContracts = new Map();   // id → { tradeStatus, unreadMessages }
 let _prevOffers    = new Map();   // id → tradeStatus
 let _isFirstPoll   = true;
 
 // Compute unread on load
-_state.unreadCount = _state.notifications.filter(n => n.createdAt > _state.lastRead).length;
+_state.unreadCount = _state.notifications.filter(n => !_state.readIds.has(n.id)).length;
 
 function _notify() {
   _listeners.forEach(fn => fn({ ..._state }));
@@ -67,8 +93,9 @@ function _notify() {
 function _addEvents(newEvents) {
   if (newEvents.length === 0) return;
   _state.notifications = [...newEvents, ..._state.notifications].slice(0, MAX_NOTIFS);
-  _state.unreadCount = _state.notifications.filter(n => n.createdAt > _state.lastRead).length;
+  _state.unreadCount = _state.notifications.filter(n => !_state.readIds.has(n.id)).length;
   saveNotifs(_state.notifications);
+  saveReadIds(_state.readIds, _state.notifications);
   _updateTitle();
   _notify();
 }
@@ -91,7 +118,7 @@ function _makeNotif(id, type, title, body, contractId, offerId) {
 async function _poll(auth, base) {
   if (!window.__PEACH_AUTH__) {
     _stopPolling();
-    _state = { notifications: _state.notifications, unreadCount: _state.unreadCount, lastRead: _state.lastRead };
+    _state = { notifications: _state.notifications, unreadCount: _state.unreadCount, readIds: _state.readIds };
     _notify();
     return;
   }
@@ -111,6 +138,8 @@ async function _poll(auth, base) {
     const contracts = contractsRes
       ? (Array.isArray(contractsRes) ? contractsRes : (contractsRes.contracts ?? []))
       : [];
+    // Share contracts with useUnread to avoid duplicate API calls
+    window.__PEACH_CONTRACTS__ = { data: contracts, ts: Date.now() };
     const buyOffers  = buyRes  ? (Array.isArray(buyRes)  ? buyRes  : (buyRes.offers ?? []))  : [];
     // Own sell offers from /v069/user/{id}/offers (sellOffer endpoint doesn't support ownOffers param)
     const sellOffers = ownOffersRes?.sellOffers ?? [];
@@ -210,7 +239,7 @@ function _startPolling() {
   if (!auth) return;
   const base = auth.baseUrl ?? import.meta.env.VITE_API_BASE;
   _poll(auth, base);
-  _interval = setInterval(() => _poll(auth, base), 15_000);
+  _interval = setInterval(() => _poll(auth, base), 8_000);
 }
 
 function _stopPolling() {
@@ -222,9 +251,18 @@ function _stopPolling() {
 
 // ── Public actions ───────────────────────────────────────────────────────────
 function _markAllRead() {
-  _state.lastRead = Date.now();
+  for (const n of _state.notifications) _state.readIds.add(n.id);
   _state.unreadCount = 0;
-  saveLastRead(_state.lastRead);
+  saveReadIds(_state.readIds, _state.notifications);
+  _updateTitle();
+  _notify();
+}
+
+function _markRead(notifId) {
+  if (_state.readIds.has(notifId)) return;
+  _state.readIds.add(notifId);
+  _state.unreadCount = _state.notifications.filter(n => !_state.readIds.has(n.id)).length;
+  saveReadIds(_state.readIds, _state.notifications);
   _updateTitle();
   _notify();
 }
@@ -245,6 +283,8 @@ export function useNotifications() {
   return {
     notifications: state.notifications,
     unreadCount:   state.unreadCount,
+    readIds:       state.readIds,
     markAllRead:   _markAllRead,
+    markRead:      _markRead,
   };
 }

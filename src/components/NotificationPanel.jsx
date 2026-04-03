@@ -26,14 +26,20 @@ const IcoExpiry = () => (
     <circle cx="8" cy="8" r="6"/><polyline points="8,4.5 8,8 10.5,9.5"/>
   </svg>
 );
+const IcoWarning = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M8 2l6.5 11H1.5z"/><line x1="8" y1="6.5" x2="8" y2="9"/><circle cx="8" cy="11" r="0.5" fill="currentColor" stroke="none"/>
+  </svg>
+);
 
 const TYPE_ICON = {
-  message:     IcoMessage,
+  message:      IcoMessage,
   statusChange: IcoStatus,
-  match:       IcoMatch,
+  match:        IcoMatch,
   tradeRequest: IcoMatch,
-  dispute:     IcoDispute,
-  expiry:      IcoExpiry,
+  dispute:      IcoDispute,
+  expiry:       IcoExpiry,
+  warning:      IcoWarning,
 };
 
 const TYPE_COLOR = {
@@ -43,10 +49,11 @@ const TYPE_COLOR = {
   tradeRequest: "#05A85A",
   dispute:      "var(--error, #DF321F)",
   expiry:       "var(--black-25, #B8A99E)",
+  warning:      "#E5A000",
 };
 
-export default function NotificationPanel({ notifications, lastRead, onMarkAllRead, onNavigate }) {
-  const hasUnread = notifications.some(n => n.createdAt > lastRead);
+export default function NotificationPanel({ notifications, readIds, onMarkAllRead, onNavigate }) {
+  const hasUnread = notifications.some(n => !readIds.has(n.id));
 
   return (
     <div className="notif-panel" onClick={e => e.stopPropagation()}>
@@ -68,7 +75,7 @@ export default function NotificationPanel({ notifications, lastRead, onMarkAllRe
           notifications.map(n => {
             const Icon = TYPE_ICON[n.type] || IcoStatus;
             const color = TYPE_COLOR[n.type] || "var(--black-50)";
-            const isUnread = n.createdAt > lastRead;
+            const isUnread = !readIds.has(n.id);
             return (
               <div
                 key={n.id}

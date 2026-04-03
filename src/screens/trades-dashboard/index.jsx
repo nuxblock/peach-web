@@ -998,12 +998,15 @@ export default function TradesDashboard() {
 
   const pendingItems = livePending ?? [];
 
-  // Auto-select the best default tab: Active > Pending > History
+  // Auto-select the best default tab: navigation state > Active > Pending > History
   // Only runs after data has loaded (tradesLoading === false)
   const [autoTabDone, setAutoTabDone] = useState(false);
   useEffect(() => {
     if (autoTabDone || tradesLoading) return;
-    if (activeItems.length > 0) { setMainTab("active"); setAutoTabDone(true); }
+    const navTab = location.state?.tab;
+    if (navTab && ["pending", "active", "history"].includes(navTab)) {
+      setMainTab(navTab); setAutoTabDone(true);
+    } else if (activeItems.length > 0) { setMainTab("active"); setAutoTabDone(true); }
     else if (pendingItems.length > 0) { setMainTab("pending"); setAutoTabDone(true); }
     else { setMainTab("history"); setAutoTabDone(true); }
   }, [activeItems.length, pendingItems.length, autoTabDone, tradesLoading]);
