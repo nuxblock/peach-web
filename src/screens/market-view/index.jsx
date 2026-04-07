@@ -93,6 +93,7 @@ export default function PeachMarket() {
   const [withdrawError,    setWithdrawError]    = useState(null);
   const [signingModal,     setSigningModal]     = useState(null);    // { offerId } for sell offer cancel
   const [toast,            setToast]            = useState(null);
+  const [tradeLoading,     setTradeLoading]     = useState(false);
 
   const isSellTab = tab === "sell";
 
@@ -112,6 +113,7 @@ export default function PeachMarket() {
     setSelectedPM(null);
     setPopupCurrency(null);
     setRequestAnim(false);
+    setTradeLoading(false);
     setEditingPremium(false); setEditError(null);
     setWithdrawConfirm(false); setWithdrawError(null);
   }
@@ -175,7 +177,8 @@ export default function PeachMarket() {
   }
 
   async function handleRequestTrade(offer) {
-    if (!auth?.pgpPrivKey || !selectedPM || !popupCurrency) return;
+    if (!auth?.pgpPrivKey || !selectedPM || !popupCurrency || tradeLoading) return;
+    setTradeLoading(true);
 
     const pmObj = userPMs.find(pm => pm.id === selectedPM);
     if (!pmObj) return;
@@ -240,20 +243,24 @@ export default function PeachMarket() {
         setTimeout(() => {
           setLocalRequested(prev => new Set([...prev, offer.id]));
           closePopup();
+          setTradeLoading(false);
         }, 1600);
       } else {
         const err = await res.json().catch(() => ({}));
         setToast("Trade request failed: " + (err.error || "try again"));
         setTimeout(() => setToast(null), 4000);
+        setTradeLoading(false);
       }
     } catch (e) {
       setToast("Trade request error: " + e.message);
       setTimeout(() => setToast(null), 4000);
+      setTradeLoading(false);
     }
   }
 
   async function handleInstantTrade(offer) {
-    if (!auth?.pgpPrivKey || !selectedPM || !popupCurrency) return;
+    if (!auth?.pgpPrivKey || !selectedPM || !popupCurrency || tradeLoading) return;
+    setTradeLoading(true);
 
     // 1. Find the selected PM data
     const pmObj = userPMs.find(pm => pm.id === selectedPM);
@@ -293,9 +300,11 @@ export default function PeachMarket() {
         paymentDataHashed = await hashPaymentFields(pmObj.type, cleanData, pmDetails.country || undefined);
       }
 
-      // 4. Call performInstantTrade
+      // 4. Call performInstantTrade (with 30s timeout to avoid hanging)
       const offerType = offer.type === "bid" ? "buyOffer" : "sellOffer";
       const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
       const res = await fetchWithSessionCheck(`${v069Base}/${offerType}/${offer.id}/performInstantTrade`, {
         method: "POST",
         headers: {
@@ -311,7 +320,9 @@ export default function PeachMarket() {
           symmetricKeyEncrypted,
           symmetricKeySignature,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (res.ok) {
         const contract = await res.json();
@@ -324,8 +335,11 @@ export default function PeachMarket() {
         setTimeout(() => setToast(null), 4000);
       }
     } catch (e) {
-      setToast("Instant trade error: " + e.message);
+      const msg = e.name === "AbortError" ? "Request timed out — try again" : e.message;
+      setToast("Instant trade error: " + msg);
       setTimeout(() => setToast(null), 4000);
+    } finally {
+      setTradeLoading(false);
     }
   }
 
@@ -830,15 +844,15 @@ export default function PeachMarket() {
             {!isOwn && !isReq && (
               isInstant ? (
                 <button className="popup-btn popup-btn-instant"
-                  disabled={!selectedPM || !popupCurrency}
+                  disabled={!selectedPM || !popupCurrency || tradeLoading}
                   onClick={() => handleInstantTrade(offer)}>
-                  ⚡ Instant trade
+                  {tradeLoading ? "Matching…" : "⚡ Instant trade"}
                 </button>
               ) : (
                 <button className="popup-btn popup-btn-request"
-                  disabled={!selectedPM || !popupCurrency}
+                  disabled={!selectedPM || !popupCurrency || tradeLoading}
                   onClick={() => handleRequestTrade(offer)}>
-                  Request trade
+                  {tradeLoading ? "Sending…" : "Request trade"}
                 </button>
               )
             )}

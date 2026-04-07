@@ -609,6 +609,12 @@ export function EscrowFundingCard({ address, sats, btcPrice }) {
 
       {/* QR code */}
       <div style={{ padding:"16px", display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
+        {!address ? (
+          <div style={{ padding:"32px 16px", display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
+            <div style={{ width:28, height:28, border:"3px solid #EAE3DF", borderTopColor:"#F5A623", borderRadius:"50%", animation:"spin 1s linear infinite" }}/>
+            <div style={{ fontSize:".78rem", color:"#7D675E", fontWeight:600 }}>Generating escrow address...</div>
+          </div>
+        ) : (<>
         <div style={{
           padding:10, background:"white", border:"1px solid #EAE3DF",
           borderRadius:10, display:"inline-block",
@@ -651,9 +657,11 @@ export function EscrowFundingCard({ address, sats, btcPrice }) {
             ? "QR includes amount — most wallets will fill it in automatically"
             : "QR contains address only — enter the amount manually in your wallet"}
         </div>
+        </>)}
       </div>
 
       {/* Address */}
+      {address && (
       <div style={{
         padding:"12px 16px 14px",
         borderTop:"1px solid #F4EEEB",
@@ -677,6 +685,7 @@ export function EscrowFundingCard({ address, sats, btcPrice }) {
           {copiedAddr ? <><IconCheck/> Copied!</> : <><IconCopy/> Copy address</>}
         </button>
       </div>
+      )}
     </div>
   );
 }
@@ -732,6 +741,147 @@ function ConfirmModal({ title, body, confirmLabel, onConfirm, onCancel }) {
           >{confirmLabel}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── WRONG AMOUNT FUNDED CARD ────────────────────────────────────────────────
+// Two branches:
+//   A) fundingAmountDifferent — seller's own offer, choice: continue or refund
+//   B) wrongAmountFundedOnContract / wrongAmountFundedOnContractRefundWaiting — exact amount required, auto-refund
+export function WrongAmountFundedCard({ status, expectedSats, actualSats, loading, onContinueTrade, onRefundEscrow, onClose, pendingRefund, onPendingClick }) {
+  const isFundingDifferent = status === "fundingAmountDifferent";
+  const isRefundWaiting = status === "wrongAmountFundedOnContractRefundWaiting";
+
+  return (
+    <div style={{
+      background:"#FEFCE5", border:"1px solid rgba(154,112,0,.15)",
+      borderRadius:12, padding:"20px 18px",
+    }}>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+        <div style={{
+          width:36, height:36, borderRadius:"50%",
+          background:"rgba(154,112,0,.1)", display:"flex",
+          alignItems:"center", justifyContent:"center", flexShrink:0,
+        }}>
+          <span style={{ fontSize:"1.1rem" }}>⚠</span>
+        </div>
+        <div style={{ fontWeight:800, fontSize:"1rem", color:"#9A7000" }}>
+          {isFundingDifferent ? "Wrong Amount Funded" : "Incorrect Funding"}
+        </div>
+      </div>
+
+      {/* Body text */}
+      <div style={{ fontSize:".85rem", color:"#7D675E", lineHeight:1.6, marginBottom:16 }}>
+        {isFundingDifferent
+          ? "You funded the escrow with a different amount than expected. You can continue the trade with the actual amount, or request a refund."
+          : "You funded your contract incorrectly, as it must be funded with exactly 1 transaction with the specified amount. You will be refunded."
+        }
+      </div>
+
+      {/* Amount comparison — only for fundingAmountDifferent */}
+      {isFundingDifferent && (
+        <div style={{
+          display:"flex", flexDirection:"column", gap:8,
+          background:"rgba(154,112,0,.06)", borderRadius:8,
+          padding:"12px 14px", marginBottom:16,
+        }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <span style={{ fontSize:".78rem", fontWeight:600, color:"#9A7000", minWidth:70 }}>Expected</span>
+            <SatsAmount sats={expectedSats} size="sm"/>
+          </div>
+          <div style={{ height:1, background:"rgba(154,112,0,.1)" }}/>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <span style={{ fontSize:".78rem", fontWeight:600, color:"#9A7000", minWidth:70 }}>Funded</span>
+            {loading
+              ? <span style={{ fontSize:".82rem", color:"#9A7000", fontWeight:600 }}>Loading…</span>
+              : actualSats != null
+                ? <SatsAmount sats={actualSats} size="sm"/>
+                : <span style={{ fontSize:".82rem", color:"#9A7000", fontWeight:600 }}>—</span>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* Buttons */}
+      {isRefundWaiting ? (
+        <div style={{
+          background:"rgba(125,103,94,.08)", borderRadius:8,
+          padding:"12px 14px", fontSize:".84rem", color:"#7D675E",
+          fontWeight:600, textAlign:"center",
+        }}>
+          Refund is being processed. You will receive your Bitcoin back shortly.
+        </div>
+      ) : pendingRefund ? (
+        <button
+          onClick={onPendingClick}
+          style={{
+            width:"100%", padding:"11px 16px", borderRadius:999,
+            border:"2px dashed #F56522", background:"rgba(245,101,34,.06)",
+            fontFamily:"Baloo 2, cursive", fontWeight:700, fontSize:".85rem",
+            color:"#F56522", cursor:"pointer",
+          }}
+        >Refund pending on mobile app…</button>
+      ) : (
+        <div style={{ display:"flex", gap:10 }}>
+          {isFundingDifferent ? (
+            <>
+              <button
+                onClick={onRefundEscrow}
+                style={{
+                  flex:1, border:"1.5px solid #EAE3DF", background:"white",
+                  borderRadius:999, fontFamily:"Baloo 2, cursive",
+                  fontWeight:700, fontSize:".85rem", color:"#2B1911",
+                  padding:"11px", cursor:"pointer",
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor="#F56522"}
+                onMouseLeave={e => e.currentTarget.style.borderColor="#EAE3DF"}
+              >Refund Escrow</button>
+              <button
+                onClick={onContinueTrade}
+                disabled={loading}
+                style={{
+                  flex:1, border:"none",
+                  background: loading ? "#ccc" : "linear-gradient(135deg,#F56522,#F5A623)",
+                  borderRadius:999, fontFamily:"Baloo 2, cursive",
+                  fontWeight:800, fontSize:".85rem", color:"white",
+                  padding:"11px", cursor: loading ? "not-allowed" : "pointer",
+                  boxShadow: loading ? "none" : "0 2px 10px rgba(245,101,34,.3)",
+                  transition:"filter .15s",
+                }}
+                onMouseEnter={e => { if (!loading) e.currentTarget.style.filter="brightness(0.95)"; }}
+                onMouseLeave={e => e.currentTarget.style.filter=""}
+              >Continue Trade</button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={onClose}
+                style={{
+                  flex:1, border:"1.5px solid #EAE3DF", background:"white",
+                  borderRadius:999, fontFamily:"Baloo 2, cursive",
+                  fontWeight:700, fontSize:".85rem", color:"#2B1911",
+                  padding:"11px", cursor:"pointer",
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor="#F56522"}
+                onMouseLeave={e => e.currentTarget.style.borderColor="#EAE3DF"}
+              >Close</button>
+              <button
+                onClick={onRefundEscrow}
+                style={{
+                  flex:1, border:"1.5px solid #EAE3DF", background:"white",
+                  borderRadius:999, fontFamily:"Baloo 2, cursive",
+                  fontWeight:700, fontSize:".85rem", color:"#2B1911",
+                  padding:"11px", cursor:"pointer",
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor="#F56522"}
+                onMouseLeave={e => e.currentTarget.style.borderColor="#EAE3DF"}
+              >Refund Escrow</button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

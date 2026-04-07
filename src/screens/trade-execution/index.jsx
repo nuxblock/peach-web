@@ -7,13 +7,14 @@ import { useApi, createTask } from "../../hooks/useApi.js";
 import MobileSigningModal, { hasPendingTask, savePendingTask, clearPendingTask } from "../../components/MobileSigningModal.jsx";
 import { decryptPGPMessage, decryptSymmetric, encryptSymmetric, signPGPMessage, encryptForPublicKey } from "../../utils/pgp.js";
 import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE, satsToFiat, formatTradeId, toPeaches } from "../../utils/format.js";
+import { deriveEscrowPubKey, deriveReturnAddress } from "../../utils/escrow.js";
 import Avatar from "../../components/Avatar.jsx";
 import StatusChip from "../../components/StatusChip.jsx";
 import PeachRating from "../../components/PeachRating.jsx";
 import {
   IconBack, IconAlert,
   HorizontalStepper, PaymentDetailsCard, EscrowAddressCard,
-  EscrowFundingCard, ActionPanel, RatingPanel, ChatPanel,
+  EscrowFundingCard, WrongAmountFundedCard, ActionPanel, RatingPanel, ChatPanel,
 } from "./components.jsx";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -251,6 +252,8 @@ export default function TradeExecution() {
   const [chatHasMore, setChatHasMore] = useState(false);
   const [chatLoadingMore, setChatLoadingMore] = useState(false);
   const [toast, setToast] = useState(null);
+  const [escrowFundedAmount, setEscrowFundedAmount] = useState(null);
+  const [escrowLoading, setEscrowLoading] = useState(false);
   const signingStatusRef = useRef(null); // track the tradeStatus when signing modal opened
   const sawRefundOrReviveRef = useRef(false); // once true, block regression to tradeCanceled
 
@@ -261,6 +264,73 @@ export default function TradeExecution() {
       if (hasPendingTask(routeId, type)) { setPendingTaskType(type); break; }
     }
   }, [routeId]);
+
+  // ── Fetch actual funded amount when status is fundingAmountDifferent ──
+  useEffect(() => {
+    const st = liveContract?.tradeStatus;
+    if (st !== "fundingAmountDifferent" || !auth || !liveContract) {
+      if (escrowFundedAmount != null) setEscrowFundedAmount(null);
+      return;
+    }
+    if (escrowFundedAmount != null) return; // already fetched
+    let cancelled = false;
+    (async () => {
+      setEscrowLoading(true);
+      try {
+        const offerId = String(liveContract.contract.id).split("-")[0];
+        const res = await get(`/offer/${offerId}/escrow`);
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          const amounts = data?.funding?.amounts ?? [];
+          setEscrowFundedAmount(amounts.reduce((a, b) => a + b, 0));
+        }
+      } catch (e) {
+        console.warn("[Trade] Escrow fetch failed:", e.message);
+      } finally {
+        if (!cancelled) setEscrowLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [liveContract?.tradeStatus, liveContract?.contract?.id]);
+
+  // ── Auto-create escrow when status is createEscrow and address is null ──
+  const escrowCreatedRef = useRef(false);
+  useEffect(() => {
+    const st = liveContract?.tradeStatus;
+    const escrowAddr = liveContract?.contract?.escrow;
+    if (st !== "createEscrow" || escrowAddr || !auth?.multisigXpub || !liveContract || escrowCreatedRef.current) return;
+    if (liveContract.role !== "seller") return;
+    escrowCreatedRef.current = true;
+    (async () => {
+      try {
+        const offerId = String(liveContract.contract.id).split("-")[0];
+        const pubKeyHex = deriveEscrowPubKey(auth.multisigXpub, Number(offerId));
+        const returnAddress = deriveReturnAddress(auth.xpub, Number(offerId));
+        const res = await post(`/offer/${offerId}/escrow`, { publicKey: pubKeyHex, returnAddress });
+        if (!res.ok) {
+          const err = await res.json().catch(() => null);
+          console.warn("[Trade] Escrow creation failed:", err?.error || res.status);
+          escrowCreatedRef.current = false;
+          return;
+        }
+        const data = await res.json().catch(() => null);
+        // Re-fetch contract to get the escrow address and updated status
+        const fresh = await get(`/contract/${routeId}`);
+        if (fresh.ok) {
+          const c = await fresh.json();
+          setLiveContract(prev => prev ? {
+            ...prev,
+            tradeStatus: c.tradeStatus ?? prev.tradeStatus,
+            contract: { ...prev.contract, escrow: c.escrow ?? data?.escrow ?? prev.contract.escrow },
+          } : prev);
+        }
+      } catch (e) {
+        console.warn("[Trade] Escrow creation error:", e.message);
+        escrowCreatedRef.current = false;
+      }
+    })();
+  }, [liveContract?.tradeStatus, liveContract?.contract?.escrow, liveContract?.role]);
 
   // ── Poll contract status while signing modal is open OR a pending task exists ──
   useEffect(() => {
@@ -800,7 +870,7 @@ export default function TradeExecution() {
 
               {/* Payment deadline — inside actions */}
               {/* Payment deadline pill — not shown for seller when paymentRequired (has its own merged bar) */}
-              {deadlineStr && !(status === "paymentRequired" && role === "seller") && status !== "dispute" && status !== "disputeWithoutEscrowFunded" && status !== "tradeCanceled" && status !== "refundOrReviveRequired" && status !== "confirmCancelation" && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding" && status !== "escrowWaitingForConfirmation" && (
+              {deadlineStr && !(status === "paymentRequired" && role === "seller") && status !== "dispute" && status !== "disputeWithoutEscrowFunded" && status !== "tradeCanceled" && status !== "refundOrReviveRequired" && status !== "confirmCancelation" && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding" && status !== "escrowWaitingForConfirmation" && status !== "fundingAmountDifferent" && status !== "wrongAmountFundedOnContract" && status !== "wrongAmountFundedOnContractRefundWaiting" && (
                 <div style={{
                   display:"flex", alignItems:"center", gap:12,
                   background:"#FEEDE5", border:"1.5px solid rgba(196,81,4,.2)",
@@ -820,6 +890,64 @@ export default function TradeExecution() {
                   address={contract.escrow}
                   sats={contract.amount}
                   btcPrice={btcPrice}
+                />
+              )}
+
+              {/* Wrong amount funded — seller */}
+              {role === "seller" && (status === "fundingAmountDifferent" || status === "wrongAmountFundedOnContract" || status === "wrongAmountFundedOnContractRefundWaiting") && (
+                <WrongAmountFundedCard
+                  status={status}
+                  expectedSats={contract.amount}
+                  actualSats={escrowFundedAmount}
+                  loading={escrowLoading}
+                  pendingRefund={pendingTaskType === "refund"}
+                  onPendingClick={() => setSigningModal({
+                    title: "Refund Escrow",
+                    description: "Approve the escrow refund on your Peach mobile app. A push notification has been sent to your phone.",
+                    taskType: "refund",
+                  })}
+                  onContinueTrade={async () => {
+                    setActionError(null);
+                    try {
+                      const offerId = String(contract.id).split("-")[0];
+                      const res = await post('/offer/' + offerId + '/escrow/confirm');
+                      if (res.ok) {
+                        const fresh = await get('/contract/' + routeId);
+                        if (fresh.ok) {
+                          const c = await fresh.json();
+                          setLiveContract(prev => prev ? { ...prev, tradeStatus: c.tradeStatus } : prev);
+                        }
+                        setToast("Trade continued with funded amount");
+                        setTimeout(() => setToast(null), 4000);
+                      } else {
+                        const err = await res.json().catch(() => ({}));
+                        setActionError("Failed to confirm escrow: " + (err.error || res.status));
+                      }
+                    } catch (e) {
+                      setActionError("Confirm escrow error: " + e.message);
+                    }
+                  }}
+                  onRefundEscrow={async () => {
+                    setActionError(null);
+                    try {
+                      const offerId = String(contract.id).split("-")[0];
+                      const res = await post(`/offer/${offerId}/refundPendingAction`);
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => null);
+                        throw new Error(err?.error || err?.message || `HTTP ${res.status}`);
+                      }
+                      savePendingTask(routeId, "refund");
+                      setPendingTaskType("refund");
+                      setSigningModal({
+                        title: "Refund Escrow",
+                        description: "Approve the escrow refund on your Peach mobile app. A push notification has been sent to your phone.",
+                        taskType: "refund",
+                      });
+                    } catch (e) {
+                      setActionError("Failed to request refund: " + e.message);
+                    }
+                  }}
+                  onClose={() => navigate("/trades")}
                 />
               )}
 
@@ -845,6 +973,25 @@ export default function TradeExecution() {
                 </>
               )}
 
+              {/* Wrong amount funded — buyer info */}
+              {(status === "wrongAmountFundedOnContract" || status === "wrongAmountFundedOnContractRefundWaiting") && role === "buyer" && (
+                <div style={{
+                  display:"flex", flexDirection:"column", alignItems:"center",
+                  gap:12, padding:"20px 0", textAlign:"center",
+                }}>
+                  <div style={{
+                    width:48, height:48, borderRadius:"50%",
+                    background:"#FEFCE5", border:"2px solid #F5CE22",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    fontSize:"1.4rem",
+                  }}>⚠</div>
+                  <div style={{ fontWeight:700, fontSize:".95rem" }}>Wrong Amount Funded</div>
+                  <div style={{ fontSize:".83rem", color:"#7D675E", lineHeight:1.6, maxWidth:280 }}>
+                    The seller funded the escrow with an incorrect amount. The trade has been cancelled and the seller will be refunded.
+                  </div>
+                </div>
+              )}
+
               {/* Action error banner */}
               {actionError && (
                 <div style={{
@@ -860,7 +1007,10 @@ export default function TradeExecution() {
 
               {/* All other action states */}
               {status !== "tradeCompleted" && status !== "rateUser"
-                && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding" && (
+                && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding"
+                && status !== "fundingAmountDifferent"
+                && status !== "wrongAmountFundedOnContract"
+                && status !== "wrongAmountFundedOnContractRefundWaiting" && (
                 <ActionPanel scenario={scenario} showPostCancel={showPostCancel} pendingTask={pendingTaskType} onPendingClick={() => {
                   const labels = {
                     release: { title: "Release Bitcoin", description: "Approve the Bitcoin release on your Peach mobile app. A push notification has been sent to your phone." },
@@ -1056,7 +1206,7 @@ export default function TradeExecution() {
 
           {/* ── RIGHT: Chat ── */}
           <div className={`split-right${mobileTab === "chat" ? " mobile-active" : ""}`}>
-            <ChatPanel messages={messages} tradeId={contract.id} role={role} disabled={status === "fundEscrow" || status === "createEscrow" || status === "waitingForFunding"} status={status} hasMore={chatHasMore} loadingMore={chatLoadingMore} onLoadOlder={loadOlderChat} onSend={async (plaintext) => {
+            <ChatPanel messages={messages} tradeId={contract.id} role={role} disabled={status === "fundEscrow" || status === "createEscrow" || status === "waitingForFunding" || status === "fundingAmountDifferent" || status === "wrongAmountFundedOnContract" || status === "wrongAmountFundedOnContractRefundWaiting"} status={status} hasMore={chatHasMore} loadingMore={chatLoadingMore} onLoadOlder={loadOlderChat} onSend={async (plaintext) => {
               if (!chatSymKey || !auth?.pgpPrivKey) return false;
               try {
                 const encrypted = await encryptSymmetric(plaintext, chatSymKey);

@@ -193,6 +193,30 @@ const css = `
   }
   .auth-overlay-btn:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(245,101,34,.42)}
 
+  /* ── ATH WIDGET ── */
+  .ath-header{display:flex;align-items:center;gap:8px}
+  .ath-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .ath-periods{display:flex;gap:4px}
+  .ath-pill{
+    background:none;border:1.5px solid var(--black-10);border-radius:999px;
+    padding:4px 14px;font-family:var(--font);font-size:.72rem;font-weight:700;
+    color:var(--black-65);cursor:pointer;transition:all .14s;white-space:nowrap
+  }
+  .ath-pill:hover{border-color:var(--primary);color:var(--primary-dark)}
+  .ath-pill.active{background:var(--primary-mild);border-color:var(--primary);color:var(--primary-dark)}
+  .ath-cur-select{
+    appearance:none;border:1.5px solid var(--black-10);border-radius:8px;
+    padding:4px 24px 4px 9px;font-family:var(--font);font-size:.72rem;font-weight:600;
+    color:var(--black);background:var(--surface);cursor:pointer;outline:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237D675E'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 7px center;
+    transition:border-color .14s
+  }
+  .ath-cur-select:focus{border-color:var(--primary)}
+  .ath-price-row{display:flex;align-items:baseline;gap:12px;margin-top:4px}
+  .ath-price-value{font-size:2rem;font-weight:800;color:var(--black);line-height:1;letter-spacing:-.02em}
+  .ath-price-label{font-size:.78rem;font-weight:500;color:var(--black-65);margin-top:4px}
+
   /* ── ANIMATIONS ── */
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -236,6 +260,8 @@ const css = `
     .profile-stats{grid-template-columns:repeat(3,1fr)}
     .card{width:100%!important;max-width:100%!important;min-width:0!important}
     .cards-row{flex-direction:column!important}
+    .ath-price-value{font-size:1.5rem}
+    .ath-controls{gap:8px}
   }
 `;
 
@@ -250,6 +276,9 @@ export default function PeachHome() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [marketStats, setMarketStats] = useState(null);
   const [contractsData, setContractsData] = useState([]);
+  const [athData, setAthData]       = useState(null);
+  const [athPeriod, setAthPeriod]   = useState("24h");
+  const [athCurrency, setAthCurrency] = useState("EUR");
 
   // ── AUTH ──
   const { auth, isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
@@ -330,6 +359,39 @@ export default function PeachHome() {
     return () => clearInterval(iv);
   }, []);
 
+  // ── ATH PRICE DATA (public endpoint — no auth headers, always via proxy) ──
+  useEffect(() => {
+    const athBase = import.meta.env.VITE_API_BASE;
+    async function fetchAth() {
+      try {
+        console.log('[ATH] fetching from', `${athBase}/market/tradePricePeaks`);
+        const res = await fetch(`${athBase}/market/tradePricePeaks`);
+        if (res.ok) {
+          const data = await res.json();
+          console.log('[ATH] response:', data);
+          if (data?.tradePeaks) setAthData(data);
+        } else {
+          console.warn('[ATH] non-ok response:', res.status);
+        }
+      } catch (err) {
+        console.warn('[ATH] fetch error:', err);
+      }
+    }
+    fetchAth();
+    const iv = setInterval(fetchAth, 60000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Auto-correct ATH currency if it's not available in the selected period
+  const athPeaks = athData?.tradePeaks ?? null;
+  useEffect(() => {
+    if (!athPeaks) return;
+    const available = Object.keys(athPeaks[athPeriod] ?? {});
+    if (available.length > 0 && !available.includes(athCurrency)) {
+      setAthCurrency(available.includes("EUR") ? "EUR" : available[0]);
+    }
+  }, [athPeaks, athPeriod]);
+
   // ── URGENT TRADES COUNT ──
   function countUrgent(items) {
     return items.filter(t => {
@@ -379,6 +441,12 @@ export default function PeachHome() {
 
   const satsPerCur  = Math.round(100_000_000 / btcPrice);
   const navWidth = isMobile ? 0 : 68;
+
+  // ── ATH DERIVED ──
+  const ATH_CUR_SYM = { EUR: "\u20ac", USD: "$", CHF: "CHF", GBP: "\u00a3" };
+  const athCurrSym = (c) => ATH_CUR_SYM[c] || c;
+  const athAvailCurrencies = Object.keys(athPeaks?.[athPeriod] ?? {}).sort();
+  const athPrice = athPeaks?.[athPeriod]?.[athCurrency] ?? null;
 
   return (
     <>
@@ -465,6 +533,52 @@ export default function PeachHome() {
                 <span style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",cursor:"pointer",paddingLeft:42}} onClick={() => navigate("/trades")}>View →</span>
               </div>
             )}
+
+            {/* ── ATH WIDGET ── */}
+            <div className="card">
+              <div className="ath-header">
+                <IcoBtc size={20}/>
+                <span className="card-title">Bitcoin ATH on Peach</span>
+              </div>
+              <div className="ath-controls">
+                <div className="ath-periods">
+                  {[
+                    { key: "24h",  label: "24H" },
+                    { key: "7d",   label: "7-DAY" },
+                    { key: "30d",  label: "30-DAY" },
+                  ].map(p => (
+                    <button
+                      key={p.key}
+                      className={`ath-pill${athPeriod === p.key ? " active" : ""}`}
+                      onClick={() => setAthPeriod(p.key)}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                {athAvailCurrencies.length > 0 && (
+                  <select
+                    className="ath-cur-select"
+                    value={athCurrency}
+                    onChange={e => setAthCurrency(e.target.value)}
+                  >
+                    {athAvailCurrencies.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div className="ath-price-row">
+                <span className="ath-price-value">
+                  {athPrice != null
+                    ? `${athCurrSym(athCurrency)}${athCurrency === "CHF" ? " " : ""}${athPrice.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : "\u2014"}
+                </span>
+              </div>
+              <div className="ath-price-label">
+                Highest trade price in the last {athPeriod === "24h" ? "24 hours" : athPeriod === "7d" ? "7 days" : "30 days"}
+              </div>
+            </div>
 
             {/* ── NEWS CARD ── */}
             <div className="card" style={{width:"100%",marginBottom:4}}>
