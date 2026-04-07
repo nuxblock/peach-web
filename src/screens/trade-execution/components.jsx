@@ -1460,7 +1460,7 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
         )}
 
         {/* Cancel trade — available during active trade phases for buyer only (seller cancels at offer level or via dispute) */}
-        {["paymentRequired", "confirmPaymentRequired", "fundEscrow", "createEscrow", "waitingForFunding", "escrowWaitingForConfirmation"].includes(status)
+        {["paymentRequired", "fundEscrow", "createEscrow", "waitingForFunding", "escrowWaitingForConfirmation"].includes(status)
           && role === "buyer" && !scenario.disputeActive && (
           <Btn label="Cancel Trade" bg="#FFF0EE" color="#DF321F" onClick={() => setShowCancelConfirm(true)}/>
         )}

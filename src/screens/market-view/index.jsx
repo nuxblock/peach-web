@@ -392,6 +392,8 @@ export default function PeachMarket() {
       auto: o.allowedToInstantTrade ?? false,
       experienceLevel: o.experienceLevelCriteria ?? null,
       online: o.user?.online ?? false,
+      userId: o.user?.id ?? "",
+      peachId: o.user?.id ? ("PEACH" + o.user.id.slice(0, 8).toUpperCase()) : "",
       isOwn: !!peachId && (o.user?.id === peachId || o.user?.id?.toLowerCase?.() === peachId?.toLowerCase?.()),
       _raw: o,
     };
@@ -584,11 +586,17 @@ export default function PeachMarket() {
       const catMethods = CATEGORY_METHOD_IDS[catId] || [];
       return catMethods.some(m => o.methods.includes(m));
     }))
-    .filter(o => searchQuery.trim() === "" ||
-      o.methods.some(m => methodDisplayName(m).toLowerCase().includes(searchQuery.toLowerCase())) ||
-      o.currencies.some(c => c.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      o.id.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    .filter(o => {
+      const q = searchQuery.trim();
+      if (q === "") return true;
+      const ql = q.toLowerCase();
+      const qNorm = ql.replace(/\u2011/g, "-");
+      return (
+        o.tradeId.toLowerCase().replace(/\u2011/g, "-").includes(qNorm) ||
+        (o.userId && o.userId.toLowerCase().includes(ql)) ||
+        (o.peachId && o.peachId.toLowerCase().includes(ql))
+      );
+    })
     .sort((a, b) => {
       if (sortKey === "premium") return (a.premium - b.premium) * sortDir;
       if (sortKey === "amount") {
