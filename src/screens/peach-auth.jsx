@@ -442,7 +442,7 @@ export default function PeachAuth() {
           background:"#FFFFFF",border:"1px solid #EAE3DF",borderRadius:20,
           boxShadow:"0 8px 48px rgba(43,25,17,.12),0 2px 12px rgba(43,25,17,.06)",
           padding:"36px 40px",display:"flex",gap:48,alignItems:"center",
-          maxWidth:780,width:"100%",animation:"fadeUp .5s ease both"
+          maxWidth:780,width:"100%",overflow:"hidden",animation:"fadeUp .5s ease both"
         }}>
           {/* Left: copy + steps */}
           <div style={{flex:1,display:"flex",flexDirection:"column",gap:20}}>
@@ -517,7 +517,7 @@ export default function PeachAuth() {
           <div style={{width:1,alignSelf:"stretch",background:"#EAE3DF",flexShrink:0}}/>
 
           {/* Right: QR */}
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,flexShrink:0}}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,flexShrink:0,width:320}}>
             {phase!=="success" && (
               <>
                 <div style={{textAlign:"center"}}>
@@ -630,7 +630,8 @@ export default function PeachAuth() {
                     }}>
                       <span style={{
                         fontFamily:"monospace",fontSize:".88rem",fontWeight:700,
-                        color:"#2B1911",letterSpacing:".08em",wordBreak:"break-all"
+                        color:"#2B1911",letterSpacing:".08em",wordBreak:"break-all",
+                        minWidth:0
                       }}>{connectionId || "..."}</span>
                       <button onClick={handleCopyConnId} style={{
                         flexShrink:0,padding:"7px 14px",borderRadius:999,

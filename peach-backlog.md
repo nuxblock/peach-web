@@ -88,7 +88,7 @@ Browser side complete. Remaining items blocked on backend/mobile teams.
 Items that don't add new API wiring but improve existing screens. Organized by priority tier.
 
 ### Functional gaps (wire missing data or add missing UI)
-- **Trade Execution: wrong amount escrow modal** — modal when seller funds with wrong amount. Options: continue (if close enough) or request refund. May need wiring verification — check if the status/data from API is sufficient to trigger this modal. (`trade-execution/index.jsx`)
+- ~~**Trade Execution: wrong amount escrow modal**~~ — ✅ Done. `WrongAmountFundedCard` handles `fundingAmountDifferent`, `wrongAmountFundedOnContract`, `wrongAmountFundedOnContractRefundWaiting`. Seller gets continue/refund options. Buyer sees waiting message.
 - **Trade Execution: escrow funding timer (buyer POV)** — countdown at "Waiting for escrow" stage. `instantTrade` determines duration (1H instant, 12H normal). Source: `SellOffer.funding.expiry`. (`trade-execution/index.jsx`)
 - **Trade Execution: escrow funding timer (seller POV)** — big, prominent countdown for how long seller has left to fund. Same data source. (`trade-execution/index.jsx`)
 - **Trades Dashboard: MatchesPopup avatars/reputation wiring** — match cards currently show placeholder/missing data for counterparty avatars, reputation scores, and trade counts. Wire from match/user API data. (`trades-dashboard/MatchesPopup.jsx`)
@@ -100,9 +100,9 @@ Items that don't add new API wiring but improve existing screens. Organized by p
 - **Trade Execution: escrow funding link (not QR)** — the funded escrow "QR code" is not actually useful as a QR. Replace with a clickable link to mempool.space (or other block explorer) for the escrow address. (`trade-execution/index.jsx`)
 - **Trade Execution: remove QR/address on tx detection** — when a transaction is detected during escrow funding, remove or hide the QR code and funding address display since it's no longer needed. (`trade-execution/index.jsx`)
 - **Trade Execution: grouphug toggle (buyer POV)** — add a toggle in the trade execution screen from the buyer's perspective to enable/disable transaction batching (grouphug). (`trade-execution/index.jsx`)
-- **Notifications: full audit** — create a comprehensive list of all notification types the app should support. Verify each one triggers correctly with proper title/body content. Current mapping may be incomplete or incorrect. (`hooks/useNotifications.js`, `components/NotificationPanel.jsx`)
+- ~~**Notifications: major upgrade**~~ — ✅ Mostly done. 7 new status mappings added, `warning` type with icon, ID-based read tracking, `markRead()` for individual notifications, faster polling (8s). Remaining: final audit pass to verify all 31 trade statuses have correct notifications.
 - **Market View / Trades Dashboard: visual cue for limit-paused offers** — own offers that are off the market because of trading limits should have a clear visual indicator (badge, dimmed state, or label) so the user knows why they're inactive. (`market-view/index.jsx`, `trades-dashboard/index.jsx`)
-- **Global: session timeout handling** — auth session lasts ~2 hours. After expiry, API calls silently fail. Detect expired session (e.g. 401 response from API) and show a clear message telling the user their session has expired and they need to log in again. Should apply globally across all screens. (`hooks/useApi.js`, auth popup)
+- ~~**Global: session timeout handling**~~ — ✅ Done. `sessionGuard.js` detects 401 responses with two-step verification (JWT exp check + server probe). Dispatches `peach:session-expired` event. Short-circuits after first expiry.
 
 ### Polish (visual/consistency)
 - **Global: Peach Web logo file** — replace inline SVG with a proper logo asset used consistently
@@ -128,7 +128,7 @@ Items that don't add new API wiring but improve existing screens. Organized by p
 
 | File | Remaining changes |
 |------|-------------------|
-| `src/screens/trade-execution/index.jsx` | Wrong amount escrow modal, escrow timers |
+| `src/screens/trade-execution/index.jsx` | Escrow timers, escrow link, remove QR on tx detection, grouphug toggle, copy buttons mobile |
 | `src/screens/trades-dashboard/index.jsx` | Republish, instant trade |
 | `src/screens/market-view/index.jsx` | Filter parity |
 | `src/screens/offer-creation/index.jsx` | PM validators |
@@ -136,4 +136,5 @@ Items that don't add new API wiring but improve existing screens. Organized by p
 | `src/screens/peach-home.jsx` | Wire remaining stats (24h volume, trades today, top PMs, top currencies — needs backend endpoints) |
 | `src/styles/global.css` | Dark mode theme variables |
 | `src/hooks/useApi.js` | Delete mock `createTask()` once rating endpoint lands, v069 param support (#24) |
+| `src/utils/sessionGuard.js` | ✅ Session timeout detection done |
 | `src/components/MobileSigningModal.jsx` | Only used for rating now (3/4 actions wired directly) |
