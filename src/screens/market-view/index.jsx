@@ -5,7 +5,7 @@ import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
-import { extractPMsFromProfile, isApiError, generateSymmetricKey, encryptForRecipients, encryptSymmetric, signPGPMessage, hashPaymentFields, decryptPGPMessage } from "../../utils/pgp.js";
+import { extractPMsFromProfile, isApiError, generateSymmetricKey, encryptForRecipients, encryptSymmetric, encryptForPublicKey, signPGPMessage, hashPaymentFields, decryptPGPMessage } from "../../utils/pgp.js";
 import { getCached, setCache, clearCache } from "../../hooks/useApi.js";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat, formatTradeId, toPeaches } from "../../utils/format.js";
 import PeachRating from "../../components/PeachRating.jsx";
@@ -176,6 +176,30 @@ export default function PeachMarket() {
     return userPMs.filter(pm => offer.methods.includes(pm.type));
   }
 
+  // Resolve the offer owner's PGP public keys.
+  // v069 SellOffer responses include a full `user` object with `pgpPublicKeys`,
+  // but v069 BuyOffer69 responses only have `userId` — in that case we must
+  // fetch the user profile separately (same approach as mobile's useUserDetails).
+  async function resolveCounterpartyKeys(offer) {
+    const direct = (offer._raw?.user?.pgpPublicKeys ?? [])
+      .map(k => typeof k === "string" ? k : k?.publicKey)
+      .filter(Boolean);
+    if (direct.length > 0) return direct;
+
+    const userId = offer._raw?.userId ?? offer._raw?.user?.id;
+    if (!userId) return [];
+    try {
+      const res = await get(`/user/${userId}`);
+      if (!res.ok) return [];
+      const user = await res.json().catch(() => null);
+      return (user?.pgpPublicKeys ?? [])
+        .map(k => typeof k === "string" ? k : k?.publicKey)
+        .filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
   async function handleRequestTrade(offer) {
     if (!auth?.pgpPrivKey || !selectedPM || !popupCurrency || tradeLoading) return;
     setTradeLoading(true);
@@ -194,9 +218,13 @@ export default function PeachMarket() {
     try {
       // Encrypt PM data with symmetric key, encrypt symmetric key for counterparty
       const symmetricKey = generateSymmetricKey();
-      const counterpartyKeys = (offer._raw?.user?.pgpPublicKeys ?? [])
-        .map(k => typeof k === "string" ? k : k?.publicKey)
-        .filter(Boolean);
+      const counterpartyKeys = await resolveCounterpartyKeys(offer);
+      if (counterpartyKeys.length === 0) {
+        setToast("Could not load recipient PGP key — please try again");
+        setTimeout(() => setToast(null), 4000);
+        setTradeLoading(false);
+        return;
+      }
 
       let symmetricKeyEncrypted = null;
       let symmetricKeySignature = null;
@@ -259,11 +287,13 @@ export default function PeachMarket() {
   }
 
   async function handleInstantTrade(offer) {
+    console.log("[InstantTrade] called", { pgpPrivKey: !!auth?.pgpPrivKey, selectedPM, popupCurrency, tradeLoading, offerType: offer?.type, offerId: offer?.id });
     if (!auth?.pgpPrivKey || !selectedPM || !popupCurrency || tradeLoading) return;
     setTradeLoading(true);
 
     // 1. Find the selected PM data
     const pmObj = userPMs.find(pm => pm.id === selectedPM);
+    console.log("[InstantTrade] pmObj:", pmObj ? pmObj.id : "NOT FOUND", "selectedPM:", selectedPM, "userPMs IDs:", userPMs.map(p => p.id));
     if (!pmObj) return;
 
     // 2. Build clean PM data (same pattern as trades-dashboard match acceptance)
@@ -273,6 +303,7 @@ export default function PeachMarket() {
     for (const [k, v] of Object.entries(pmDetails)) {
       if (!STRUCTURAL.has(k) && typeof v !== "object") cleanData[k] = v;
     }
+    console.log("[InstantTrade] cleanData:", cleanData);
 
     // 3. Generate symmetric key and encrypt for counterparty
     let symmetricKeyEncrypted = null;
@@ -282,23 +313,43 @@ export default function PeachMarket() {
     let paymentDataHashed = null;
 
     try {
+      // Fetch server PGP public key (server must decrypt paymentDataEncrypted)
+      const infoRes = await get('/info');
+      const infoData = await infoRes.json().catch(() => null);
+      const serverPGPKey = infoData?.peach?.pgpPublicKey ?? null;
+      console.log("[InstantTrade] Server PGP key:", serverPGPKey ? "fetched" : "MISSING");
+
       const symmetricKey = generateSymmetricKey();
-      const counterpartyKeys = (offer._raw?.user?.pgpPublicKeys ?? [])
-        .map(k => typeof k === "string" ? k : k?.publicKey)
-        .filter(Boolean);
+      const counterpartyKeys = await resolveCounterpartyKeys(offer);
+      console.log("[InstantTrade] counterpartyKeys count:", counterpartyKeys.length);
+      if (counterpartyKeys.length === 0) {
+        setToast("Could not load recipient PGP key — please try again");
+        setTimeout(() => setToast(null), 4000);
+        setTradeLoading(false);
+        return;
+      }
 
       const keyResult = await encryptForRecipients(symmetricKey, counterpartyKeys, auth.pgpPrivKey);
       if (keyResult) {
         symmetricKeyEncrypted = keyResult.encrypted;
         symmetricKeySignature = keyResult.signature;
       }
+      console.log("[InstantTrade] encryptForRecipients:", keyResult ? "OK" : "FAILED");
 
       if (Object.keys(cleanData).length > 0 && symmetricKey) {
         const pmJson = JSON.stringify(cleanData);
-        paymentDataEncrypted = await encryptSymmetric(pmJson, symmetricKey);
+        if (serverPGPKey) {
+          paymentDataEncrypted = await encryptForPublicKey(pmJson, serverPGPKey);
+          console.log("[InstantTrade] encryptForPublicKey result:", paymentDataEncrypted ? "OK" : "FAILED (null)");
+        }
+        if (!paymentDataEncrypted) {
+          console.warn("[InstantTrade] Falling back to symmetric encryption");
+          paymentDataEncrypted = await encryptSymmetric(pmJson, symmetricKey);
+        }
         paymentDataSignature = await signPGPMessage(pmJson, auth.pgpPrivKey);
         paymentDataHashed = await hashPaymentFields(pmObj.type, cleanData, pmDetails.country || undefined);
       }
+      console.log("[InstantTrade] encryption done, paymentDataEncrypted:", !!paymentDataEncrypted);
 
       // 4. Call performInstantTrade (with 30s timeout to avoid hanging)
       const offerType = offer.type === "bid" ? "buyOffer" : "sellOffer";

@@ -247,7 +247,9 @@ export default function TradeExecution() {
   const [chatSymKey, setChatSymKey] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [signingModal, setSigningModal] = useState(null); // { title, description, taskType } or null
-  const [pendingTaskType, setPendingTaskType] = useState(null); // "release" | "refund" | "rate" | null
+  const [pendingTaskType, setPendingTaskType] = useState(null); // "release" | "refund" | "rate" | "fundEscrow" | null
+  const [fundEscrowLoading, setFundEscrowLoading] = useState(false);
+  const [fundEscrowError, setFundEscrowError]     = useState(null);
   const [chatPage, setChatPage] = useState(0);
   const [chatHasMore, setChatHasMore] = useState(false);
   const [chatLoadingMore, setChatLoadingMore] = useState(false);
@@ -260,10 +262,24 @@ export default function TradeExecution() {
   // ── Restore pending task state from localStorage on mount ──
   useEffect(() => {
     if (!routeId) return;
-    for (const type of ["release", "refund", "rate"]) {
+    for (const type of ["release", "refund", "rate", "fundEscrow"]) {
       if (hasPendingTask(routeId, type)) { setPendingTaskType(type); break; }
     }
   }, [routeId]);
+
+  // ── Seed pending task state from backend flags on contract load ──
+  useEffect(() => {
+    const c = liveContract?.contract ?? liveContract;
+    if (!c) return;
+    if (c.mobileActionRefundWasTriggered && pendingTaskType !== "refund") {
+      setPendingTaskType("refund");
+      if (routeId) savePendingTask(routeId, "refund");
+    }
+    if (c.mobileActionFundEscrowWasTriggered && pendingTaskType !== "fundEscrow") {
+      setPendingTaskType("fundEscrow");
+      if (routeId) savePendingTask(routeId, "fundEscrow");
+    }
+  }, [liveContract, routeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Fetch actual funded amount when status is fundingAmountDifferent ──
   useEffect(() => {
@@ -486,6 +502,7 @@ export default function TradeExecution() {
           cancelationRequested: c.cancelationRequested ?? false,
           canceled: c.canceled ?? false,
           canceledBy: c.canceledBy ?? null,
+          escrowFundingTimeLimitExpired: c.escrowFundingTimeLimitExpired ?? false,
           paymentTimedOut: (c.tradeStatus ?? c.status) === "paymentTooLate",
           // Dispute fields
           disputeActive: c.disputeActive ?? false,
@@ -512,13 +529,9 @@ export default function TradeExecution() {
           sawRefundOrReviveRef.current = true;
           if (!isRefunded && !isRevived) setShowPostCancel(true);
         }
-        // Server returns tradeCanceled for all cancelled seller contracts —
-        // normalize to refundOrReviveRequired so the correct UI renders
-        if (!isBuyer && (initialStatus === "tradeCanceled" || initialStatus === "confirmCancelation")) {
-          sawRefundOrReviveRef.current = true;
-          setLiveContract(prev => prev ? { ...prev, tradeStatus: "refundOrReviveRequired" } : prev);
-          if (!isRefunded && !isRevived) setShowPostCancel(true);
-        }
+        // Trust backend tradeStatus — mobile app does the same. If the backend
+        // says refundOrReviveRequired, the pin logic above already handles it;
+        // if it says tradeCanceled, that's terminal.
 
         // Decrypt payment data if available
         // As buyer: need seller's payment details (paymentDataEncrypted)
@@ -892,6 +905,27 @@ export default function TradeExecution() {
                   address={contract.escrow}
                   sats={contract.amount}
                   btcPrice={btcPrice}
+                  fundLoading={fundEscrowLoading}
+                  fundRequested={!!contract.mobileActionFundEscrowWasTriggered || pendingTaskType === "fundEscrow" || hasPendingTask(routeId, "fundEscrow")}
+                  fundError={fundEscrowError}
+                  onFundViaMobile={async () => {
+                    setFundEscrowError(null);
+                    setFundEscrowLoading(true);
+                    try {
+                      const offerId = String(contract.id).split("-")[0];
+                      const res = await post(`/offer/${offerId}/fundEscrowPendingAction`);
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => null);
+                        throw new Error(err?.error || err?.message || `HTTP ${res.status}`);
+                      }
+                      savePendingTask(routeId, "fundEscrow");
+                      setPendingTaskType("fundEscrow");
+                    } catch (e) {
+                      setFundEscrowError("Failed to request funding: " + e.message);
+                    } finally {
+                      setFundEscrowLoading(false);
+                    }
+                  }}
                 />
               )}
 
@@ -902,12 +936,8 @@ export default function TradeExecution() {
                   expectedSats={contract.amount}
                   actualSats={escrowFundedAmount}
                   loading={escrowLoading}
-                  pendingRefund={pendingTaskType === "refund"}
-                  onPendingClick={() => setSigningModal({
-                    title: "Refund Escrow",
-                    description: "Approve the escrow refund on your Peach mobile app. A push notification has been sent to your phone.",
-                    taskType: "refund",
-                  })}
+                  pendingRefund={pendingTaskType === "refund" || !!contract.mobileActionRefundWasTriggered}
+                  onPendingClick={() => {}}
                   onContinueTrade={async () => {
                     setActionError(null);
                     try {
@@ -940,11 +970,6 @@ export default function TradeExecution() {
                       }
                       savePendingTask(routeId, "refund");
                       setPendingTaskType("refund");
-                      setSigningModal({
-                        title: "Refund Escrow",
-                        description: "Approve the escrow refund on your Peach mobile app. A push notification has been sent to your phone.",
-                        taskType: "refund",
-                      });
                     } catch (e) {
                       setActionError("Failed to request refund: " + e.message);
                     }
@@ -1014,9 +1039,10 @@ export default function TradeExecution() {
                 && status !== "wrongAmountFundedOnContract"
                 && status !== "wrongAmountFundedOnContractRefundWaiting" && (
                 <ActionPanel scenario={scenario} showPostCancel={showPostCancel} pendingTask={pendingTaskType} onPendingClick={() => {
+                  // Refund no longer opens the modal — inline pending state only.
+                  if (pendingTaskType === "refund") return;
                   const labels = {
                     release: { title: "Release Bitcoin", description: "Approve the Bitcoin release on your Peach mobile app. A push notification has been sent to your phone." },
-                    refund: { title: "Refund Escrow", description: "Approve the escrow refund on your Peach mobile app. A push notification has been sent to your phone." },
                     rate: { title: "Sign Rating", description: "Approve the rating on your Peach mobile app. A push notification has been sent to your phone." },
                   };
                   const l = labels[pendingTaskType] || labels.release;
@@ -1087,7 +1113,6 @@ export default function TradeExecution() {
                       }
                       savePendingTask(routeId, "refund");
                       setPendingTaskType("refund");
-                      setSigningModal({ title: "Refund Escrow", description: "Approve the escrow refund on your Peach mobile app. A push notification has been sent to your phone.", taskType: "refund" });
                     } catch (e) {
                       setActionError("Failed to request signing: " + e.message);
                     }

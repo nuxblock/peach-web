@@ -537,7 +537,7 @@ function TradingRulesCard({ disputeOpen, disabled, onOpenDispute }) {
 }
 
 // ─── ESCROW FUNDING CARD (Seller) ────────────────────────────────────────────
-export function EscrowFundingCard({ address, sats, btcPrice }) {
+export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fundRequested, fundLoading, fundError }) {
   const [withAmount, setWithAmount] = useState(true);
   const [copiedAddr, setCopiedAddr] = useState(false);
   const [copiedAmt, setCopiedAmt]   = useState(false);
@@ -684,6 +684,33 @@ export function EscrowFundingCard({ address, sats, btcPrice }) {
         >
           {copiedAddr ? <><IconCheck/> Copied!</> : <><IconCopy/> Copy address</>}
         </button>
+      </div>
+      )}
+
+      {/* Fund via mobile wallet — alternative to scanning QR */}
+      {address && onFundViaMobile && (
+      <div style={{
+        padding:"12px 16px 14px",
+        borderTop:"1px solid #F4EEEB",
+      }}>
+        <div style={{ fontSize:".68rem", fontWeight:700, color:"#7D675E", textTransform:"uppercase", letterSpacing:".05em", marginBottom:6 }}>Or fund from your Peach mobile app</div>
+        <button
+          onClick={onFundViaMobile}
+          disabled={fundLoading || fundRequested}
+          style={{
+            width:"100%", padding:"10px 14px", borderRadius:999,
+            border:"none", background: fundRequested ? "#F4EEEB" : "var(--grad)",
+            color: fundRequested ? "#7D675E" : "white",
+            fontFamily:"Baloo 2, cursive", fontSize:".82rem", fontWeight:800,
+            cursor: (fundLoading || fundRequested) ? "default" : "pointer",
+            opacity: fundLoading ? 0.6 : 1,
+          }}
+        >
+          {fundLoading ? "Sending request…" : fundRequested ? "Request sent — check your phone" : "Fund via mobile app"}
+        </button>
+        {fundError && (
+          <div style={{ color:"#DF321F", fontSize:".74rem", fontWeight:600, marginTop:6 }}>{fundError}</div>
+        )}
       </div>
       )}
     </div>
@@ -1442,15 +1469,24 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
             fontSize:".83rem", color:"#DF321F", fontWeight:600, lineHeight:1.5,
           }}>
             <IconAlert/>
-            <span>{scenario.paymentTimedOut
-              ? (role === "buyer"
-                ? "This trade has been cancelled. Your reputation has been affected."
-                : "This trade has been cancelled. Your reputation has not been affected.")
-              : scenario.canceledBy && scenario.canceledBy !== role
-                ? `This trade has been cancelled. The ${scenario.canceledBy}'s reputation has been affected.`
-                : scenario.canceledBy
+            <span>{(() => {
+              if (scenario.paymentTimedOut) {
+                return role === "buyer"
                   ? "This trade has been cancelled. Your reputation has been affected."
-                  : "This trade has been cancelled."}</span>
+                  : "This trade has been cancelled. Your reputation has not been affected.";
+              }
+              // Mediator auto-cancel due to escrow funding timeout — the seller is
+              // the responsible party (mediator itself has no reputation).
+              const responsibleParty = (scenario.canceledBy === "mediator" && scenario.escrowFundingTimeLimitExpired)
+                ? "seller"
+                : scenario.canceledBy;
+              if (responsibleParty === "buyer" || responsibleParty === "seller") {
+                return responsibleParty === role
+                  ? "This trade has been cancelled. Your reputation has been affected."
+                  : `This trade has been cancelled. The ${responsibleParty}'s reputation has been affected.`;
+              }
+              return "This trade has been cancelled.";
+            })()}</span>
           </div>
         )}
 

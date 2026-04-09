@@ -25,27 +25,12 @@ Completed items archived in `peach-completed.md`.
 - **File**: `src/screens/settings/index.jsx` → `AccountSubScreen`
 - **UI**: Show current session info (PeachID, connected since, session expiry). Logout button (already exists in nav). Desktop session list if API supports it.
 
-### 4.8 PIN Code
-- **File**: `src/screens/settings/index.jsx` → `PinCodeSubScreen`
-- **UI**: Client-side PIN for sensitive actions (stored hashed in localStorage). Set/change/remove flow.
-- **Note**: This is a UX convenience, not real security — browser storage is not secure.
-
-### 4.9 Custom Node
-- **File**: `src/screens/settings/index.jsx` → `NodeSubScreen`
-- **UI**: Electrum/Bitcoin Core endpoint input. Store in localStorage. Used for fee estimates and tx broadcasting if wired.
-
-### 4.10 Dark Mode
-- **File**: `src/styles/global.css`
-- **Implementation**: Add `[data-theme="dark"]` CSS custom property overrides. Toggle button already exists in topbar — wire it to flip `document.documentElement.dataset.theme` and persist to localStorage.
-- **Also**: Add a dark mode toggle icon on the left side of the PeachID and avatar in the top bar.
 
 ### 4.11 Referral System
 - **File**: `src/screens/settings/index.jsx` → `ReferralsSubScreen`
 - **Endpoints**: `POST /v1/user/redeem/referralCode`, `GET /v1/user/checkReferralCode`
 - **UI**: Wire to real data from `auth.profile`
 
-### 4.12 My Profile (settings)
-- Reads from `window.__PEACH_AUTH__.profile`. Remaining: referral, daily limits, memberSince.
 
 ---
 
@@ -60,7 +45,6 @@ Browser side complete. Remaining items blocked on backend/mobile teams.
 ### 5.4 Mobile pending tasks UI (mobile team)
 - Poll or receive push for `/pendingTasks`
 - Confirmation UI per task type
-- Sign + submit using existing mobile signing code
 
 ### 5.5 Last mock endpoint
 - `"rate"` — still uses mock `createTask("rate", ...)` in `trade-execution/index.jsx:1047`. Mock `createTask()` in `useApi.js` can be deleted once the real rating endpoint is wired.
@@ -73,13 +57,10 @@ Browser side complete. Remaining items blocked on backend/mobile teams.
 | Feature | Blocker | Status |
 |---------|---------|--------|
 | Wallet visualization | Needs UI design | xpub available in `window.__PEACH_AUTH__.xpub` via QR auth. Uses `@scure/bip32` (already in deps). |
-| Blocked users list sync | ✅ Done | Wired `GET /v069/selfUser/blockedUsers` into Settings > Blocked Users screen. Block/unblock also works (`PUT /user/:id/block`, `DELETE /user/:id/block`). |
 | Network Fees preference sync | Backend team (nice-to-have) | Would benefit from loading saved preference on mount via `GET /user/me`. |
 | `sellOffer?ownOffers=true` fix | Backend team — endpoint ignores `ownOffers` param for sell offers | Simplifies fetch in 4 screens. See `trades-dashboard-dual-fetch-report.md`. |
 | `contracts/summary` status fix | Backend team | Summary always returns `tradeCanceled` for cancelled contracts, even when seller still has escrow. Web derives status client-side as workaround. |
 | `GET /v1/user/returnAddressIndex` | Backend team | Sell offer return address derivation. Current workaround counts total sell offers. |
-| 5.4 Mobile pending tasks UI | Mobile team | End-to-end signing flow. |
-| 5.5 Rating endpoint | Backend team — standalone rating (without release) | Last mock `createTask` — 3/4 actions already wired to real endpoints. |
 
 ---
 
@@ -88,9 +69,6 @@ Browser side complete. Remaining items blocked on backend/mobile teams.
 Items that don't add new API wiring but improve existing screens. Organized by priority tier.
 
 ### Functional gaps (wire missing data or add missing UI)
-- ~~**Trade Execution: wrong amount escrow modal**~~ — ✅ Done. `WrongAmountFundedCard` handles `fundingAmountDifferent`, `wrongAmountFundedOnContract`, `wrongAmountFundedOnContractRefundWaiting`. Seller gets continue/refund options. Buyer sees waiting message.
-- **Trade Execution: escrow funding timer (buyer POV)** — countdown at "Waiting for escrow" stage. `instantTrade` determines duration (1H instant, 12H normal). Source: `SellOffer.funding.expiry`. (`trade-execution/index.jsx`)
-- **Trade Execution: escrow funding timer (seller POV)** — big, prominent countdown for how long seller has left to fund. Same data source. (`trade-execution/index.jsx`)
 - **Trades Dashboard: MatchesPopup avatars/reputation wiring** — match cards currently show placeholder/missing data for counterparty avatars, reputation scores, and trade counts. Wire from match/user API data. (`trades-dashboard/MatchesPopup.jsx`)
 - **Offer Creation: full add-PM flow + validators** — Allow user to add a brand new payment method directly from the offer creation screen without leaving the flow (currently can only select from existing PMs). Also wire inline validators from `peach-validators.js` + `onBlur` validation for IBAN/phone/holder fields. (`offer-creation/index.jsx`)
 - **Home: wire remaining stats cards** — Active Offers now wired from `GET /market/offers/stats`. Still placeholder: 24h Volume, Trades Today, Top PMs, Top Currencies — all waiting for new backend endpoints (coordinating with backend dev week of 2026-04-07). Profile card rating, badges, volume, and last trade are now wired from real data. (`peach-home.jsx`)

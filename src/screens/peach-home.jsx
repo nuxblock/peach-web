@@ -513,7 +513,7 @@ export default function PeachHome() {
                   </div>
                   <div className="welcome-text">
                     <h1>Welcome to Peach 🍑</h1>
-                    <p>Buy and sell Bitcoin peer-to-peer, without KYC</p>
+                    <p>Peer-to-Peer Bitcoin Marketplace, self-custodial, KYC-free</p>
                   </div>
                   <div className="welcome-actions">
                     <button className="btn-grad" onClick={handleLogin}>Log in</button>

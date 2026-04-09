@@ -44,6 +44,9 @@ export default function OfferCreation({ initialType="buy" }) {
   const [publishError, setPublishError] = useState(null);
   const [escrowAddress, setEscrowAddress] = useState(null);
   const [sellOfferId,   setSellOfferId]   = useState(null);
+  const [fundMobileLoading, setFundMobileLoading] = useState(false);
+  const [fundMobileRequested, setFundMobileRequested] = useState(false);
+  const [fundMobileError, setFundMobileError] = useState(null);
 
   // ── MULTI-OFFER STATE ──
   const [multiEnabled,     setMultiEnabled]     = useState(false);
@@ -1246,6 +1249,46 @@ export default function OfferCreation({ initialType="buy" }) {
                       />
                     </div>
                   </div>
+                  {/* Or fund via mobile app */}
+                  {auth && sellOfferId && (
+                    <div style={{marginBottom:20}}>
+                      <div style={{fontSize:".68rem",fontWeight:700,color:"var(--black-65)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:6,textAlign:"center"}}>
+                        Or fund from your Peach mobile app
+                      </div>
+                      <button
+                        disabled={fundMobileLoading || fundMobileRequested}
+                        onClick={async () => {
+                          setFundMobileError(null);
+                          setFundMobileLoading(true);
+                          try {
+                            const res = await post(`/offer/${sellOfferId}/fundEscrowPendingAction`);
+                            if (!res.ok) {
+                              const err = await res.json().catch(() => null);
+                              throw new Error(err?.error || err?.message || `HTTP ${res.status}`);
+                            }
+                            setFundMobileRequested(true);
+                          } catch (e) {
+                            setFundMobileError("Failed to request funding: " + e.message);
+                          } finally {
+                            setFundMobileLoading(false);
+                          }
+                        }}
+                        style={{
+                          width:"100%",padding:"10px 14px",borderRadius:999,border:"none",
+                          background: fundMobileRequested ? "var(--black-5)" : "var(--grad)",
+                          color: fundMobileRequested ? "var(--black-65)" : "white",
+                          fontFamily:"var(--font)",fontSize:".82rem",fontWeight:800,
+                          cursor:(fundMobileLoading||fundMobileRequested)?"default":"pointer",
+                          opacity: fundMobileLoading ? 0.6 : 1,
+                        }}
+                      >
+                        {fundMobileLoading ? "Sending request…" : fundMobileRequested ? "Request sent — check your phone" : "Fund via mobile app"}
+                      </button>
+                      {fundMobileError && (
+                        <div style={{color:"var(--error)",fontSize:".74rem",fontWeight:600,marginTop:6,textAlign:"center"}}>{fundMobileError}</div>
+                      )}
+                    </div>
+                  )}
                   </>
                   ) : (
                   <div style={{padding:"24px 0",textAlign:"center",color:"var(--black-40)",fontSize:".84rem",fontWeight:600}}>

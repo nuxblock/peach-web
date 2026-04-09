@@ -17,8 +17,9 @@ import {
   encryptSymmetric, signPGPMessage, hashPaymentFields,
   decryptPGPMessage, verifyDetachedSignature, derivePublicKeyArmored,
 } from "../../utils/pgp.js";
-import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE, satsToFiatRaw, fmtFiat } from "../../utils/format.js";
+import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE, satsToFiatRaw, fmtFiat, fmt } from "../../utils/format.js";
 import { STATUS_CONFIG, FINISHED_STATUSES, PENDING_STATUSES } from "../../data/statusConfig.js";
+import { QRCodeSVG } from "qrcode.react";
 
 // Local sub-components
 import {
@@ -694,13 +695,7 @@ export default function TradesDashboard() {
       premium: c.premium ?? 0,
       fiatAmount: c.price != null ? String(c.price) : "—",
       currency: c.currency ?? "",
-      tradeStatus: (() => {
-        const raw = c.tradeStatus ?? c.status ?? "unknown";
-        // Summary endpoint returns tradeCanceled even when seller still has escrow to handle
-        if (raw === "tradeCanceled" && rawType === "ask"
-            && !c.refunded && !c.newTradeId) return "refundOrReviveRequired";
-        return raw;
-      })(),
+      tradeStatus: c.tradeStatus ?? c.status ?? "unknown",
       createdAt: new Date(c.creationDate ?? Date.now()),
       unread: c.unreadMessages ?? 0,
       refunded: !!c.refunded,
@@ -1101,6 +1096,14 @@ export default function TradesDashboard() {
   const [odWithdrawConfirm, setOdWithdrawConfirm] = useState(false);
   const [odWithdrawing, setOdWithdrawing]       = useState(false);
   const [odWithdrawError, setOdWithdrawError]   = useState(null);
+  // Fund-escrow enrichment (sell offers in fundEscrow status)
+  const [odEscrowAddress, setOdEscrowAddress]       = useState(null);
+  const [odCopiedAddr, setOdCopiedAddr]             = useState(false);
+  const [odAcceptingWrong, setOdAcceptingWrong]     = useState(false);
+  const [odAcceptWrongError, setOdAcceptWrongError] = useState(null);
+  const [odFundMobileLoading, setOdFundMobileLoading]     = useState(false);
+  const [odFundMobileRequested, setOdFundMobileRequested] = useState(false);
+  const [odFundMobileError, setOdFundMobileError]         = useState(null);
 
   function openOfferDetail(offer) {
     setOdEditingPremium(false); setOdEditError(null);
@@ -1111,7 +1114,62 @@ export default function TradesDashboard() {
     setOfferDetailPopup(null);
     setOdEditingPremium(false); setOdEditError(null);
     setOdWithdrawConfirm(false); setOdWithdrawError(null);
+    setOdEscrowAddress(null); setOdCopiedAddr(false);
+    setOdAcceptingWrong(false); setOdAcceptWrongError(null);
+    setOdFundMobileLoading(false); setOdFundMobileRequested(false); setOdFundMobileError(null);
   }
+
+  // ── Offer details fetch (sell offers only — endpoint is sell-exclusive by design) ──
+  // Fetches GET /v1/offer/:id/details when the popup opens, to enrich the view
+  // with funding status, match count, and live fiat price. Silently falls back
+  // to the list-sourced normalized offer on error.
+  const [offerDetails, setOfferDetails] = useState(null);
+  useEffect(() => {
+    if (!offerDetailPopup?.id) { setOfferDetails(null); return; }
+    // Endpoint is sell-exclusive per backend — buy offers return 401 by design.
+    if (offerDetailPopup.direction !== "sell") { setOfferDetails(null); return; }
+    const offerId = offerDetailPopup.id;
+    const needsPoll = offerDetailPopup.tradeStatus === "fundEscrow";
+    let cancelled = false;
+    async function check() {
+      try {
+        const res = await get(`/offer/${offerId}/details`);
+        if (cancelled) return;
+        if (!res.ok) { setOfferDetails(null); return; }
+        const body = await res.json();
+        if (!cancelled) {
+          setOfferDetails(body);
+          // If the details endpoint already carries the escrow address, use it.
+          if (body?.escrow && typeof body.escrow === "string") setOdEscrowAddress(body.escrow);
+          // Respect the backend "mobile fund-escrow action was triggered" flag.
+          if (body?.mobileActionFundEscrowWasTriggered) setOdFundMobileRequested(true);
+        }
+      } catch {
+        if (!cancelled) setOfferDetails(null);
+      }
+    }
+    check();
+    const iv = needsPoll ? setInterval(check, 10000) : null;
+    return () => { cancelled = true; if (iv) clearInterval(iv); };
+  }, [offerDetailPopup?.id, offerDetailPopup?.direction, offerDetailPopup?.tradeStatus]);
+
+  // Secondary fetch: ensure the escrow address is available for fundEscrow sell offers
+  // even if GET /offer/:id/details does not expose it. Mirrors offer-creation polling.
+  useEffect(() => {
+    const o = offerDetailPopup;
+    if (!o || o.direction !== "sell" || o.tradeStatus !== "fundEscrow") return;
+    if (odEscrowAddress) return; // already populated (from /details or previous fetch)
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await get(`/offer/${o.id}/escrow`);
+        if (cancelled || !res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data?.escrow) setOdEscrowAddress(data.escrow);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [offerDetailPopup?.id, offerDetailPopup?.direction, offerDetailPopup?.tradeStatus, odEscrowAddress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSaveOfferPremium(offer) {
     const val = parseFloat(odEditPremiumVal);
@@ -1170,12 +1228,30 @@ export default function TradesDashboard() {
         }
         closeOfferDetail();
         setLivePending(prev => prev?.filter(o => String(o.id) !== String(offer.id)));
-        setSigningModal({ title: "Refund Escrow", description: "Approve the escrow refund on your Peach mobile app. A push notification has been sent to your phone." });
+        setToast("Refund requested — check your phone"); setTimeout(() => setToast(null), 4000);
       }
     } catch (err) {
       setOdWithdrawError(err.message || "Failed to withdraw");
     } finally {
       setOdWithdrawing(false);
+    }
+  }
+
+  async function handleAcceptWrongAmount(offer) {
+    setOdAcceptingWrong(true); setOdAcceptWrongError(null);
+    try {
+      const res = await post(`/offer/${offer.id}/escrow/confirm`);
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        throw new Error(d?.error || d?.message || `Server error ${res.status}`);
+      }
+      setToast("Escrow accepted — offer going live");
+      setTimeout(() => setToast(null), 3000);
+      closeOfferDetail();
+    } catch (err) {
+      setOdAcceptWrongError(err.message || "Failed to confirm escrow");
+    } finally {
+      setOdAcceptingWrong(false);
     }
   }
 
@@ -1760,6 +1836,38 @@ export default function TradesDashboard() {
                   <span className="offer-detail-label">Status</span>
                   <span className="offer-detail-value">{statusCfg.label ?? o.tradeStatus}</span>
                 </div>
+                {/* Funding status — sell offers only, from /offer/:id/details */}
+                {!isBuy && offerDetails?.funding && (
+                  <div className="offer-detail-row">
+                    <span className="offer-detail-label">Escrow funding</span>
+                    <span className="offer-detail-value">
+                      {offerDetails.funding.status}
+                      {typeof offerDetails.funding.confirmations === "number" && (
+                        <span style={{color:"var(--black-50)",fontWeight:600,marginLeft:6}}>
+                          · {offerDetails.funding.confirmations} conf
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                {/* Match count — from /offer/:id/details */}
+                {Array.isArray(offerDetails?.matches) && (
+                  <div className="offer-detail-row">
+                    <span className="offer-detail-label">Matches</span>
+                    <span className="offer-detail-value">{offerDetails.matches.length}</span>
+                  </div>
+                )}
+                {/* Live fiat price — from /offer/:id/details */}
+                {offerDetails?.prices && Object.keys(offerDetails.prices).length > 0 && (
+                  <div className="offer-detail-row">
+                    <span className="offer-detail-label">Live price</span>
+                    <span className="offer-detail-value">
+                      {Object.entries(offerDetails.prices).map(([cur, val]) => (
+                        <span key={cur} style={{marginRight:8}}>{cur} {val}</span>
+                      ))}
+                    </span>
+                  </div>
+                )}
                 <div className="offer-detail-row">
                   <span className="offer-detail-label">Created</span>
                   <span className="offer-detail-value">{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "—"}</span>
@@ -1773,6 +1881,113 @@ export default function TradesDashboard() {
                   </div>
                 )}
               </div>
+
+              {/* Escrow address + QR — sell offers in fundEscrow status */}
+              {!isBuy && o.tradeStatus === "fundEscrow" && (
+                <div style={{padding:"12px 20px 16px", borderTop:"1px solid var(--black-10)"}}>
+                  <div style={{fontSize:".72rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:"var(--black-65)",marginBottom:8}}>
+                    Escrow address
+                  </div>
+                  {odEscrowAddress ? (
+                    <>
+                      <div
+                        onClick={() => {
+                          navigator.clipboard.writeText(odEscrowAddress).catch(() => {});
+                          setOdCopiedAddr(true); setTimeout(() => setOdCopiedAddr(false), 2000);
+                        }}
+                        style={{fontFamily:"monospace",fontSize:".78rem",background:"var(--black-5)",border:"1px solid var(--black-10)",borderRadius:8,padding:"10px 12px",wordBreak:"break-all",cursor:"pointer"}}
+                      >
+                        {odEscrowAddress}
+                      </div>
+                      <div style={{fontSize:".7rem",fontWeight:700,color:"var(--success)",minHeight:16,marginTop:4}}>
+                        {odCopiedAddr ? "✓ Copied to clipboard" : "Click to copy"}
+                      </div>
+
+                      <div style={{display:"flex",justifyContent:"center",margin:"14px 0 8px"}}>
+                        <div style={{padding:10,background:"white",borderRadius:10,border:"1px solid var(--black-10)"}}>
+                          <QRCodeSVG
+                            value={`bitcoin:${odEscrowAddress}?amount=${(o.amount / 1e8).toFixed(8)}`}
+                            size={128} level="L" bgColor="white" fgColor="#2B1911"
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{fontSize:".72rem",color:"var(--black-65)",textAlign:"center",fontWeight:500,marginBottom:12}}>
+                        Send exactly <SatsAmount sats={o.amount}/> to activate your offer
+                      </div>
+
+                      {/* Fund via mobile app — alternative to scanning QR */}
+                      <div style={{marginBottom:12}}>
+                        <div style={{fontSize:".68rem",fontWeight:700,color:"var(--black-65)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:6,textAlign:"center"}}>
+                          Or fund from your Peach mobile app
+                        </div>
+                        <button
+                          disabled={odFundMobileLoading || odFundMobileRequested}
+                          onClick={async () => {
+                            setOdFundMobileError(null);
+                            setOdFundMobileLoading(true);
+                            try {
+                              const res = await post(`/offer/${o.id}/fundEscrowPendingAction`);
+                              if (!res.ok) {
+                                const err = await res.json().catch(() => null);
+                                throw new Error(err?.error || err?.message || `HTTP ${res.status}`);
+                              }
+                              setOdFundMobileRequested(true);
+                              setToast("Request sent — check your phone");
+                              setTimeout(() => setToast(null), 3000);
+                            } catch (e) {
+                              setOdFundMobileError("Failed to request funding: " + e.message);
+                            } finally {
+                              setOdFundMobileLoading(false);
+                            }
+                          }}
+                          style={{
+                            width:"100%",padding:"10px 14px",borderRadius:999,border:"none",
+                            background: odFundMobileRequested ? "var(--black-5)" : "var(--grad)",
+                            color: odFundMobileRequested ? "var(--black-65)" : "white",
+                            fontFamily:"var(--font)",fontSize:".8rem",fontWeight:800,
+                            cursor:(odFundMobileLoading||odFundMobileRequested)?"default":"pointer",
+                            opacity: odFundMobileLoading ? 0.6 : 1,
+                          }}
+                        >
+                          {odFundMobileLoading ? "Sending request…" : odFundMobileRequested ? "Request sent — check your phone" : "Fund via mobile app"}
+                        </button>
+                        {odFundMobileError && (
+                          <div style={{color:"var(--error)",fontSize:".74rem",fontWeight:600,marginTop:6,textAlign:"center"}}>{odFundMobileError}</div>
+                        )}
+                      </div>
+
+                      {/* Wrong-amount call to action — parity with offer-creation step 2 */}
+                      {offerDetails?.funding?.status === "WRONG_FUNDING_AMOUNT" && (
+                        <div style={{background:"var(--error-bg,#FFE6E1)",border:"1px solid var(--error)",borderRadius:10,padding:"12px 14px"}}>
+                          <div style={{fontSize:".78rem",fontWeight:700,color:"var(--error)",marginBottom:6}}>
+                            ⚠ Wrong amount funded
+                          </div>
+                          <div style={{fontSize:".72rem",color:"var(--black-65)",fontWeight:500,marginBottom:10,lineHeight:1.5}}>
+                            Expected <strong>{fmt(o.amount)}</strong> sats — received{" "}
+                            <strong>{fmt((offerDetails.funding.amounts ?? []).reduce((a,b)=>a+b,0))}</strong> sats.
+                            Accept the received amount to continue, or withdraw the offer to refund.
+                          </div>
+                          {odAcceptWrongError && (
+                            <div style={{color:"var(--error)",fontSize:".74rem",fontWeight:600,marginBottom:6}}>{odAcceptWrongError}</div>
+                          )}
+                          <button
+                            disabled={odAcceptingWrong}
+                            onClick={() => handleAcceptWrongAmount(o)}
+                            style={{width:"100%",padding:"9px 14px",borderRadius:999,background:"var(--grad)",color:"white",border:"none",cursor:"pointer",fontFamily:"var(--font)",fontSize:".78rem",fontWeight:700}}
+                          >
+                            {odAcceptingWrong ? "Accepting…" : "Accept anyway & continue"}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{fontSize:".76rem",color:"var(--black-40)",fontWeight:600,padding:"8px 0"}}>
+                      Loading escrow address…
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Footer — actions */}
               <div className="offer-detail-footer">
