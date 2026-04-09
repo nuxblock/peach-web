@@ -827,8 +827,6 @@ export default function OfferCreation({ initialType="buy" }) {
         {/* ── WIZARD ── */}
         <div className="wizard">
 
-          <button className="back-btn" style={{alignSelf:"flex-start",marginBottom:12}} onClick={() => navigate("/market")}>← Market</button>
-
           {/* Header row: title + type toggle */}
           <div className="wizard-header">
             <div>
