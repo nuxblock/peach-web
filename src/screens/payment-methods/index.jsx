@@ -10,14 +10,14 @@ import { IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import { useApi } from "../../hooks/useApi.js";
-import { extractPMsFromProfile, encryptPGPMessage, signPGPMessage, isApiError } from "../../utils/pgp.js";
+import { extractPMsFromProfile, isApiError } from "../../utils/pgp.js";
+import { syncPMsToServer } from "../../utils/pmSync.js";
 import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE } from "../../utils/format.js";
 import { CSS } from "./styles.js";
+import { IconPlus, IconEdit, IconTrash, DeleteModal } from "./components.jsx";
 import {
-  CATEGORY_META, FALLBACK_METHODS,
-  IconPlus, IconEdit, IconTrash,
-  AddPMFlow, DeleteModal, methodLabel,
-} from "./components.jsx";
+  AddPMFlow, CATEGORY_META, FALLBACK_METHODS, methodLabel,
+} from "../../components/AddPMFlow.jsx";
 
 export default function PeachPaymentMethods() {
   const navigate = useNavigate();
@@ -184,78 +184,6 @@ export default function PeachPaymentMethods() {
     })();
   }, []);
 
-  // Convert internal PM array back to the API's object map format
-  function serializePMs(pms) {
-    const map = {};
-    for (const pm of pms) {
-      const { details = {}, ...rest } = pm;
-      const apiDetails = {};
-      for (const [k, v] of Object.entries(details)) {
-        if (k.startsWith("_")) continue;
-        apiDetails[k] = v;
-      }
-      if (apiDetails.username && !apiDetails.userName) {
-        apiDetails.userName = apiDetails.username;
-        delete apiDetails.username;
-      }
-      if (apiDetails.holder && !apiDetails.beneficiary) {
-        apiDetails.beneficiary = apiDetails.holder;
-        delete apiDetails.holder;
-      }
-      if (apiDetails.email && apiDetails.userName && apiDetails.email === apiDetails.userName) {
-        delete apiDetails.email;
-      }
-      map[pm.id] = {
-        id: pm.id,
-        label: pm.name,
-        currencies: pm.currencies || [],
-        ...apiDetails,
-      };
-    }
-    return map;
-  }
-
-  // Encrypt and sync PM data to the server
-  async function syncPMsToServer(pms) {
-    if (!auth?.pgpPrivKey) {
-      console.warn("[PM Sync] No PGP key — cannot sync");
-      return;
-    }
-    try {
-      const apiMap = serializePMs(pms);
-      const json = JSON.stringify(apiMap);
-      console.log("[PM Sync] Serialised PM map:", apiMap);
-
-      const [encrypted, signature] = await Promise.all([
-        encryptPGPMessage(json, auth.pgpPrivKey),
-        signPGPMessage(json, auth.pgpPrivKey),
-      ]);
-      if (!encrypted) throw new Error("Encryption returned null");
-
-      console.log("[PM Sync] Encrypted blob length:", encrypted.length);
-      if (signature) console.log("[PM Sync] Signature length:", signature.length);
-
-      const payload = { encryptedPaymentData: encrypted };
-      if (signature) payload.encryptedPaymentDataSignature = signature;
-      const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
-      const res = await fetchWithSessionCheck(`${v069Base}/selfUser/encryptedPaymentData`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${auth.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`${res.status} ${body}`);
-      }
-      console.log("[PM Sync] ✓ Synced to server");
-    } catch (err) {
-      console.warn("[PM Sync] Failed:", err.message);
-    }
-  }
-
   // Save handler (add or edit)
   function handleSavePM(pm) {
     let nextMethods;
@@ -271,7 +199,7 @@ export default function PeachPaymentMethods() {
     });
     setShowAddFlow(false);
     setEditPM(null);
-    if (auth && nextMethods) syncPMsToServer(nextMethods);
+    if (auth && nextMethods) syncPMsToServer(nextMethods, auth);
   }
 
   // Delete handler
@@ -283,7 +211,7 @@ export default function PeachPaymentMethods() {
         return nextMethods;
       });
       setDeletePM(null);
-      if (auth && nextMethods) syncPMsToServer(nextMethods);
+      if (auth && nextMethods) syncPMsToServer(nextMethods, auth);
     }
   }
 

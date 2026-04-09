@@ -127,11 +127,6 @@ export const CSS = `
   /* Inputs */
   .field-label{font-size:.7rem;font-weight:700;text-transform:uppercase;
     letter-spacing:.07em;color:var(--black-65);margin-bottom:6px;display:block}
-  .field-input{width:100%;font-family:var(--font);font-size:.95rem;font-weight:700;
-    padding:10px 14px;border:2px solid var(--black-10);border-radius:10px;
-    background:var(--bg);color:var(--black);outline:none;transition:border-color .15s}
-  .field-input:focus{border-color:var(--primary)}
-  .field-input.err{border-color:var(--error)}
   .fiat-hint{font-size:.7rem;color:var(--black-65);font-weight:500;margin-top:4px;min-height:16px}
   .fiat-hint.warn{color:var(--error)}
   .row-2{display:flex;gap:12px}
@@ -239,69 +234,12 @@ export const CSS = `
   .btn-edit-pm:hover{border-color:var(--primary);color:var(--primary-dark);
     background:var(--primary-mild)}
 
-  /* Currency checkboxes in modal */
-  .curr-check-grid{display:flex;flex-wrap:wrap;gap:6px}
-  .curr-check-btn{padding:5px 12px;border-radius:7px;font-size:.76rem;font-weight:800;
-    cursor:pointer;border:2px solid var(--black-10);background:var(--surface);
-    color:var(--black-65);transition:all .12s;letter-spacing:.04em;font-family:var(--font)}
-  .curr-check-btn:hover{border-color:var(--primary);color:var(--primary-dark)}
-  .curr-check-btn.on{border-color:var(--primary);background:var(--primary-mild);color:var(--primary-dark)}
-
-  /* Summary box in modal */
-  .modal-summary{background:var(--black-5);border-radius:12px;
-    border:1px solid var(--black-10);overflow:hidden}
-  .modal-summary-row{display:flex;justify-content:space-between;align-items:center;
-    padding:9px 14px;border-bottom:1px solid var(--black-10);font-size:.82rem}
-  .modal-summary-row:last-child{border-bottom:none}
-  .msk{font-weight:600;color:var(--black-65)}
-  .msv{font-weight:800;color:var(--black);text-align:right;max-width:60%;word-break:break-all}
-
   /* Add button (section header) */
   .btn-add-pm{display:flex;align-items:center;gap:5px;padding:4px 12px;
     border-radius:999px;border:1.5px solid var(--primary);background:var(--primary-mild);
     color:var(--primary-dark);font-family:var(--font);font-size:.76rem;font-weight:800;
     cursor:pointer;transition:all .12s;flex-shrink:0}
   .btn-add-pm:hover{background:var(--primary);color:white}
-
-  /* Modal overlay */
-  .modal-overlay{position:fixed;inset:0;background:rgba(43,25,17,.45);
-    backdrop-filter:blur(3px);z-index:400;display:flex;align-items:center;
-    justify-content:center;padding:20px;animation:fadeIn .15s ease}
-  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-  .modal-card{background:var(--surface);border-radius:20px;width:100%;max-width:460px;
-    box-shadow:0 24px 64px rgba(43,25,17,.22);overflow:hidden;
-    animation:slideUp .2s cubic-bezier(.16,1,.3,1)}
-  @keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
-  .modal-header{display:flex;align-items:center;justify-content:space-between;
-    padding:20px 22px 0}
-  .modal-title{font-size:1.05rem;font-weight:800;color:var(--black)}
-  .modal-close{width:30px;height:30px;border-radius:50%;border:none;background:var(--black-5);
-    cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;
-    color:var(--black-65);transition:all .12s;font-family:var(--font)}
-  .modal-close:hover{background:var(--black-10);color:var(--black)}
-  .modal-body{padding:18px 22px 22px;display:flex;flex-direction:column;gap:14px}
-  .modal-select{width:100%;font-family:var(--font);font-size:.9rem;font-weight:600;
-    padding:10px 12px;border:2px solid var(--black-10);border-radius:10px;
-    background:var(--bg);color:var(--black);outline:none;transition:border-color .15s;
-    appearance:none;cursor:pointer}
-  .modal-select:focus{border-color:var(--primary)}
-  .select-wrap{position:relative}
-  .select-wrap::after{content:"▾";position:absolute;right:12px;top:50%;
-    transform:translateY(-50%);pointer-events:none;color:var(--black-65);font-size:.8rem}
-  .modal-steps{display:flex;gap:6px;margin-bottom:4px}
-  .modal-step-dot{height:3px;border-radius:999px;flex:1;transition:background .2s}
-  .modal-foot{display:flex;gap:8px;padding:0 22px 22px}
-  .modal-btn-back{flex:1;padding:10px;border-radius:999px;border:1.5px solid var(--black-10);
-    background:transparent;color:var(--black-65);font-family:var(--font);
-    font-size:.88rem;font-weight:700;cursor:pointer;transition:all .12s}
-  .modal-btn-back:hover{border-color:var(--black-25);color:var(--black)}
-  .modal-btn-next{flex:2;padding:10px;border-radius:999px;background:var(--grad);color:white;
-    font-family:var(--font);font-size:.88rem;font-weight:800;border:none;
-    cursor:pointer;box-shadow:0 2px 10px rgba(245,101,34,.3);transition:all .12s}
-  .modal-btn-next:disabled{background:var(--black-10);color:var(--black-25);
-    box-shadow:none;cursor:not-allowed}
-  .modal-btn-next:not(:disabled):hover{transform:translateY(-1px);
-    box-shadow:0 4px 16px rgba(245,101,34,.4)}
 
   .prem-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;
     border-radius:3px;outline:none;cursor:pointer}

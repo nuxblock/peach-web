@@ -11,7 +11,7 @@ import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat, formatTradeId, toPeac
 import PeachRating from "../../components/PeachRating.jsx";
 import { CSS } from "./styles.js";
 import { premiumStats, premiumCls, currSym, MultiSelect, Chips, RepCell, AmountCell, PriceCell } from "./components.jsx";
-import { FALLBACK_METHODS, CATEGORY_META } from "../payment-methods/components.jsx";
+import { FALLBACK_METHODS, CATEGORY_META } from "../../components/AddPMFlow.jsx";
 
 // ── Derived from FALLBACK_METHODS (static, computed once at module load) ──
 const METHOD_DISPLAY_NAMES = Object.fromEntries(

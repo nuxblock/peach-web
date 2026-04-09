@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const CSS = `
-  .settings-scroll{margin-top:var(--topbar);padding:32px 24px 80px;max-width:640px;margin-left:auto;margin-right:auto}
+  .settings-scroll{margin-top:var(--topbar);padding:32px 28px 80px;max-width:640px}
   .settings-page-title{font-size:1.5rem;font-weight:800;color:var(--black);margin-bottom:28px;letter-spacing:-0.02em}
   .version-footer{text-align:center;padding:20px 0 8px;font-size:.72rem;color:var(--black-25);font-weight:500}
 

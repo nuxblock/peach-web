@@ -12,14 +12,17 @@ import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import { extractPMsFromProfile, isApiError, hashPaymentFields, encryptForPublicKey, encryptPGPMessage, signPGPMessage } from "../../utils/pgp.js";
 import { deriveEscrowPubKey, deriveReturnAddress } from "../../utils/escrow.js";
 import { QRCodeSVG } from "qrcode.react";
-import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE_INIT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur } from "../../utils/format.js";
+import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE_INIT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur, formatTradeId } from "../../utils/format.js";
 import { CSS } from "./styles.js";
 import {
-  METHOD_CURRENCIES, METHOD_FIELDS, methodLabel,
   MIN_SATS, maxSatsAtPrice,
-  getSteps, LivePreview, AmountSlider, PMModal,
+  getSteps, LivePreview, AmountSlider,
   MultiOfferControl, MultiEscrowFunding,
 } from "./components.jsx";
+import {
+  AddPMFlow, FALLBACK_METHODS, methodLabel,
+} from "../../components/AddPMFlow.jsx";
+import { syncPMsToServer } from "../../utils/pmSync.js";
 
 
 // ─── MAIN ───────────────────────────────────────────────────────────────────
@@ -38,6 +41,7 @@ export default function OfferCreation({ initialType="buy" }) {
   const [fundingStatus, setFundingStatus] = useState(null); // null → "MEMPOOL" → "FUNDED" | "WRONG_FUNDING_AMOUNT"
   const [fundingAmounts, setFundingAmounts] = useState(null); // amounts array from API (for wrong-amount case)
   const [savedMethods, setSavedMethods] = useState([]);
+  const [methodsCatalogue, setMethodsCatalogue] = useState(FALLBACK_METHODS);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPM,    setEditingPM]    = useState(null); // PM object being edited
   const [pmError,      setPmError]      = useState(false);
@@ -97,19 +101,28 @@ export default function OfferCreation({ initialType="buy" }) {
           return mapD(explicit || (Object.keys(swept).length ? swept : {}));
         }
         if (Array.isArray(pms) && pms.length > 0) {
-          setSavedMethods(pms.map(pm => ({
-            id: pm.id,
-            type: shortId(pm.type ?? pm.id),
-            currencies: pm.currencies ?? [],
-            details: sweepFields(pm),
-          })));
+          setSavedMethods(pms.map((pm, i) => {
+            const rawId = pm.methodId || pm.type || pm.id || "unknown";
+            const mid = shortId(rawId);
+            return {
+              id:         pm.id || `api-pm-${i}`,
+              methodId:   mid,
+              name:       pm.name || pm.label || mid,
+              currencies: pm.currencies ?? [],
+              details:    sweepFields(pm),
+            };
+          }));
         } else if (pms && typeof pms === "object") {
-          setSavedMethods(Object.entries(pms).map(([key, val]) => ({
-            id: val?.id || key,
-            type: shortId(key),
-            currencies: val?.currencies ?? [],
-            details: sweepFields(val || {}),
-          })));
+          setSavedMethods(Object.entries(pms).map(([key, val]) => {
+            const mid = shortId(key);
+            return {
+              id:         val?.id || key,
+              methodId:   mid,
+              name:       val?.name || val?.label || mid,
+              currencies: val?.currencies ?? [],
+              details:    sweepFields(val || {}),
+            };
+          }));
         }
       })
       .catch((err) => {
@@ -141,7 +154,7 @@ export default function OfferCreation({ initialType="buy" }) {
 
   // Derive method types and currencies from selected saved PMs
   const selectedSaved    = savedMethods.filter(m=>form.selectedMethodIds.includes(m.id));
-  const offerMethods     = [...new Set(selectedSaved.map(m=>m.type))];
+  const offerMethods     = [...new Set(selectedSaved.map(m=>m.methodId))];
   const offerCurrencies  = [...new Set(selectedSaved.flatMap(m=>m.currencies||[]))];
 
   useEffect(() => {
@@ -158,6 +171,20 @@ export default function OfferCreation({ initialType="buy" }) {
     fetchPrices();
     const iv = setInterval(fetchPrices, 30000);
     return () => clearInterval(iv);
+  }, []);
+
+  // ── FETCH PAYMENT METHOD CATALOGUE (for AddPMFlow) ──
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await get('/info/paymentMethods');
+        const data = await res.json();
+        if (data && typeof data === "object" && !Array.isArray(data)) {
+          // Attempt to use API data — TODO: normalise shape when confirmed.
+          // For now rely on FALLBACK_METHODS which already matches AddPMFlow's shape.
+        }
+      } catch {}
+    })();
   }, []);
 
   // ── POLL ESCROW FUNDING STATUS ──
@@ -248,16 +275,24 @@ export default function OfferCreation({ initialType="buy" }) {
   }
 
   function handleSavePM(pm) {
+    let nextList;
     if(editingPM) {
       // Update existing PM in place
-      setSavedMethods(prev=>prev.map(m=>m.id===pm.id?pm:m));
+      setSavedMethods(prev => {
+        nextList = prev.map(m => m.id === pm.id ? pm : m);
+        return nextList;
+      });
       setEditingPM(null);
     } else {
       // Add new PM and auto-select it
-      setSavedMethods(prev=>[...prev,pm]);
+      setSavedMethods(prev => {
+        nextList = [...prev, pm];
+        return nextList;
+      });
       setF("selectedMethodIds",[...form.selectedMethodIds, pm.id]);
       setShowAddModal(false);
     }
+    if (auth && nextList) syncPMsToServer(nextList, auth);
   }
 
 
@@ -298,7 +333,7 @@ export default function OfferCreation({ initialType="buy" }) {
   async function buildPaymentPayload(serverPGPKey){
     const meansOfPayment = {};
     for(const pm of selectedSaved){
-      const methodType = (pm.type||"").toLowerCase();
+      const methodType = (pm.methodId||"").replace(/-\d+$/, "").toLowerCase();
       for(const cur of (pm.currencies||[])){
         if(!meansOfPayment[cur]) meansOfPayment[cur] = [];
         if(!meansOfPayment[cur].includes(methodType)) meansOfPayment[cur].push(methodType);
@@ -306,7 +341,7 @@ export default function OfferCreation({ initialType="buy" }) {
     }
     const paymentData = {};
     for(const pm of selectedSaved){
-      const methodType = (pm.type||"").toLowerCase();
+      const methodType = (pm.methodId||"").replace(/-\d+$/, "").toLowerCase();
       if(paymentData[methodType]) continue;
       const details = pm.details || {};
       const hashed = await hashPaymentFields(methodType, details, details.country);
@@ -745,11 +780,12 @@ export default function OfferCreation({ initialType="buy" }) {
     <>
       <style>{CSS}</style>
       {showAddModal&&(
-        <PMModal onSave={handleSavePM} onClose={()=>setShowAddModal(false)}/>
+        <AddPMFlow methods={methodsCatalogue} onSave={handleSavePM}
+          onClose={()=>setShowAddModal(false)}/>
       )}
       {editingPM&&(
-        <PMModal initialData={editingPM} onSave={handleSavePM}
-          onClose={()=>setEditingPM(null)}/>
+        <AddPMFlow methods={methodsCatalogue} editData={editingPM}
+          onSave={handleSavePM} onClose={()=>setEditingPM(null)}/>
       )}
       <Topbar
         onBurgerClick={() => setSidebarMobileOpen(o => !o)}
@@ -799,6 +835,11 @@ export default function OfferCreation({ initialType="buy" }) {
               <div style={{fontSize:".72rem",fontWeight:700,textTransform:"uppercase",
                 letterSpacing:".08em",color:"var(--black-65)",marginBottom:4}}>
                 New offer
+                {step===2 && sellOfferId && (
+                  <span style={{marginLeft:8,opacity:.75}}>
+                    · {formatTradeId(sellOfferId, "offer")}
+                  </span>
+                )}
               </div>
               <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
                 <div className="wizard-title">
@@ -888,7 +929,7 @@ export default function OfferCreation({ initialType="buy" }) {
                         <div key={pm.id} style={{display:"flex",alignItems:"center",gap:6}}>
                           <button className={`pm-chip${sel?" sel":""}`}
                             onClick={()=>toggleMethod(pm.id)}>
-                            <span className="pm-chip-type">{pm.type}</span>
+                            <span className="pm-chip-type">{pm.name || pm.methodId}</span>
                             <span style={{overflow:"hidden",textOverflow:"ellipsis",
                               whiteSpace:"nowrap"}}>
                               {methodLabel(pm)}
@@ -1240,19 +1281,31 @@ export default function OfferCreation({ initialType="buy" }) {
                     minHeight:18,marginTop:4,marginBottom:20}}>
                     {copiedAddr?"✓ Copied to clipboard":"Click to copy"}
                   </div>
-                  {/* QR code */}
+                  {/* QR code / green check on detection */}
                   <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
                     <div style={{padding:12,background:"white",borderRadius:12,
                       border:"1px solid var(--black-10)",display:"inline-block"}}>
-                      <QRCodeSVG
-                        value={qrWithAmount
-                          ? `bitcoin:${escrowAddress}?amount=${(form.amtFixed / 1e8).toFixed(8)}`
-                          : escrowAddress}
-                        size={140} level="L" bgColor="white" fgColor="#2B1911"
-                      />
+                      {(fundingStatus === "MEMPOOL" || fundingStatus === "FUNDED") ? (
+                        <div style={{width:140,height:140,display:"flex",
+                          alignItems:"center",justifyContent:"center"}}>
+                          <div style={{width:76,height:76,borderRadius:"50%",
+                            background:"var(--success)",display:"flex",
+                            alignItems:"center",justifyContent:"center",
+                            color:"white",fontSize:"2.4rem",fontWeight:800,
+                            boxShadow:"0 8px 32px rgba(101,165,25,.3)"}}>✓</div>
+                        </div>
+                      ) : (
+                        <QRCodeSVG
+                          value={qrWithAmount
+                            ? `bitcoin:${escrowAddress}?amount=${(form.amtFixed / 1e8).toFixed(8)}`
+                            : escrowAddress}
+                          size={140} level="L" bgColor="white" fgColor="#2B1911"
+                        />
+                      )}
                     </div>
                   </div>
                   {/* Address only / Address + amount toggle */}
+                  {fundingStatus !== "MEMPOOL" && fundingStatus !== "FUNDED" && (<>
                   <div style={{display:"flex",justifyContent:"center",marginBottom:8}}>
                     <div style={{
                       display:"flex", alignItems:"center", gap:0,
@@ -1293,41 +1346,45 @@ export default function OfferCreation({ initialType="buy" }) {
                       ? "QR includes amount — most wallets will fill it in automatically"
                       : "QR contains address only — enter the amount manually in your wallet"}
                   </div>
+                  </>
+                  )}
                   {/* Or fund via mobile app */}
                   {auth && sellOfferId && (
                     <div style={{marginBottom:20}}>
                       <div style={{fontSize:".68rem",fontWeight:700,color:"var(--black-65)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:6,textAlign:"center"}}>
                         Or fund from your Peach mobile app
                       </div>
-                      <button
-                        disabled={fundMobileLoading || fundMobileRequested}
-                        onClick={async () => {
-                          setFundMobileError(null);
-                          setFundMobileLoading(true);
-                          try {
-                            const res = await post(`/offer/${sellOfferId}/fundEscrowPendingAction`);
-                            if (!res.ok) {
-                              const err = await res.json().catch(() => null);
-                              throw new Error(err?.error || err?.message || `HTTP ${res.status}`);
+                      <div style={{display:"flex",justifyContent:"center"}}>
+                        <button
+                          disabled={fundMobileLoading || fundMobileRequested}
+                          onClick={async () => {
+                            setFundMobileError(null);
+                            setFundMobileLoading(true);
+                            try {
+                              const res = await post(`/offer/${sellOfferId}/fundEscrowPendingAction`);
+                              if (!res.ok) {
+                                const err = await res.json().catch(() => null);
+                                throw new Error(err?.error || err?.message || `HTTP ${res.status}`);
+                              }
+                              setFundMobileRequested(true);
+                            } catch (e) {
+                              setFundMobileError("Failed to request funding: " + e.message);
+                            } finally {
+                              setFundMobileLoading(false);
                             }
-                            setFundMobileRequested(true);
-                          } catch (e) {
-                            setFundMobileError("Failed to request funding: " + e.message);
-                          } finally {
-                            setFundMobileLoading(false);
-                          }
-                        }}
-                        style={{
-                          width:"100%",padding:"10px 14px",borderRadius:999,border:"none",
-                          background: fundMobileRequested ? "var(--black-5)" : "var(--grad)",
-                          color: fundMobileRequested ? "var(--black-65)" : "white",
-                          fontFamily:"var(--font)",fontSize:".82rem",fontWeight:800,
-                          cursor:(fundMobileLoading||fundMobileRequested)?"default":"pointer",
-                          opacity: fundMobileLoading ? 0.6 : 1,
-                        }}
-                      >
-                        {fundMobileLoading ? "Sending request…" : fundMobileRequested ? "Request sent — check your phone" : "Fund via mobile app"}
-                      </button>
+                          }}
+                          style={{
+                            padding:"10px 24px",borderRadius:999,border:"none",
+                            background: fundMobileRequested ? "var(--black-5)" : "var(--grad)",
+                            color: fundMobileRequested ? "var(--black-65)" : "white",
+                            fontFamily:"var(--font)",fontSize:".82rem",fontWeight:800,
+                            cursor:(fundMobileLoading||fundMobileRequested)?"default":"pointer",
+                            opacity: fundMobileLoading ? 0.6 : 1,
+                          }}
+                        >
+                          {fundMobileLoading ? "Sending request…" : fundMobileRequested ? "Request sent — check your phone" : "Fund via mobile app"}
+                        </button>
+                      </div>
                       {fundMobileError && (
                         <div style={{color:"var(--error)",fontSize:".74rem",fontWeight:600,marginTop:6,textAlign:"center"}}>{fundMobileError}</div>
                       )}

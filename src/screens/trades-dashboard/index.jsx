@@ -1104,6 +1104,7 @@ export default function TradesDashboard() {
   // Fund-escrow enrichment (sell offers in fundEscrow status)
   const [odEscrowAddress, setOdEscrowAddress]       = useState(null);
   const [odCopiedAddr, setOdCopiedAddr]             = useState(false);
+  const [odQrWithAmount, setOdQrWithAmount]         = useState(true);
   const [odAcceptingWrong, setOdAcceptingWrong]     = useState(false);
   const [odAcceptWrongError, setOdAcceptWrongError] = useState(null);
   const [odFundMobileLoading, setOdFundMobileLoading]     = useState(false);
@@ -1911,10 +1912,51 @@ export default function TradesDashboard() {
                       <div style={{display:"flex",justifyContent:"center",margin:"14px 0 8px"}}>
                         <div style={{padding:10,background:"white",borderRadius:10,border:"1px solid var(--black-10)"}}>
                           <QRCodeSVG
-                            value={`bitcoin:${odEscrowAddress}?amount=${(o.amount / 1e8).toFixed(8)}`}
+                            value={odQrWithAmount
+                              ? `bitcoin:${odEscrowAddress}?amount=${(o.amount / 1e8).toFixed(8)}`
+                              : odEscrowAddress}
                             size={128} level="L" bgColor="white" fgColor="#2B1911"
                           />
                         </div>
+                      </div>
+
+                      {/* Address only / Address + amount toggle */}
+                      <div style={{display:"flex",justifyContent:"center",marginBottom:6}}>
+                        <div style={{
+                          display:"flex", alignItems:"center", gap:0,
+                          background:"#F4EEEB", borderRadius:999, padding:3,
+                          fontSize:".72rem", fontWeight:700,
+                        }}>
+                          <button
+                            type="button"
+                            style={{
+                              border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
+                              fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
+                              background: !odQrWithAmount ? "white" : "transparent",
+                              color: !odQrWithAmount ? "#2B1911" : "#7D675E",
+                              boxShadow: !odQrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
+                              transition:"all .15s",
+                            }}
+                            onClick={() => setOdQrWithAmount(false)}
+                          >Address only</button>
+                          <button
+                            type="button"
+                            style={{
+                              border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
+                              fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
+                              background: odQrWithAmount ? "white" : "transparent",
+                              color: odQrWithAmount ? "#2B1911" : "#7D675E",
+                              boxShadow: odQrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
+                              transition:"all .15s",
+                            }}
+                            onClick={() => setOdQrWithAmount(true)}
+                          >Address + amount</button>
+                        </div>
+                      </div>
+                      <div style={{fontSize:".68rem",color:"#7D675E",textAlign:"center",lineHeight:1.5,marginBottom:10}}>
+                        {odQrWithAmount
+                          ? "QR includes amount — most wallets will fill it in automatically"
+                          : "QR contains address only — enter the amount manually in your wallet"}
                       </div>
 
                       <div style={{fontSize:".72rem",color:"var(--black-65)",textAlign:"center",fontWeight:500,marginBottom:12}}>
