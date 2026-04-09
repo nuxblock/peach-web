@@ -512,6 +512,7 @@ export function MultiEscrowFunding({
 }) {
   const [copiedKey, setCopiedKey] = useState(null); // "addr-0", "uri-2", etc.
   const [sentToMobile, setSentToMobile] = useState(false);
+  const [qrWithAmount, setQrWithAmount] = useState(true);
 
   const validResults = results.filter(r => r.status !== "failed" && r.escrowAddress);
   const selected = validResults[selectedIdx] || validResults[0];
@@ -599,9 +600,52 @@ export function MultiEscrowFunding({
           <div style={{padding:12,background:"white",borderRadius:12,
             border:"1px solid var(--black-10)",display:"inline-block"}}>
             <QRCodeSVG
-              value={`bitcoin:${selected.escrowAddress}?amount=${(amtFixed / 1e8).toFixed(8)}`}
+              value={qrWithAmount
+                ? `bitcoin:${selected.escrowAddress}?amount=${(amtFixed / 1e8).toFixed(8)}`
+                : selected.escrowAddress}
               size={140} level="L" bgColor="white" fgColor="#2B1911"
             />
+          </div>
+          {/* Address only / Address + amount toggle */}
+          <div style={{display:"flex",justifyContent:"center",marginTop:10}}>
+            <div style={{
+              display:"flex", alignItems:"center", gap:0,
+              background:"#F4EEEB", borderRadius:999, padding:3,
+              fontSize:".72rem", fontWeight:700,
+            }}>
+              <button
+                type="button"
+                style={{
+                  border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
+                  fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
+                  background: !qrWithAmount ? "white" : "transparent",
+                  color: !qrWithAmount ? "#2B1911" : "#7D675E",
+                  boxShadow: !qrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
+                  transition:"all .15s",
+                }}
+                onClick={() => setQrWithAmount(false)}
+              >Address only</button>
+              <button
+                type="button"
+                style={{
+                  border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
+                  fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
+                  background: qrWithAmount ? "white" : "transparent",
+                  color: qrWithAmount ? "#2B1911" : "#7D675E",
+                  boxShadow: qrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
+                  transition:"all .15s",
+                }}
+                onClick={() => setQrWithAmount(true)}
+              >Address + amount</button>
+            </div>
+          </div>
+          <div style={{
+            fontSize:".68rem", color:"#7D675E", textAlign:"center",
+            lineHeight:1.5, marginTop:6,
+          }}>
+            {qrWithAmount
+              ? "QR includes amount — most wallets will fill it in automatically"
+              : "QR contains address only — enter the amount manually in your wallet"}
           </div>
           <div className="multi-escrow-qr-label">
             Address {selectedIdx + 1} of {validResults.length}

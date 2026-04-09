@@ -33,6 +33,7 @@ export default function OfferCreation({ initialType="buy" }) {
   const btcPrice = Math.round(allPrices[selectedCurrency] ?? BTC_PRICE_INIT);
   const [done,         setDone]         = useState(false);
   const [copiedAddr,   setCopiedAddr]   = useState(false);
+  const [qrWithAmount, setQrWithAmount] = useState(true);
   const [escrowFunded,  setEscrowFunded]  = useState(false);
   const [fundingStatus, setFundingStatus] = useState(null); // null → "MEMPOOL" → "FUNDED" | "WRONG_FUNDING_AMOUNT"
   const [fundingAmounts, setFundingAmounts] = useState(null); // amounts array from API (for wrong-amount case)
@@ -1240,14 +1241,57 @@ export default function OfferCreation({ initialType="buy" }) {
                     {copiedAddr?"✓ Copied to clipboard":"Click to copy"}
                   </div>
                   {/* QR code */}
-                  <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+                  <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
                     <div style={{padding:12,background:"white",borderRadius:12,
                       border:"1px solid var(--black-10)",display:"inline-block"}}>
                       <QRCodeSVG
-                        value={`bitcoin:${escrowAddress}?amount=${(form.amtFixed / 1e8).toFixed(8)}`}
+                        value={qrWithAmount
+                          ? `bitcoin:${escrowAddress}?amount=${(form.amtFixed / 1e8).toFixed(8)}`
+                          : escrowAddress}
                         size={140} level="L" bgColor="white" fgColor="#2B1911"
                       />
                     </div>
+                  </div>
+                  {/* Address only / Address + amount toggle */}
+                  <div style={{display:"flex",justifyContent:"center",marginBottom:8}}>
+                    <div style={{
+                      display:"flex", alignItems:"center", gap:0,
+                      background:"#F4EEEB", borderRadius:999, padding:3,
+                      fontSize:".72rem", fontWeight:700,
+                    }}>
+                      <button
+                        type="button"
+                        style={{
+                          border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
+                          fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
+                          background: !qrWithAmount ? "white" : "transparent",
+                          color: !qrWithAmount ? "#2B1911" : "#7D675E",
+                          boxShadow: !qrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
+                          transition:"all .15s",
+                        }}
+                        onClick={() => setQrWithAmount(false)}
+                      >Address only</button>
+                      <button
+                        type="button"
+                        style={{
+                          border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
+                          fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
+                          background: qrWithAmount ? "white" : "transparent",
+                          color: qrWithAmount ? "#2B1911" : "#7D675E",
+                          boxShadow: qrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
+                          transition:"all .15s",
+                        }}
+                        onClick={() => setQrWithAmount(true)}
+                      >Address + amount</button>
+                    </div>
+                  </div>
+                  <div style={{
+                    fontSize:".68rem", color:"#7D675E", textAlign:"center",
+                    lineHeight:1.5, marginBottom:20,
+                  }}>
+                    {qrWithAmount
+                      ? "QR includes amount — most wallets will fill it in automatically"
+                      : "QR contains address only — enter the amount manually in your wallet"}
                   </div>
                   {/* Or fund via mobile app */}
                   {auth && sellOfferId && (
