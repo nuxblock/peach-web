@@ -227,6 +227,7 @@ export function useQRAuth({ baseUrl }) {
         };
 
         try { localStorage.setItem("peach_logged_in", "true"); } catch {}
+        try { sessionStorage.setItem("peach_auth", JSON.stringify(window.__PEACH_AUTH__)); } catch {}
 
         setProfile(userProfile);
         setPhase("success");

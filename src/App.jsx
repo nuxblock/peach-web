@@ -58,6 +58,7 @@ export default function App() {
     clearCache();
     resetSessionExpiredFlag();
     try { localStorage.setItem("peach_logged_in", "false"); } catch {}
+    try { sessionStorage.removeItem("peach_auth"); } catch {}
     setSessionExpired(false);
     window.location.hash = '#/';
   }

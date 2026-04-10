@@ -21,6 +21,7 @@ export function useAuth() {
     setIsLoggedIn(false);
     setShowAvatarMenu(false);
     try { localStorage.setItem("peach_logged_in", "false"); } catch {}
+    try { sessionStorage.removeItem("peach_auth"); } catch {}
   };
 
   return { auth, isLoggedIn, setIsLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu };
