@@ -443,7 +443,7 @@ export default function TradeExecution() {
     return () => clearInterval(iv);
   }, [auth, routeId, signingModal, liveContract?.tradeStatus]);
 
-  // Use live contract data — no demo fallback
+  // Use live contract data
   const scenario = liveContract ?? {
     role: "buyer", tradeStatus: "fundEscrow",
     contract: { id: routeId || "—", direction: "buy", amount: 0, fiat: null, currency: "EUR", premium: 0, method: "", creationDate: Date.now(), paymentExpectedBy: null, escrow: null },

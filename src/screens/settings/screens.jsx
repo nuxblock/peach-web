@@ -22,12 +22,11 @@ export function ProfileSubScreen({ onBack }) {
   const { get, auth, isLoggedIn } = useApi();
   const liveProfile = auth?.profile ?? null;
 
-  // ── Profile fields — live when logged in, mock when logged out ──
-  const peachId = auth?.peachId ? formatPeachId(auth.peachId) : "PEACH03CF9E9A";
-  const pubkey  = auth?.peachId ?? "03CF9E9A9DFB2951CEFC6107BCD63D963D85A00C50FCB93B7240C54C8E4053EEFA";
-  const badges  = isLoggedIn ? (liveProfile?.medals ?? liveProfile?.badges ?? []) : ["supertrader", "fast trader", "early adopter"];
-  const rating  = isLoggedIn ? toPeaches(liveProfile?.rating ?? 0) : 5.0;
-  const trades  = isLoggedIn ? (liveProfile?.trades ?? 0) : 40;
+  const peachId = auth?.peachId ? formatPeachId(auth.peachId) : "—";
+  const pubkey  = auth?.peachId ?? "—";
+  const badges  = isLoggedIn ? (liveProfile?.medals ?? liveProfile?.badges ?? []) : [];
+  const rating  = isLoggedIn ? toPeaches(liveProfile?.rating ?? 0) : 0;
+  const trades  = isLoggedIn ? (liveProfile?.trades ?? 0) : 0;
 
   // ── Disputes — API returns number or object ──
   const rawDisputes = liveProfile?.disputes;
@@ -35,7 +34,7 @@ export function ProfileSubScreen({ onBack }) {
     ? (typeof rawDisputes === "object" && rawDisputes
         ? rawDisputes
         : { opened: typeof rawDisputes === "number" ? rawDisputes : 0, won: 0, lost: 0, resolved: 0 })
-    : { opened: 2, won: 0, lost: 0, resolved: 0 };
+    : { opened: 0, won: 0, lost: 0, resolved: 0 };
 
   // ── Account created ──
   const creationDate = liveProfile?.creationDate ? new Date(liveProfile.creationDate) : null;
@@ -43,7 +42,7 @@ export function ProfileSubScreen({ onBack }) {
     ? (creationDate
         ? `${creationDate.toLocaleDateString("en-GB")} (${Math.floor((Date.now() - creationDate) / 86400000)} days ago)`
         : "—")
-    : "02/09/2025 (183 days ago)";
+    : "—";
 
   // ── Trading limits (fetch from API) ──
   const [liveLimit, setLiveLimit] = useState(null);
@@ -57,9 +56,9 @@ export function ProfileSubScreen({ onBack }) {
     { label:"monthly anonymous traded volume", current: liveLimit?.monthlyAnonymousAmount ?? 0,  max: liveLimit?.monthlyAnonymous ?? 1000, currency:"CHF" },
     { label:"yearly traded volume",            current: liveLimit?.yearlyAmount ?? 0,             max: liveLimit?.yearly ?? 100000,         currency:"CHF" },
   ] : [
-    { label:"daily traded volume",            current:0,    max:1095,   currency:"EUR" },
-    { label:"monthly anonymous traded volume", current:0,    max:1095,   currency:"EUR" },
-    { label:"yearly traded volume",            current:4218, max:109501, currency:"EUR" },
+    { label:"daily traded volume",            current:0, max:0, currency:"CHF" },
+    { label:"monthly anonymous traded volume", current:0, max:0, currency:"CHF" },
+    { label:"yearly traded volume",            current:0, max:0, currency:"CHF" },
   ];
 
   return (

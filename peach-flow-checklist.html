@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peach Web — Flow Checklist</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    color: #1a1a1a;
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+    line-height: 1.55;
+    background: #fff;
+  }
+  h1 {
+    font-size: 24px;
+    font-weight: 700;
+    border-bottom: 2px solid #f97316;
+    padding-bottom: 10px;
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    color: #888;
+    font-size: 13px;
+    margin-bottom: 28px;
+  }
+  .progress-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: #eee;
+    z-index: 100;
+  }
+  .progress-fill {
+    height: 100%;
+    background: #f97316;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+  .progress-text {
+    position: fixed;
+    top: 6px; right: 16px;
+    font-size: 12px;
+    color: #999;
+    z-index: 101;
+    background: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid #eee;
+  }
+  .section { margin-bottom: 32px; }
+  h2 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+  }
+  .section:first-of-type h2 { border-top: none; padding-top: 0; }
+  ul { list-style: none; padding: 0; }
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 5px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  li:hover { background: #fafafa; }
+  li.checked { opacity: 0.5; }
+  li.checked .label { text-decoration: line-through; color: #999; }
+  input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px; height: 18px; min-width: 18px;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    margin-top: 1px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+  }
+  input[type="checkbox"]:checked {
+    background: #f97316;
+    border-color: #f97316;
+  }
+  input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 4px; top: 1px;
+    width: 5px; height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  .label { flex: 1; }
+  code {
+    font-size: 12px;
+    background: #f3f3f3;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+  }
+  button {
+    font-size: 13px;
+    padding: 7px 16px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    color: #555;
+    transition: all 0.15s;
+  }
+  button:hover { background: #f5f5f5; border-color: #ccc; }
+  .reset-btn:hover { background: #fee; border-color: #f97316; color: #c2410c; }
+</style>
+</head>
+<body>
+
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+<div class="progress-text" id="progressText">0 / 0</div>
+
+<h1>Peach Web — Flow Checklist</h1>
+<p class="subtitle">Quick manual smoke test for all implemented user flows. Run through this after any significant change to catch regressions.</p>
+
+<div id="checklist"></div>
+
+<div class="actions">
+  <button class="reset-btn" onclick="resetAll()">Reset all</button>
+  <button onclick="collapseChecked()">Hide checked</button>
+</div>
+
+<script>
+const DATA = [
+  { title: "1. Login (QR Auth)", items: [
+    "Navigate to <code>/</code> — auth screen loads, QR code displays with countdown timer (30s)",
+    "QR auto-refreshes when countdown expires",
+    "Scan QR with mobile app — session establishes",
+    "Success screen appears with checkmark animation. Auto-redirects to <code>/home</code>",
+  ]},
+  { title: "2. Home Dashboard", items: [
+    "Navigate to <code>/home</code> — dashboard loads with welcome section, avatar, PeachID, reputation",
+    "BTC price cards show live prices, 24h high/low, period selector works (24h, 7d, 30d, all-time)",
+    "Offer book columns show buy/sell offers with premium, reputation, PMs",
+    "Contract summary and payment methods distribution render",
+    "Quick action buttons work: \"View all trades\", \"Create offer\"",
+  ]},
+  { title: "3. Browse Market", items: [
+    "Navigate to <code>/market</code> — buy and sell tabs load with offers (or empty placeholder)",
+    "Filters work: currency dropdown, payment method multi-select, payment type, \"My Offers\" toggle",
+    "Offer rows show amount (Peach format), fiat, premium (+/\u2212 with color), methods",
+    "Sorting works on columns (premium, amount, reputation) — bidirectional",
+    "Click offer row — popup shows full details, reputation, PMs, amount",
+    "Trade request: select PM \u2192 send request \u2192 loading state \u2192 \"Trade requested\" animation",
+    "Own offer: edit premium inline, withdraw (buy = immediate, sell = mobile signing)",
+  ]},
+  { title: "4. Create Buy Offer", items: [
+    "Navigate to <code>/offer/new</code> — select \"Buy\" toggle",
+    "Amount slider and input sync, fiat equivalent updates in real time. Range mode works",
+    "Set premium, select PMs (or add new PM inline), currencies auto-populate",
+    "\"Next\" \u2192 review step shows all values. \"Confirm\" \u2192 success",
+    "New offer appears on <code>/trades</code> Pending tab",
+  ]},
+  { title: "5. Create Sell Offer", items: [
+    "Select \"Sell\" toggle — same config steps as buy, plus auto-confirm toggle",
+    "\"Confirm\" \u2192 escrow step: Bitcoin address with copy button and QR",
+    "Funding status updates (mempool \u2192 confirmed). Wrong amount detected",
+    "Multi-escrow toggle works for creating multiple offers at once",
+  ]},
+  { title: "6. Accept Match \u2192 Start Trade", items: [
+    "On <code>/trades</code> Pending tab — click \"View matches\" \u2192 MatchesPopup opens",
+    "Match list shows avatar, PeachID, rating, amount, premium, PMs",
+    "Click match \u2192 detail view \u2192 \"Confirm & Continue\" \u2192 contract created",
+    "Navigates to <code>/trade/:contractId</code>",
+  ]},
+  { title: "7. Trade Execution — Buyer Path", items: [
+    "Trade execution loads — counterparty info, trade summary, stepper visible",
+    "Seller's payment details display (PGP-decrypted), copy buttons work",
+    "\"I've sent the payment\" button works \u2192 status advances",
+    "After seller confirms + releases \u2192 tradeCompleted. \"Rate\" button appears",
+  ]},
+  { title: "8. Trade Execution — Seller Path", items: [
+    "Trade execution loads — escrow address and funding amount visible",
+    "\"Confirm payment received\" button appears after buyer marks payment sent",
+    "\"Release Bitcoin\" \u2192 mobile signing modal \u2192 after signing \u2192 tradeCompleted",
+    "\"Rate\" button appears",
+  ]},
+  { title: "9. Trade Execution — Chat", items: [
+    "Chat panel loads (right side on desktop, Chat tab on mobile)",
+    "Send and receive messages (PGP-encrypted), timestamps display",
+    "Older messages load via pagination, auto-scroll to latest",
+    "Unread badge updates on sidebar",
+  ]},
+  { title: "10. Cancellation Flow", items: [
+    "\"Request cancellation\" sends request to counterparty",
+    "Counterparty can confirm or reject cancellation",
+    "Accept \u2192 trade cancelled. Reject \u2192 trade continues",
+  ]},
+  { title: "11. Dispute Flow", items: [
+    "\"Open dispute\" available when payment issues occur",
+    "Dispute system messages render in chat, notifications fire",
+    "Dispute count visible on dashboard",
+  ]},
+  { title: "12. Mobile Signing Modal", items: [
+    "Modal triggers for escrow funding, release, refund, and rating",
+    "Shows task info, QR/deep link, status updates (pending \u2192 signed \u2192 complete)",
+    "Cancel option available, modal dismisses on completion",
+  ]},
+  { title: "13. Trades Dashboard", items: [
+    "Navigate to <code>/trades</code> — Active/Pending/History tabs load",
+    "Active: trade cards with direction badge, counterparty, amount, status, unread count. Click \u2192 opens trade",
+    "Pending: offers with \"View matches\" button",
+    "History: completed/cancelled trades, search by trade ID",
+    "Filters work: payment method, currency, status. Grid/List view toggle (desktop)",
+    "QR code toggle for address only / address + amount",
+  ]},
+  { title: "14. Payment Methods (Add + Save)", items: [
+    "Navigate to <code>/payment-methods</code> — saved PMs load (or empty state)",
+    "Add PM: select type (grouped by category) \u2192 fill fields \u2192 select currencies \u2192 save",
+    "Edit and delete existing PMs work (delete has confirmation)",
+    "New PM appears in <code>/offer/new</code> dropdown. PMs sync to server (PGP-encrypted)",
+  ]},
+  { title: "15. Notifications", items: [
+    "Bell icon shows unread count badge, click opens NotificationPanel",
+    "Notifications display (trade updates, matches, disputes, expiry warnings)",
+    "\"Mark all read\" works. Page title shows unread indicator",
+  ]},
+  { title: "16. Settings", items: [
+    "Navigate to <code>/settings</code> — all settings sub-screens load and save correctly",
+  ]},
+  { title: "17. Session Expiration", items: [
+    "After ~2 hours — SessionExpiredModal appears",
+    "Re-authenticate returns to login, cache and auth state cleared",
+  ]},
+  { title: "Quick Cross-Checks", items: [
+    "<strong>Amounts:</strong> Pick any screen with Bitcoin amounts — verify \u20bf format (grey zeros + bold sats + comma decimal)",
+    "<strong>Navigation:</strong> Click through all 6 sidebar items — each screen loads without blank/error",
+    "<strong>Auth guard:</strong> While logged in, no mock data appears anywhere",
+    "<strong>Logout:</strong> Click avatar \u2192 Log out \u2192 returns to <code>/</code>, auth state cleared",
+    "<strong>Dark mode:</strong> Toggle dark mode in settings — all screens render correctly",
+    "<strong>Mobile responsive:</strong> Resize browser to mobile width — sidebar collapses, tabs/layouts adapt",
+    "<strong>Topbar:</strong> PeachID, BTC price with currency selector, notification bell, avatar menu all present",
+    "<strong>Sidebar badges:</strong> Unread count badge updates when new messages arrive",
+    "<strong>Session timer:</strong> Session indicator visible in topbar, warning appears near expiry",
+  ]},
+];
+
+const STORAGE_KEY = 'peach-checklist-state';
+function loadState() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
+function saveState(st) { localStorage.setItem(STORAGE_KEY, JSON.stringify(st)); }
+
+let state = loadState();
+let totalItems = 0;
+let allCheckboxes = [];
+
+function buildChecklist() {
+  const root = document.getElementById('checklist');
+  let idx = 0;
+  DATA.forEach(sec => {
+    const div = document.createElement('div');
+    div.className = 'section';
+    let html = `<h2>${sec.title}</h2><ul>`;
+    sec.items.forEach(item => {
+      const id = `c${idx++}`;
+      const checked = state[id] ? 'checked' : '';
+      html += `<li class="${checked ? 'checked' : ''}" data-id="${id}">
+        <input type="checkbox" id="${id}" ${checked}>
+        <span class="label">${item}</span>
+      </li>`;
+    });
+    html += '</ul>';
+    div.innerHTML = html;
+    root.appendChild(div);
+  });
+  totalItems = idx;
+  allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+  document.querySelectorAll('#checklist li').forEach(li => {
+    li.addEventListener('click', e => {
+      if (e.target.tagName === 'INPUT') return;
+      const cb = li.querySelector('input');
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event('change'));
+    });
+  });
+  allCheckboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      const li = cb.closest('li');
+      if (cb.checked) { state[cb.id] = true; li.classList.add('checked'); }
+      else { delete state[cb.id]; li.classList.remove('checked'); }
+      saveState(state);
+      updateProgress();
+    });
+  });
+  updateProgress();
+}
+
+function updateProgress() {
+  const done = Object.keys(state).length;
+  const pct = totalItems ? (done / totalItems * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `${done} / ${totalItems}`;
+}
+
+function resetAll() {
+  if (!confirm('Reset all checkboxes?')) return;
+  state = {};
+  saveState(state);
+  allCheckboxes.forEach(cb => { cb.checked = false; cb.closest('li').classList.remove('checked'); });
+  updateProgress();
+}
+
+function collapseChecked() {
+  document.querySelectorAll('#checklist li.checked').forEach(li => {
+    li.style.display = li.style.display === 'none' ? 'flex' : 'none';
+  });
+}
+
+buildChecklist();
+</script>
+</body>
+</html>

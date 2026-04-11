@@ -10,7 +10,7 @@ import { SAT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur } from "../../
 
 // ─── CONSTANTS (shared with index.jsx) ──────────────────────────────────────
 
-export const CHF_EUR    = 0.96;           // mock CHF/EUR rate
+export const CHF_EUR    = 0.96;           // TODO: fetch live rate from /market/prices
 export const LIMIT_EUR  = 1000 * CHF_EUR; // ≈ 960 EUR — daily trading limit
 export const MIN_SATS   = 20_000;
 export const maxSatsAtPrice = (price) => Math.floor((LIMIT_EUR / price) * SAT);

@@ -1,5 +1,5 @@
 // ─── SHARED UI CONSTANTS ────────────────────────────────────────────────────
-// Non-mock constants used across screens.
+// Constants used across screens.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Deterministic avatar colour palette — indexed by peachId hash. */

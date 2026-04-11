@@ -63,7 +63,7 @@ export default function OfferCreation({ initialType="buy" }) {
   // ── FETCH LIVE SAVED PMs ──
   useEffect(() => {
     if (!auth) return;
-    // On regtest, clear mock data while we fetch
+    // Clear PMs before fetching fresh data
     setSavedMethods([]);
     const selfUserBase = auth.baseUrl.replace(/\/v1$/, '/v069');
     fetchWithSessionCheck(`${selfUserBase}/selfUser`, {
@@ -387,7 +387,7 @@ export default function OfferCreation({ initialType="buy" }) {
 
       // ── SELL OFFER SUBMISSION ──
       if(isSell){
-        if(!auth){ setStep(2); return; } // mock mode when logged out
+        if(!auth){ setPublishError("You must be logged in to create a sell offer"); return; }
 
         if(!auth.multisigXpub){
           setPublishError("No multisigXpub available — please re-authenticate");
@@ -1479,15 +1479,6 @@ export default function OfferCreation({ initialType="buy" }) {
                         </div>
                       </div>
                     </div>
-                  )}
-                  {!auth&&(
-                    <button onClick={()=>setEscrowFunded(true)} style={{
-                      width:"100%",padding:"10px",borderRadius:999,
-                      border:"1.5px solid var(--black-10)",background:"transparent",
-                      color:"var(--black-65)",fontFamily:"var(--font)",fontSize:".8rem",
-                      fontWeight:700,cursor:"pointer"}}>
-                      Simulate funding (demo)
-                    </button>
                   )}
                 </>
               ):(

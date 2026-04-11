@@ -53,7 +53,7 @@ export default function PeachMarket() {
   // ── AUTH + API ──
   const { get, post, patch, auth } = useApi();
   const [liveOffers,   setLiveOffers]   = useState(() => getCached("market-offers")?.data ?? null);
-  const [liveUserPMs,  setLiveUserPMs]  = useState(null); // null = use mock
+  const [liveUserPMs,  setLiveUserPMs]  = useState(null); // null = not yet loaded
   const [pmError,      setPmError]      = useState(false);
   const [offersLoading, setOffersLoading] = useState(() => !!auth && !getCached("market-offers"));
 
@@ -535,8 +535,6 @@ export default function PeachMarket() {
           ...asksArr.map(normalizeOffer),
         ];
       }
-      console.log("[MarketView] normalized sample:", all[0]);
-
       setCache("market-offers", all);
       setLiveOffers(all);
     } catch (err) {

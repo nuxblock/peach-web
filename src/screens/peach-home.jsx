@@ -284,9 +284,9 @@ export default function PeachHome() {
   const { auth, isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
   const { get } = useApi();
   const liveProfile = auth?.profile ?? null;
-  // Build user profile — live data when logged in, mock data when logged out.
+  // Build user profile — live data when logged in, empty defaults when logged out.
   // Some fields (preferredMethods, totalVolumeBtc, etc.) are not yet returned by
-  // the API, so we show "—" / empty instead of fake mock values.
+  // the API, so we show "—" / empty defaults.
   const disputes = liveProfile?.disputes;
   const disputesTotal = disputes
     ? (typeof disputes === "number" ? disputes : Object.values(disputes).reduce((s, v) => s + (v || 0), 0))

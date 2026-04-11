@@ -74,11 +74,9 @@ src/
 │   ├── pgp.js            # PGP encrypt/decrypt helpers
 │   └── format.js         # Number/date formatting helpers
 ├── data/
-│   ├── mockData.js       # All mock/demo data (only used when logged out)
 │   └── statusConfig.js   # Trade status configuration (31 statuses)
 ├── App.jsx               # Router
 ├── main.jsx              # Entry point
-├── peach-api-config.js   # API endpoint catalogue
 └── peach-validators.js   # Input validation helpers
 ```
 

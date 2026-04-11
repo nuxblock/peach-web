@@ -39,8 +39,9 @@ export function clearCache(key) {
 /**
  * createTask — request a mobile signing action via the server.
  *
- * When the backend endpoint is ready, this will POST to /v1/task/create.
- * For now it's a mock that logs to console and returns a fake taskId.
+ * STUB: the backend endpoint (POST /v1/task/create) does not exist yet.
+ * Returns a placeholder taskId so the UI flows (escrow funding, rating)
+ * can proceed. Replace with the real call when the endpoint is available.
  *
  * @param {Function} post - the post() function from useApi()
  * @param {string}   type - task type: "release" | "refund" | "rate" | "escrow"
@@ -50,8 +51,7 @@ export function clearCache(key) {
 export async function createTask(post, type, payload) {
   // TODO: replace with real endpoint when backend confirms shape
   // return post('/task/create', { type, ...payload }).then(r => r.json());
-  console.log('[createTask mock]', type, payload);
-  return { taskId: 'mock-' + Date.now() };
+  return { taskId: 'stub-' + Date.now() };
 }
 export function useApi() {
   const auth = window.__PEACH_AUTH__ ?? null;

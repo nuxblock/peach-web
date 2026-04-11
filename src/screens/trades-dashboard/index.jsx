@@ -554,7 +554,7 @@ export default function TradesDashboard() {
   const { get, post, patch, del, auth } = useApi();
   const [liveItems, setLiveItems] = useState(() => getCached("trades-items")?.data ?? null);
   const [livePending, setLivePending] = useState(() => getCached("trades-pending")?.data ?? null);
-  const [liveLimit, setLiveLimit] = useState(null);    // null = use mock
+  const [liveLimit, setLiveLimit] = useState(null);    // null = not yet loaded
   const [tradesLoading, setTradesLoading] = useState(() => !!auth && !getCached("trades-items"));
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -1427,11 +1427,7 @@ export default function TradesDashboard() {
   async function handleConfirmAccept(trade, match) {
     setMatchError(null);
     if (!auth) {
-      // Mock mode — just update UI
-      setAcceptedTrades(prev => new Set([...prev, trade.id]));
-      setMatchesPopup(null);
-      setMatchDetail(null);
-      setMatchConfirm(null);
+      setMatchError("You must be logged in to accept trades");
       return;
     }
     try {
