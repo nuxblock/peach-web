@@ -53,9 +53,9 @@ export function HorizontalStepper({ status, statusWithoutDispute }) {
         const isDone   = i < activeStep;
         const isActive = i === activeStep && !isAborted;
         const isAbortedStep = isAborted && i === activeStep;
-        const dotColor = isDone ? "#65A519" : isActive ? "#F56522" : isAbortedStep ? "#DF321F" : "#C4B5AE";
-        const labelColor = isDone ? "#65A519" : isActive ? "#2B1911" : isAbortedStep ? "#DF321F" : "#C4B5AE";
-        const lineColor = isDone ? "#65A519" : "#EAE3DF";
+        const dotColor = isDone ? "var(--success)" : isActive ? "var(--primary)" : isAbortedStep ? "var(--error)" : "var(--black-25)";
+        const labelColor = isDone ? "var(--success)" : isActive ? "var(--black)" : isAbortedStep ? "var(--error)" : "var(--black-25)";
+        const lineColor = isDone ? "var(--success)" : "var(--black-10)";
 
         return (
           <div key={s.id} className="h-step">
@@ -66,8 +66,8 @@ export function HorizontalStepper({ status, statusWithoutDispute }) {
             {/* Dot */}
             <div className="h-step-dot" style={{
               background: dotColor,
-              border: (isActive || isAbortedStep || isDone) ? "none" : "2px solid #C4B5AE",
-              boxShadow: isActive ? "0 0 0 3px #FEEDE5" : "none",
+              border: (isActive || isAbortedStep || isDone) ? "none" : "2px solid var(--black-25)",
+              boxShadow: isActive ? "0 0 0 3px var(--primary-mild)" : "none",
             }}>
               {isDone && <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><polyline points="1,4 3,6 7,2" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>}
             </div>
@@ -114,13 +114,13 @@ export function PaymentDetailsCard({ details }) {
 
   return (
     <div style={{
-      background:"#FFF9F6", border:"1.5px solid #EAE3DF", borderRadius:12,
+      background:"var(--bg)", border:"1.5px solid var(--black-10)", borderRadius:12,
       overflow:"hidden", marginBottom:16,
     }}>
       <div style={{
-        background:"#FEEDE5", padding:"8px 14px",
+        background:"var(--primary-mild)", padding:"8px 14px",
         display:"flex", alignItems:"center", gap:6,
-        fontSize:".72rem", fontWeight:700, color:"#C45104",
+        fontSize:".72rem", fontWeight:700, color:"var(--primary-dark)",
         textTransform:"uppercase", letterSpacing:".05em",
       }}>
         <IconLock/> Payment Details — {details.type}
@@ -128,16 +128,16 @@ export function PaymentDetailsCard({ details }) {
       {rows.map(r => (
         <div key={r.label} style={{
           display:"flex", justifyContent:"space-between", alignItems:"center",
-          padding:"8px 14px", borderBottom:"1px solid #F4EEEB",
+          padding:"8px 14px", borderBottom:"1px solid var(--black-5)",
         }}>
           <div>
-            <div style={{ fontSize:".68rem", color:"#7D675E", fontWeight:600, textTransform:"uppercase", letterSpacing:".04em" }}>{r.label}</div>
-            <div style={{ fontSize:".85rem", fontWeight:600, color:"#2B1911", fontFamily: r.label === "IBAN" || r.label === "BIC" ? "monospace" : "inherit" }}>{r.value}</div>
+            <div style={{ fontSize:".68rem", color:"var(--black-65)", fontWeight:600, textTransform:"uppercase", letterSpacing:".04em" }}>{r.label}</div>
+            <div style={{ fontSize:".85rem", fontWeight:600, color:"var(--black)", fontFamily: r.label === "IBAN" || r.label === "BIC" ? "monospace" : "inherit" }}>{r.value}</div>
           </div>
           <button
             style={{
               border:"none", background:"transparent", cursor:"pointer",
-              color: copied === r.label ? "#65A519" : "#7D675E", padding:4, borderRadius:6,
+              color: copied === r.label ? "var(--success)" : "var(--black-65)", padding:4, borderRadius:6,
               transition:"color .2s",
             }}
             onClick={() => copy(r.value, r.label)}
@@ -163,15 +163,15 @@ export function EscrowAddressCard({ address }) {
 
   return (
     <div style={{
-      background:"#F4EEEB", border:"1px solid #EAE3DF", borderRadius:12,
+      background:"var(--black-5)", border:"1px solid var(--black-10)", borderRadius:12,
       padding:"12px 14px", marginBottom:16,
     }}>
-      <div style={{ fontSize:".68rem", fontWeight:700, color:"#7D675E", textTransform:"uppercase", letterSpacing:".05em", marginBottom:8 }}>
+      <div style={{ fontSize:".68rem", fontWeight:700, color:"var(--black-65)", textTransform:"uppercase", letterSpacing:".05em", marginBottom:8 }}>
         <IconQR/> Escrow Address
       </div>
       <div style={{ display:"flex", gap:10, alignItems:"center" }}>
         <div style={{
-          width:64, height:64, background:"white", border:"1px solid #EAE3DF",
+          width:64, height:64, background:"white", border:"1px solid var(--black-10)",
           borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center",
           flexShrink:0, padding:4,
         }}>
@@ -179,15 +179,15 @@ export function EscrowAddressCard({ address }) {
         </div>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{
-            fontFamily:"monospace", fontSize:".72rem", color:"#2B1911",
+            fontFamily:"monospace", fontSize:".72rem", color:"var(--black)",
             wordBreak:"break-all", lineHeight:1.5, marginBottom:6,
           }}>{address}</div>
           <button
             style={{
               display:"flex", alignItems:"center", gap:5,
-              border:"1px solid #EAE3DF", background:"white", borderRadius:999,
+              border:"1px solid var(--black-10)", background:"white", borderRadius:999,
               fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
-              color: copied ? "#65A519" : "#7D675E",
+              color: copied ? "var(--success)" : "var(--black-65)",
               padding:"3px 10px", cursor:"pointer", transition:"color .2s",
             }}
             onClick={copy}
@@ -259,12 +259,12 @@ function DisputeFlow({ tradeId, role, onClose, onSubmit }) {
         }}>
           <div style={{ fontSize:"2rem", marginBottom:12 }}>✓</div>
           <div style={{ fontWeight:800, fontSize:"1rem", marginBottom:8 }}>Dispute opened</div>
-          <div style={{ fontSize:".88rem", color:"#7D675E", marginBottom:24, lineHeight:1.6 }}>
+          <div style={{ fontSize:".88rem", color:"var(--black-65)", marginBottom:24, lineHeight:1.6 }}>
             A Peach mediator has been assigned to your case and will be in touch soon.
           </div>
           <button
             style={{
-              width:"100%", border:"none", background:"#DF321F", borderRadius:999,
+              width:"100%", border:"none", background:"var(--error)", borderRadius:999,
               fontFamily:"Baloo 2, cursive", fontWeight:800, fontSize:".9rem",
               color:"white", padding:"11px", cursor:"pointer",
             }}
@@ -291,20 +291,20 @@ function DisputeFlow({ tradeId, role, onClose, onSubmit }) {
         }}>
           <div style={{ padding:"24px 24px 20px" }}>
             <div style={{ fontWeight:800, fontSize:"1.15rem", marginBottom:16 }}>open dispute</div>
-            <p style={{ fontSize:".9rem", color:"#2B1911", lineHeight:1.65, marginBottom:12 }}>
+            <p style={{ fontSize:".9rem", color:"var(--black)", lineHeight:1.65, marginBottom:12 }}>
               This will request the intervention of a Peach employee to mediate between you and your counterpart.
             </p>
-            <p style={{ fontSize:".9rem", color:"#2B1911", lineHeight:1.65, marginBottom:12 }}>
+            <p style={{ fontSize:".9rem", color:"var(--black)", lineHeight:1.65, marginBottom:12 }}>
               Opening a dispute will reveal the chat and payment methods to Peach.
             </p>
-            <p style={{ fontSize:".9rem", color:"#2B1911", lineHeight:1.65 }}>
+            <p style={{ fontSize:".9rem", color:"var(--black)", lineHeight:1.65 }}>
               Please only use this as a last resort.
             </p>
           </div>
           <div style={{
             display:"flex", alignItems:"center",
-            borderTop:"1px solid #EAE3DF",
-            background:"#DF321F",
+            borderTop:"1px solid var(--black-10)",
+            background:"var(--error)",
           }}>
             <button
               style={{
@@ -340,7 +340,7 @@ function DisputeFlow({ tradeId, role, onClose, onSubmit }) {
       {/* ── Step 2: Reason ── */}
       {step === 2 && (
         <div style={{
-          background:"#FFF9F6", borderRadius:20, maxWidth:400, width:"100%",
+          background:"var(--bg)", borderRadius:20, maxWidth:400, width:"100%",
           boxShadow:"0 20px 60px rgba(0,0,0,.3)",
           animation:"modalIn .18s ease", padding:"40px 28px 32px",
         }}>
@@ -348,21 +348,21 @@ function DisputeFlow({ tradeId, role, onClose, onSubmit }) {
             what's up?
           </div>
           {submitting && (
-            <div style={{ textAlign:"center", fontSize:".85rem", color:"#7D675E", padding:"20px 0" }}>Submitting...</div>
+            <div style={{ textAlign:"center", fontSize:".85rem", color:"var(--black-65)", padding:"20px 0" }}>Submitting...</div>
           )}
           {submitError && (
-            <div style={{ fontSize:".78rem", color:"#DF321F", textAlign:"center", marginBottom:10 }}>{submitError}</div>
+            <div style={{ fontSize:".78rem", color:"var(--error)", textAlign:"center", marginBottom:10 }}>{submitError}</div>
           )}
           {!submitting && <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             {reasons.map(r => (
               <button
                 key={r.key}
                 style={{
-                  border: reason === r.key ? "2px solid #DF321F" : "1.5px solid #C4B5AE",
-                  background: reason === r.key ? "#FFF0EE" : "white",
+                  border: reason === r.key ? "2px solid var(--error)" : "1.5px solid var(--black-25)",
+                  background: reason === r.key ? "var(--error-bg)" : "white",
                   borderRadius:999, fontFamily:"Baloo 2, cursive",
                   fontWeight:700, fontSize:".82rem", letterSpacing:".04em",
-                  color: reason === r.key ? "#DF321F" : "#624D44",
+                  color: reason === r.key ? "var(--error)" : "var(--black-75)",
                   padding:"13px 20px", cursor:"pointer", transition:"all .15s",
                   textAlign:"center",
                 }}
@@ -381,7 +381,7 @@ function DisputeFlow({ tradeId, role, onClose, onSubmit }) {
             style={{
               marginTop:20, background:"none", border:"none",
               fontFamily:"Baloo 2, cursive", fontSize:".82rem",
-              color:"#7D675E", cursor:"pointer", display:"block", margin:"20px auto 0",
+              color:"var(--black-65)", cursor:"pointer", display:"block", margin:"20px auto 0",
             }}
             onClick={() => setStep(1)}
           >← Back</button>
@@ -391,7 +391,7 @@ function DisputeFlow({ tradeId, role, onClose, onSubmit }) {
       {/* ── Step 3: Details ── */}
       {step === 3 && (
         <div style={{
-          background:"#FFF9F6", borderRadius:20, maxWidth:400, width:"100%",
+          background:"var(--bg)", borderRadius:20, maxWidth:400, width:"100%",
           boxShadow:"0 20px 60px rgba(0,0,0,.3)",
           animation:"modalIn .18s ease", padding:"40px 28px 32px",
         }}>
@@ -401,26 +401,26 @@ function DisputeFlow({ tradeId, role, onClose, onSubmit }) {
           <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:24 }}>
             <input
               style={{
-                border:`1.5px solid ${email.trim().length > 0 && !emailValid ? "#DF321F" : "#C4B5AE"}`,
+                border:`1.5px solid ${email.trim().length > 0 && !emailValid ? "var(--error)" : "var(--black-25)"}`,
                 borderRadius:12, background:"white",
-                fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"#2B1911",
+                fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"var(--black)",
                 padding:"12px 16px", outline:"none",
               }}
               placeholder="user@email.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              onFocus={e => e.target.style.borderColor="#DF321F"}
-              onBlur={e => e.target.style.borderColor = (email.trim().length > 0 && !emailValid) ? "#DF321F" : "#C4B5AE"}
+              onFocus={e => e.target.style.borderColor="var(--error)"}
+              onBlur={e => e.target.style.borderColor = (email.trim().length > 0 && !emailValid) ? "var(--error)" : "var(--black-25)"}
             />
             {email.trim().length > 0 && !emailValid && (
-              <div style={{ fontSize:".78rem", color:"#DF321F", marginTop:-4, paddingLeft:4 }}>
+              <div style={{ fontSize:".78rem", color:"var(--error)", marginTop:-4, paddingLeft:4 }}>
                 Please enter a valid email address
               </div>
             )}
             <input
               style={{
-                border:"1.5px solid #C4B5AE", borderRadius:12, background:"#F9F5F3",
-                fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"#7D675E",
+                border:"1.5px solid var(--black-25)", borderRadius:12, background:"var(--black-5)",
+                fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"var(--black-65)",
                 padding:"12px 16px", outline:"none",
               }}
               value={(reasons.find(r => r.key === reason)?.label ?? reason).toLowerCase()}
@@ -428,16 +428,16 @@ function DisputeFlow({ tradeId, role, onClose, onSubmit }) {
             />
             <textarea
               style={{
-                border:"1.5px solid #C4B5AE", borderRadius:12, background:"white",
-                fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"#2B1911",
+                border:"1.5px solid var(--black-25)", borderRadius:12, background:"white",
+                fontFamily:"Baloo 2, cursive", fontSize:".9rem", color:"var(--black)",
                 padding:"12px 16px", outline:"none", resize:"none",
                 minHeight:100, lineHeight:1.5,
               }}
               placeholder="your message..."
               value={message}
               onChange={e => setMessage(e.target.value)}
-              onFocus={e => e.target.style.borderColor="#DF321F"}
-              onBlur={e => e.target.style.borderColor="#C4B5AE"}
+              onFocus={e => e.target.style.borderColor="var(--error)"}
+              onBlur={e => e.target.style.borderColor="var(--black-25)"}
             />
           </div>
           <button
@@ -445,7 +445,7 @@ function DisputeFlow({ tradeId, role, onClose, onSubmit }) {
               width:"100%", border:"none", borderRadius:999,
               fontFamily:"Baloo 2, cursive", fontWeight:800, fontSize:".9rem",
               color:"white", padding:"13px",
-              background: canConfirm ? "#DF321F" : "#F5C6BE",
+              background: canConfirm ? "var(--error)" : "var(--error-bg)",
               cursor: canConfirm ? "pointer" : "not-allowed",
               letterSpacing:".06em", transition:"background .2s",
             }}
@@ -453,13 +453,13 @@ function DisputeFlow({ tradeId, role, onClose, onSubmit }) {
             onClick={() => { if (canConfirm) submitDispute(reason, email.trim(), message.trim()); }}
           >{submitting ? "SUBMITTING..." : "CONFIRM"}</button>
           {submitError && (
-            <div style={{ fontSize:".78rem", color:"#DF321F", textAlign:"center", marginTop:8 }}>{submitError}</div>
+            <div style={{ fontSize:".78rem", color:"var(--error)", textAlign:"center", marginTop:8 }}>{submitError}</div>
           )}
           <button
             style={{
               marginTop:14, background:"none", border:"none",
               fontFamily:"Baloo 2, cursive", fontSize:".82rem",
-              color:"#7D675E", cursor:"pointer", display:"block", margin:"14px auto 0",
+              color:"var(--black-65)", cursor:"pointer", display:"block", margin:"14px auto 0",
             }}
             onClick={() => setStep(2)}
           >← Back</button>
@@ -476,8 +476,8 @@ function TradingRulesCard({ disputeOpen, disabled, onOpenDispute }) {
 
   return (
     <div style={{
-      borderBottom:"1px solid #EAE3DF",
-      background:"#FEFCE5",
+      borderBottom:"1px solid var(--black-10)",
+      background:"var(--warning-soft)",
       flexShrink:0,
     }}>
       <div style={{
@@ -489,13 +489,13 @@ function TradingRulesCard({ disputeOpen, disabled, onOpenDispute }) {
           style={{
             display:"flex", alignItems:"center", gap:6,
             border:"none", background:"transparent", fontFamily:"Baloo 2, cursive",
-            fontWeight:700, fontSize:".82rem", color:"#624D44",
+            fontWeight:700, fontSize:".82rem", color:"var(--black-75)",
             padding:"10px 0", cursor:"pointer",
           }}
           onClick={() => setOpen(o => !o)}
         >
           <span>📋 Trading Rules</span>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#2B1911" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 1.5L0.8 10.5h10.4L6 1.5z"/><line x1="6" y1="5" x2="6" y2="7.5"/><circle cx="6" cy="9" r=".5" fill="#2B1911" stroke="none"/></svg>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--black)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 1.5L0.8 10.5h10.4L6 1.5z"/><line x1="6" y1="5" x2="6" y2="7.5"/><circle cx="6" cy="9" r=".5" fill="var(--black)" stroke="none"/></svg>
           {open ? <IconChevronUp/> : <IconChevronDown/>}
         </button>
 
@@ -505,12 +505,12 @@ function TradingRulesCard({ disputeOpen, disabled, onOpenDispute }) {
             display:"flex", alignItems:"center", gap:5,
             border:"1.5px solid rgba(223,50,31,.25)", borderRadius:999,
             background:"white", fontFamily:"Baloo 2, cursive",
-            fontWeight:700, fontSize:".72rem", color:"#DF321F",
+            fontWeight:700, fontSize:".72rem", color:"var(--error)",
             padding:"5px 12px", cursor: (disabled || disputeOpen) ? "default" : "pointer",
             opacity: disabled ? 0.4 : 1,
           }}
           onClick={() => !disabled && !disputeOpen && onOpenDispute?.()}
-          onMouseEnter={e => { if (!disabled && !disputeOpen) e.currentTarget.style.background="#FFF0EE"; }}
+          onMouseEnter={e => { if (!disabled && !disputeOpen) e.currentTarget.style.background="var(--error-bg)"; }}
           onMouseLeave={e => { e.currentTarget.style.background="white"; }}
         >
           <IconDispute/> <span>{disputeOpen ? "dispute open" : "open dispute"}</span>
@@ -519,7 +519,7 @@ function TradingRulesCard({ disputeOpen, disabled, onOpenDispute }) {
       {open && (
         <div style={{
           padding:"0 18px 14px",
-          fontSize:".82rem", color:"#624D44", lineHeight:1.7,
+          fontSize:".82rem", color:"var(--black-75)", lineHeight:1.7,
         }}>
           <p style={{ marginBottom:10 }}>
             <strong>For the Seller:</strong><br/>
@@ -574,13 +574,13 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
 
   return (
     <div style={{
-      background:"white", border:"1.5px solid #EAE3DF", borderRadius:14,
+      background:"white", border:"1.5px solid var(--black-10)", borderRadius:14,
       overflow:"hidden", marginBottom:16,
     }}>
       {/* Header */}
       <div style={{
-        background:"#FEEDE5", padding:"10px 16px",
-        fontSize:".72rem", fontWeight:700, color:"#C45104",
+        background:"var(--primary-mild)", padding:"10px 16px",
+        fontSize:".72rem", fontWeight:700, color:"var(--primary-dark)",
         textTransform:"uppercase", letterSpacing:".05em",
         display:"flex", alignItems:"center", gap:6,
       }}>
@@ -590,21 +590,21 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
       {/* Amount highlight */}
       <div style={{
         padding:"14px 16px 12px",
-        borderBottom:"1px solid #F4EEEB",
+        borderBottom:"1px solid var(--black-5)",
         display:"flex", justifyContent:"space-between", alignItems:"center",
       }}>
         <div>
-          <div style={{ fontSize:".68rem", fontWeight:700, color:"#7D675E", textTransform:"uppercase", letterSpacing:".05em", marginBottom:3 }}>Amount to send</div>
+          <div style={{ fontSize:".68rem", fontWeight:700, color:"var(--black-65)", textTransform:"uppercase", letterSpacing:".05em", marginBottom:3 }}>Amount to send</div>
           <SatsAmount sats={sats} size="lg"/>
-          <div style={{ fontSize:".78rem", color:"#7D675E", marginTop:2 }}>= {btcAmount} BTC</div>
+          <div style={{ fontSize:".78rem", color:"var(--black-65)", marginTop:2 }}>= {btcAmount} BTC</div>
         </div>
         <button
           style={{
             display:"flex", alignItems:"center", gap:5,
-            border:"1px solid #EAE3DF", background: copiedAmt ? "#F2F9E7" : "white",
+            border:"1px solid var(--black-10)", background: copiedAmt ? "var(--success-bg)" : "white",
             borderRadius:999, fontFamily:"Baloo 2, cursive",
             fontSize:".72rem", fontWeight:700,
-            color: copiedAmt ? "#65A519" : "#7D675E",
+            color: copiedAmt ? "var(--success)" : "var(--black-65)",
             padding:"5px 12px", cursor:"pointer", transition:"all .2s",
           }}
           onClick={() => copy(btcAmount, setCopiedAmt)}
@@ -617,12 +617,12 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
       <div style={{ padding:"16px", display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
         {!address ? (
           <div style={{ padding:"32px 16px", display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
-            <div style={{ width:28, height:28, border:"3px solid #EAE3DF", borderTopColor:"#F5A623", borderRadius:"50%", animation:"spin 1s linear infinite" }}/>
-            <div style={{ fontSize:".78rem", color:"#7D675E", fontWeight:600 }}>Generating escrow address...</div>
+            <div style={{ width:28, height:28, border:"3px solid var(--black-10)", borderTopColor:"var(--primary)", borderRadius:"50%", animation:"spin 1s linear infinite" }}/>
+            <div style={{ fontSize:".78rem", color:"var(--black-65)", fontWeight:600 }}>Generating escrow address...</div>
           </div>
         ) : (<>
         <div style={{
-          padding:10, background:"white", border:"1px solid #EAE3DF",
+          padding:10, background:"white", border:"1px solid var(--black-10)",
           borderRadius:10, display:"inline-block",
         }}>
           <EscrowQR size={160}/>
@@ -631,7 +631,7 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
         {/* Toggle */}
         <div style={{
           display:"flex", alignItems:"center", gap:0,
-          background:"#F4EEEB", borderRadius:999, padding:3,
+          background:"var(--black-5)", borderRadius:999, padding:3,
           fontSize:".72rem", fontWeight:700,
         }}>
           <button
@@ -639,7 +639,7 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
               border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
               fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
               background: !withAmount ? "white" : "transparent",
-              color: !withAmount ? "#2B1911" : "#7D675E",
+              color: !withAmount ? "var(--black)" : "var(--black-65)",
               boxShadow: !withAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
               transition:"all .15s",
             }}
@@ -650,7 +650,7 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
               border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
               fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
               background: withAmount ? "white" : "transparent",
-              color: withAmount ? "#2B1911" : "#7D675E",
+              color: withAmount ? "var(--black)" : "var(--black-65)",
               boxShadow: withAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
               transition:"all .15s",
             }}
@@ -658,7 +658,7 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
           >Address + amount</button>
         </div>
 
-        <div style={{ fontSize:".68rem", color:"#7D675E", textAlign:"center", lineHeight:1.5 }}>
+        <div style={{ fontSize:".68rem", color:"var(--black-65)", textAlign:"center", lineHeight:1.5 }}>
           {withAmount
             ? "QR includes amount — most wallets will fill it in automatically"
             : "QR contains address only — enter the amount manually in your wallet"}
@@ -670,20 +670,20 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
       {address && (
       <div style={{
         padding:"12px 16px 14px",
-        borderTop:"1px solid #F4EEEB",
+        borderTop:"1px solid var(--black-5)",
       }}>
-        <div style={{ fontSize:".68rem", fontWeight:700, color:"#7D675E", textTransform:"uppercase", letterSpacing:".05em", marginBottom:6 }}>Escrow address</div>
+        <div style={{ fontSize:".68rem", fontWeight:700, color:"var(--black-65)", textTransform:"uppercase", letterSpacing:".05em", marginBottom:6 }}>Escrow address</div>
         <div style={{
-          fontFamily:"monospace", fontSize:".72rem", color:"#2B1911",
+          fontFamily:"monospace", fontSize:".72rem", color:"var(--black)",
           wordBreak:"break-all", lineHeight:1.6, marginBottom:8,
         }}>{address}</div>
         <button
           style={{
             display:"flex", alignItems:"center", gap:5,
-            border:"1px solid #EAE3DF", background: copiedAddr ? "#F2F9E7" : "white",
+            border:"1px solid var(--black-10)", background: copiedAddr ? "var(--success-bg)" : "white",
             borderRadius:999, fontFamily:"Baloo 2, cursive",
             fontSize:".72rem", fontWeight:700,
-            color: copiedAddr ? "#65A519" : "#7D675E",
+            color: copiedAddr ? "var(--success)" : "var(--black-65)",
             padding:"4px 12px", cursor:"pointer", transition:"all .2s",
           }}
           onClick={() => copy(address, setCopiedAddr)}
@@ -697,16 +697,16 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
       {address && onFundViaMobile && (
       <div style={{
         padding:"12px 16px 14px",
-        borderTop:"1px solid #F4EEEB",
+        borderTop:"1px solid var(--black-5)",
       }}>
-        <div style={{ fontSize:".68rem", fontWeight:700, color:"#7D675E", textTransform:"uppercase", letterSpacing:".05em", marginBottom:6 }}>Or fund from your Peach mobile app</div>
+        <div style={{ fontSize:".68rem", fontWeight:700, color:"var(--black-65)", textTransform:"uppercase", letterSpacing:".05em", marginBottom:6 }}>Or fund from your Peach mobile app</div>
         <button
           onClick={onFundViaMobile}
           disabled={fundLoading || fundRequested}
           style={{
             width:"100%", padding:"10px 14px", borderRadius:999,
-            border:"none", background: fundRequested ? "#F4EEEB" : "var(--grad)",
-            color: fundRequested ? "#7D675E" : "white",
+            border:"none", background: fundRequested ? "var(--black-5)" : "var(--grad)",
+            color: fundRequested ? "var(--black-65)" : "white",
             fontFamily:"Baloo 2, cursive", fontSize:".82rem", fontWeight:800,
             cursor: (fundLoading || fundRequested) ? "default" : "pointer",
             opacity: fundLoading ? 0.6 : 1,
@@ -715,7 +715,7 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
           {fundLoading ? "Sending request…" : fundRequested ? "Request sent — check your phone" : "Fund via mobile app"}
         </button>
         {fundError && (
-          <div style={{ color:"#DF321F", fontSize:".74rem", fontWeight:600, marginTop:6 }}>{fundError}</div>
+          <div style={{ color:"var(--error)", fontSize:".74rem", fontWeight:600, marginTop:6 }}>{fundError}</div>
         )}
       </div>
       )}
@@ -739,29 +739,29 @@ function ConfirmModal({ title, body, confirmLabel, onConfirm, onCancel }) {
       }}>
         <div style={{
           width:44, height:44, borderRadius:"50%",
-          background:"#FFF0EE", display:"flex", alignItems:"center",
+          background:"var(--error-bg)", display:"flex", alignItems:"center",
           justifyContent:"center", marginBottom:14,
         }}>
           <IconAlert/>
         </div>
         <div style={{ fontWeight:800, fontSize:"1.05rem", marginBottom:8 }}>{title}</div>
-        <div style={{ fontSize:".88rem", color:"#7D675E", lineHeight:1.6, marginBottom:24 }}>{body}</div>
+        <div style={{ fontSize:".88rem", color:"var(--black-65)", lineHeight:1.6, marginBottom:24 }}>{body}</div>
         <div style={{ display:"flex", gap:10 }}>
           <button
             style={{
-              flex:1, border:"1.5px solid #EAE3DF", background:"white",
+              flex:1, border:"1.5px solid var(--black-10)", background:"white",
               borderRadius:999, fontFamily:"Baloo 2, cursive",
-              fontWeight:700, fontSize:".87rem", color:"#2B1911",
+              fontWeight:700, fontSize:".87rem", color:"var(--black)",
               padding:"10px", cursor:"pointer",
             }}
-            onMouseEnter={e => e.currentTarget.style.borderColor="#F56522"}
-            onMouseLeave={e => e.currentTarget.style.borderColor="#EAE3DF"}
+            onMouseEnter={e => e.currentTarget.style.borderColor="var(--primary)"}
+            onMouseLeave={e => e.currentTarget.style.borderColor="var(--black-10)"}
             onClick={onCancel}
           >Cancel</button>
           <button
             style={{
               flex:1, border:"none",
-              background:"#DF321F", borderRadius:999,
+              background:"var(--error)", borderRadius:999,
               fontFamily:"Baloo 2, cursive", fontWeight:800,
               fontSize:".87rem", color:"white",
               padding:"10px", cursor:"pointer",
@@ -788,7 +788,7 @@ export function WrongAmountFundedCard({ status, expectedSats, actualSats, loadin
 
   return (
     <div style={{
-      background:"#FEFCE5", border:"1px solid rgba(154,112,0,.15)",
+      background:"var(--warning-soft)", border:"1px solid rgba(154,112,0,.15)",
       borderRadius:12, padding:"20px 18px",
     }}>
       {/* Header */}
@@ -800,13 +800,13 @@ export function WrongAmountFundedCard({ status, expectedSats, actualSats, loadin
         }}>
           <span style={{ fontSize:"1.1rem" }}>⚠</span>
         </div>
-        <div style={{ fontWeight:800, fontSize:"1rem", color:"#9A7000" }}>
+        <div style={{ fontWeight:800, fontSize:"1rem", color:"var(--warning)" }}>
           {isFundingDifferent ? "Wrong Amount Funded" : "Incorrect Funding"}
         </div>
       </div>
 
       {/* Body text */}
-      <div style={{ fontSize:".85rem", color:"#7D675E", lineHeight:1.6, marginBottom:16 }}>
+      <div style={{ fontSize:".85rem", color:"var(--black-65)", lineHeight:1.6, marginBottom:16 }}>
         {isFundingDifferent
           ? "You funded the escrow with a different amount than expected. You can continue the trade with the actual amount, or request a refund."
           : "You funded your contract incorrectly, as it must be funded with exactly 1 transaction with the specified amount. You will be refunded."
@@ -821,17 +821,17 @@ export function WrongAmountFundedCard({ status, expectedSats, actualSats, loadin
           padding:"12px 14px", marginBottom:16,
         }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-            <span style={{ fontSize:".78rem", fontWeight:600, color:"#9A7000", minWidth:70 }}>Expected</span>
+            <span style={{ fontSize:".78rem", fontWeight:600, color:"var(--warning)", minWidth:70 }}>Expected</span>
             <SatsAmount sats={expectedSats} size="sm"/>
           </div>
           <div style={{ height:1, background:"rgba(154,112,0,.1)" }}/>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-            <span style={{ fontSize:".78rem", fontWeight:600, color:"#9A7000", minWidth:70 }}>Funded</span>
+            <span style={{ fontSize:".78rem", fontWeight:600, color:"var(--warning)", minWidth:70 }}>Funded</span>
             {loading
-              ? <span style={{ fontSize:".82rem", color:"#9A7000", fontWeight:600 }}>Loading…</span>
+              ? <span style={{ fontSize:".82rem", color:"var(--warning)", fontWeight:600 }}>Loading…</span>
               : actualSats != null
                 ? <SatsAmount sats={actualSats} size="sm"/>
-                : <span style={{ fontSize:".82rem", color:"#9A7000", fontWeight:600 }}>—</span>
+                : <span style={{ fontSize:".82rem", color:"var(--warning)", fontWeight:600 }}>—</span>
             }
           </div>
         </div>
@@ -841,7 +841,7 @@ export function WrongAmountFundedCard({ status, expectedSats, actualSats, loadin
       {isRefundWaiting ? (
         <div style={{
           background:"rgba(125,103,94,.08)", borderRadius:8,
-          padding:"12px 14px", fontSize:".84rem", color:"#7D675E",
+          padding:"12px 14px", fontSize:".84rem", color:"var(--black-65)",
           fontWeight:600, textAlign:"center",
         }}>
           Refund is being processed. You will receive your Bitcoin back shortly.
@@ -851,9 +851,9 @@ export function WrongAmountFundedCard({ status, expectedSats, actualSats, loadin
           onClick={onPendingClick}
           style={{
             width:"100%", padding:"11px 16px", borderRadius:999,
-            border:"2px dashed #F56522", background:"rgba(245,101,34,.06)",
+            border:"2px dashed var(--primary)", background:"rgba(245,101,34,.06)",
             fontFamily:"Baloo 2, cursive", fontWeight:700, fontSize:".85rem",
-            color:"#F56522", cursor:"pointer",
+            color:"var(--primary)", cursor:"pointer",
           }}
         >Refund pending on mobile app…</button>
       ) : (
@@ -863,20 +863,20 @@ export function WrongAmountFundedCard({ status, expectedSats, actualSats, loadin
               <button
                 onClick={onRefundEscrow}
                 style={{
-                  flex:1, border:"1.5px solid #EAE3DF", background:"white",
+                  flex:1, border:"1.5px solid var(--black-10)", background:"white",
                   borderRadius:999, fontFamily:"Baloo 2, cursive",
-                  fontWeight:700, fontSize:".85rem", color:"#2B1911",
+                  fontWeight:700, fontSize:".85rem", color:"var(--black)",
                   padding:"11px", cursor:"pointer",
                 }}
-                onMouseEnter={e => e.currentTarget.style.borderColor="#F56522"}
-                onMouseLeave={e => e.currentTarget.style.borderColor="#EAE3DF"}
+                onMouseEnter={e => e.currentTarget.style.borderColor="var(--primary)"}
+                onMouseLeave={e => e.currentTarget.style.borderColor="var(--black-10)"}
               >Refund Escrow</button>
               <button
                 onClick={onContinueTrade}
                 disabled={loading}
                 style={{
                   flex:1, border:"none",
-                  background: loading ? "#ccc" : "linear-gradient(135deg,#F56522,#F5A623)",
+                  background: loading ? "var(--black-25)" : "var(--grad)",
                   borderRadius:999, fontFamily:"Baloo 2, cursive",
                   fontWeight:800, fontSize:".85rem", color:"white",
                   padding:"11px", cursor: loading ? "not-allowed" : "pointer",
@@ -892,24 +892,24 @@ export function WrongAmountFundedCard({ status, expectedSats, actualSats, loadin
               <button
                 onClick={onClose}
                 style={{
-                  flex:1, border:"1.5px solid #EAE3DF", background:"white",
+                  flex:1, border:"1.5px solid var(--black-10)", background:"white",
                   borderRadius:999, fontFamily:"Baloo 2, cursive",
-                  fontWeight:700, fontSize:".85rem", color:"#2B1911",
+                  fontWeight:700, fontSize:".85rem", color:"var(--black)",
                   padding:"11px", cursor:"pointer",
                 }}
-                onMouseEnter={e => e.currentTarget.style.borderColor="#F56522"}
-                onMouseLeave={e => e.currentTarget.style.borderColor="#EAE3DF"}
+                onMouseEnter={e => e.currentTarget.style.borderColor="var(--primary)"}
+                onMouseLeave={e => e.currentTarget.style.borderColor="var(--black-10)"}
               >Close</button>
               <button
                 onClick={onRefundEscrow}
                 style={{
-                  flex:1, border:"1.5px solid #EAE3DF", background:"white",
+                  flex:1, border:"1.5px solid var(--black-10)", background:"white",
                   borderRadius:999, fontFamily:"Baloo 2, cursive",
-                  fontWeight:700, fontSize:".85rem", color:"#2B1911",
+                  fontWeight:700, fontSize:".85rem", color:"var(--black)",
                   padding:"11px", cursor:"pointer",
                 }}
-                onMouseEnter={e => e.currentTarget.style.borderColor="#F56522"}
-                onMouseLeave={e => e.currentTarget.style.borderColor="#EAE3DF"}
+                onMouseEnter={e => e.currentTarget.style.borderColor="var(--primary)"}
+                onMouseLeave={e => e.currentTarget.style.borderColor="var(--black-10)"}
               >Refund Escrow</button>
             </>
           )}
@@ -920,7 +920,7 @@ export function WrongAmountFundedCard({ status, expectedSats, actualSats, loadin
 }
 
 // ─── SLIDE TO CONFIRM ────────────────────────────────────────────────────────
-export function SlideToConfirm({ label, onConfirm, disabled = false, confirmedColor = "#65A519" }) {
+export function SlideToConfirm({ label, onConfirm, disabled = false, confirmedColor = "var(--success)" }) {
   const [dragging, setDragging]   = useState(false);
   const [pos, setPos]             = useState(0);
   const [confirmed, setConfirmed] = useState(false);
@@ -966,8 +966,8 @@ export function SlideToConfirm({ label, onConfirm, disabled = false, confirmedCo
         position:"relative", height:52, borderRadius:999,
         background: confirmed
           ? confirmedColor
-          : `linear-gradient(90deg, rgba(245,101,34,${0.12 + progress * 0.18}) ${progress * 100}%, #F4EEEB ${progress * 100}%)`,
-        border:`1.5px solid ${confirmed ? confirmedColor : "#EAE3DF"}`,
+          : `linear-gradient(90deg, rgba(245,101,34,${0.12 + progress * 0.18}) ${progress * 100}%, var(--black-5) ${progress * 100}%)`,
+        border:`1.5px solid ${confirmed ? confirmedColor : "var(--black-10)"}`,
         overflow:"hidden", userSelect:"none", touchAction:"none",
         cursor: disabled ? "not-allowed" : confirmed ? "default" : "grab",
         transition: dragging ? "none" : "background .3s, border-color .3s",
@@ -979,7 +979,7 @@ export function SlideToConfirm({ label, onConfirm, disabled = false, confirmedCo
         position:"absolute", inset:0,
         display:"flex", alignItems:"center", justifyContent:"center",
         fontSize:".82rem", fontWeight:700,
-        color: confirmed ? "white" : "#624D44",
+        color: confirmed ? "white" : "var(--black-75)",
         pointerEvents:"none",
         opacity: confirmed ? 1 : Math.max(0, 1 - progress * 2.5),
         transition:"opacity .2s",
@@ -997,7 +997,7 @@ export function SlideToConfirm({ label, onConfirm, disabled = false, confirmedCo
           style={{
             position:"absolute", top:2, left:2 + pos,
             width:THUMB, height:THUMB - 4, borderRadius:999,
-            background:"linear-gradient(135deg,#FF7A50,#FF4D42)",
+            background:"var(--grad)",
             display:"flex", alignItems:"center", justifyContent:"center",
             boxShadow:"0 2px 8px rgba(245,101,34,.4)",
             cursor: disabled ? "not-allowed" : "grab",
@@ -1037,9 +1037,9 @@ function DisputeBanner({ scenario, onAction }) {
   const [acked, setAcked] = useState(false);
 
   const boxStyle = {
-    background:"#FFF0EE", border:"1px solid rgba(223,50,31,.2)",
+    background:"var(--error-bg)", border:"1px solid rgba(223,50,31,.2)",
     borderRadius:10, padding:"12px 14px", fontSize:".82rem",
-    color:"#2B1911", lineHeight:1.6,
+    color:"var(--black)", lineHeight:1.6,
   };
 
   // ── Dispute resolved: show outcome + acknowledge button ──
@@ -1047,14 +1047,14 @@ function DisputeBanner({ scenario, onAction }) {
     if (alreadyAckedOutcome || acked) {
       return (
         <div style={boxStyle}>
-          <strong style={{ color:"#7D675E" }}>Dispute resolved.</strong><br/>
+          <strong style={{ color:"var(--black-65)" }}>Dispute resolved.</strong><br/>
           {OUTCOME_LABELS[disputeOutcome] ?? "The dispute has been resolved."}
         </div>
       );
     }
     return (
       <div style={boxStyle}>
-        <strong style={{ color:"#DF321F" }}>Dispute resolved</strong><br/>
+        <strong style={{ color:"var(--error)" }}>Dispute resolved</strong><br/>
         {OUTCOME_LABELS[disputeOutcome] ?? "The dispute has been resolved."}
         <div style={{ marginTop:10 }}>
           <button
@@ -1068,11 +1068,11 @@ function DisputeBanner({ scenario, onAction }) {
               setSubmitting(false);
             }}
             style={{
-              background:"#F56522", color:"#fff", border:"none", borderRadius:8,
+              background:"var(--primary)", color:"var(--surface)", border:"none", borderRadius:8,
               padding:"8px 20px", fontWeight:700, fontSize:".82rem", cursor:"pointer",
             }}
           >{submitting ? "SUBMITTING…" : "ACKNOWLEDGE"}</button>
-          {error && <div style={{ color:"#DF321F", fontSize:".78rem", marginTop:6 }}>{error}</div>}
+          {error && <div style={{ color:"var(--error)", fontSize:".78rem", marginTop:6 }}>{error}</div>}
         </div>
       </div>
     );
@@ -1082,7 +1082,7 @@ function DisputeBanner({ scenario, onAction }) {
   if (!iInitiated && isEmailRequired && !disputeAcknowledgedByCounterParty) {
     return (
       <div style={boxStyle}>
-        <strong style={{ color:"#DF321F" }}>Your counterparty has opened a dispute.</strong><br/>
+        <strong style={{ color:"var(--error)" }}>Your counterparty has opened a dispute.</strong><br/>
         Please enter your email address so the Peach mediator can contact you.
         <div style={{ display:"flex", gap:8, marginTop:10 }}>
           <input
@@ -1091,7 +1091,7 @@ function DisputeBanner({ scenario, onAction }) {
             value={email}
             onChange={e => setEmail(e.target.value)}
             style={{
-              flex:1, padding:"7px 10px", borderRadius:8, border:"1px solid #EAE3DF",
+              flex:1, padding:"7px 10px", borderRadius:8, border:"1px solid var(--black-10)",
               fontSize:".82rem", fontFamily:"inherit",
             }}
           />
@@ -1106,14 +1106,14 @@ function DisputeBanner({ scenario, onAction }) {
               setSubmitting(false);
             }}
             style={{
-              background:"#F56522", color:"#fff", border:"none", borderRadius:8,
+              background:"var(--primary)", color:"var(--surface)", border:"none", borderRadius:8,
               padding:"7px 16px", fontWeight:700, fontSize:".82rem", cursor:"pointer",
               opacity: (!email.trim() || submitting) ? 0.5 : 1,
             }}
           >{submitting ? "…" : "SUBMIT"}</button>
         </div>
-        {error && <div style={{ color:"#DF321F", fontSize:".78rem", marginTop:6 }}>{error}</div>}
-        {acked && <div style={{ color:"#65A519", fontSize:".78rem", marginTop:6 }}>Email submitted. A mediator will be in touch.</div>}
+        {error && <div style={{ color:"var(--error)", fontSize:".78rem", marginTop:6 }}>{error}</div>}
+        {acked && <div style={{ color:"var(--success)", fontSize:".78rem", marginTop:6 }}>Email submitted. A mediator will be in touch.</div>}
       </div>
     );
   }
@@ -1121,7 +1121,7 @@ function DisputeBanner({ scenario, onAction }) {
   // ── Dispute active, default state (we initiated, or no email needed, or already acked) ──
   return (
     <div style={boxStyle}>
-      <strong style={{ color:"#DF321F" }}>Dispute open.</strong> A Peach mediator has been assigned to your case and will be in touch soon.
+      <strong style={{ color:"var(--error)" }}>Dispute open.</strong> A Peach mediator has been assigned to your case and will be in touch soon.
       {iInitiated
         ? " You can provide additional evidence via the chat."
         : " Provide your side of the story via the chat."}
@@ -1159,14 +1159,14 @@ function SellerPaymentCountdown({ deadline, onExtend }) {
   return <>
     <div style={{
       display:"flex", alignItems:"center", gap:8,
-      background:"#FEEDE5", border:"1px solid rgba(196,81,4,.15)",
+      background:"var(--primary-mild)", border:"1px solid rgba(196,81,4,.15)",
       borderRadius:8, padding:"10px 12px",
-      fontSize:".83rem", color:"#C45104", fontWeight:600, lineHeight:1.5,
+      fontSize:".83rem", color:"var(--primary-dark)", fontWeight:600, lineHeight:1.5,
     }}>
       <IconClock/>
       <span>
         Waiting for the buyer to send payment.
-        {timeStr && <span style={{ color: expired || urgent ? "#DF321F" : "#C45104" }}> {timeStr}</span>}
+        {timeStr && <span style={{ color: expired || urgent ? "var(--error)" : "var(--primary-dark)" }}> {timeStr}</span>}
       </span>
     </div>
     {expired && <Btn label="⏱  Extend Deadline (+12h)" bg="#D7F2FE" color="#037DB5" onClick={onExtend}/>}
@@ -1193,7 +1193,7 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
   const PendingBtn = ({ label }) => (
     <button
       className="action-btn"
-      style={{ background:"#FFF4EC", color:"#F56522", border:"1.5px dashed #F56522", cursor:"pointer" }}
+      style={{ background:"var(--primary-mild)", color:"var(--primary)", border:"1.5px dashed var(--primary)", cursor:"pointer" }}
       onClick={onPendingClick}
       onMouseEnter={e => { e.currentTarget.style.filter="brightness(0.95)"; }}
       onMouseLeave={e => { e.currentTarget.style.filter=""; }}
@@ -1219,7 +1219,7 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
             animation:"modalIn .18s ease",
           }}>
             <div style={{ fontWeight:800, fontSize:"1.05rem", marginBottom:8 }}>Please rate the buyer in order to release the bitcoin</div>
-            <div style={{ fontSize:".88rem", color:"#7D675E", lineHeight:1.6, marginBottom:20 }}>Only confirm if you have actually received the fiat payment in your account.</div>
+            <div style={{ fontSize:".88rem", color:"var(--black-65)", lineHeight:1.6, marginBottom:20 }}>Only confirm if you have actually received the fiat payment in your account.</div>
             <div style={{ display:"flex", gap:12, marginBottom:24 }}>
               <button
                 className={`rating-btn${buyerRating === "negative" ? " rating-selected-bad" : ""}`}
@@ -1239,9 +1239,9 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
             <div style={{ display:"flex", gap:10 }}>
               <button
                 style={{
-                  flex:1, border:"1.5px solid #EAE3DF", background:"white",
+                  flex:1, border:"1.5px solid var(--black-10)", background:"white",
                   borderRadius:999, fontFamily:"Baloo 2, cursive",
-                  fontWeight:700, fontSize:".87rem", color:"#2B1911",
+                  fontWeight:700, fontSize:".87rem", color:"var(--black)",
                   padding:"10px", cursor:"pointer",
                 }}
                 onClick={() => { setShowConfirm(false); setBuyerRating(null); }}
@@ -1250,7 +1250,7 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
                 disabled={!buyerRating}
                 style={{
                   flex:1, border:"none",
-                  background: buyerRating ? "#05A85A" : "#ccc", borderRadius:999,
+                  background: buyerRating ? "var(--success)" : "var(--black-25)", borderRadius:999,
                   fontFamily:"Baloo 2, cursive", fontWeight:800,
                   fontSize:".87rem", color:"white",
                   padding:"10px", cursor: buyerRating ? "pointer" : "not-allowed",
@@ -1282,15 +1282,15 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
           }}>
             <div style={{
               width:48, height:48, borderRadius:"50%",
-              background:"#FEFCE5", border:"2px solid #F5CE22",
+              background:"var(--warning-soft)", border:"2px solid var(--warning)",
               display:"flex", alignItems:"center", justifyContent:"center",
               fontSize:"1.4rem",
             }}>⏳</div>
             <div style={{ fontWeight:700, fontSize:".95rem" }}>Waiting for escrow</div>
-            <div style={{ fontSize:".83rem", color:"#7D675E", lineHeight:1.6, maxWidth:280 }}>
+            <div style={{ fontSize:".83rem", color:"var(--black-65)", lineHeight:1.6, maxWidth:280 }}>
               The seller is funding the escrow. Once the Bitcoin is locked in, the trade will begin and you'll be able to send payment.
             </div>
-            <div style={{ fontSize:".85rem", fontWeight:700, color:"#7D675E" }}>No actions required for the moment.</div>
+            <div style={{ fontSize:".85rem", fontWeight:700, color:"var(--black-65)" }}>No actions required for the moment.</div>
           </div>
         )}
 
@@ -1302,12 +1302,12 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
           }}>
             <div style={{
               width:48, height:48, borderRadius:"50%",
-              background:"#FEFCE5", border:"2px solid #F5CE22",
+              background:"var(--warning-soft)", border:"2px solid var(--warning)",
               display:"flex", alignItems:"center", justifyContent:"center",
               fontSize:"1.4rem",
             }}>⛏️</div>
             <div style={{ fontWeight:700, fontSize:".95rem" }}>Escrow confirming</div>
-            <div style={{ fontSize:".83rem", color:"#7D675E", lineHeight:1.6, maxWidth:280 }}>
+            <div style={{ fontSize:".83rem", color:"var(--black-65)", lineHeight:1.6, maxWidth:280 }}>
               The escrow funding transaction has been broadcast. Waiting for blockchain confirmations.
             </div>
           </div>
@@ -1349,13 +1349,13 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
               onConfirm={() => setShowConfirm(true)}
             />
           )}
-          <Btn label="Open Dispute" bg="#FFF0EE" color="#DF321F" onClick={() => onAction("dispute")}/>
+          <Btn label="Open Dispute" bg="var(--error-bg)" color="var(--error)" onClick={() => onAction("dispute")}/>
         </>}
 
         {/* Buyer: waiting for seller to confirm payment */}
         {status === "confirmPaymentRequired" && role === "buyer" && <>
           <div className="action-hint">You've sent payment. Waiting for the seller to confirm.</div>
-          <Btn label="Open Dispute" bg="#FFF0EE" color="#DF321F" onClick={() => onAction("dispute")}/>
+          <Btn label="Open Dispute" bg="var(--error-bg)" color="var(--error)" onClick={() => onAction("dispute")}/>
         </>}
 
         {/* Payout pending — bitcoin being released */}
@@ -1367,9 +1367,9 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
         {status === "paymentTooLate" && role === "seller" && !showPostCancel && <>
           <div style={{
             display:"flex", alignItems:"center", gap:8,
-            background:"#FEFCE5", border:"1px solid rgba(154,112,0,.15)",
+            background:"var(--warning-soft)", border:"1px solid rgba(154,112,0,.15)",
             borderRadius:8, padding:"10px 12px",
-            fontSize:".83rem", color:"#9A7000", fontWeight:600, lineHeight:1.5,
+            fontSize:".83rem", color:"var(--warning)", fontWeight:600, lineHeight:1.5,
           }}>
             <IconClock/>
             <span>The buyer did not pay in time. You can either cancel the trade without a reputation penalty, or give the buyer some more time.</span>
@@ -1377,7 +1377,7 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
           <SlideToConfirm
             label="Cancel Trade"
             onConfirm={() => onAction("cancel_trade")}
-            confirmedColor="#DF321F"
+            confirmedColor="var(--error)"
           />
           <SlideToConfirm
             label="Give More Time"
@@ -1389,9 +1389,9 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
         {status === "paymentTooLate" && role === "seller" && showPostCancel && <>
           <div style={{
             display:"flex", alignItems:"center", gap:8,
-            background:"#E8F9EE", border:"1px solid rgba(5,168,90,.15)",
+            background:"var(--success-bg)", border:"1px solid rgba(5,168,90,.15)",
             borderRadius:8, padding:"10px 12px",
-            fontSize:".83rem", color:"#05A85A", fontWeight:600, lineHeight:1.5,
+            fontSize:".83rem", color:"var(--success)", fontWeight:600, lineHeight:1.5,
           }}>
             <span>Trade cancelled. What would you like to do with the escrow?</span>
           </div>
@@ -1413,9 +1413,9 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
         {status === "refundOrReviveRequired" && role === "seller" && !scenario.revived && !scenario.refunded && <>
           <div style={{
             display:"flex", alignItems:"center", gap:8,
-            background:"#FEFCE5", border:"1px solid rgba(154,112,0,.15)",
+            background:"var(--warning-soft)", border:"1px solid rgba(154,112,0,.15)",
             borderRadius:8, padding:"10px 12px",
-            fontSize:".83rem", color:"#9A7000", fontWeight:600, lineHeight:1.5,
+            fontSize:".83rem", color:"var(--warning)", fontWeight:600, lineHeight:1.5,
           }}>
             <span>The trade was cancelled. You can republish your offer or request a refund of the escrow.</span>
           </div>
@@ -1437,9 +1437,9 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
         {status === "refundOrReviveRequired" && scenario.revived && (
           <div style={{
             display:"flex", alignItems:"center", gap:8,
-            background:"#E8F9EE", border:"1px solid rgba(5,168,90,.15)",
+            background:"var(--success-bg)", border:"1px solid rgba(5,168,90,.15)",
             borderRadius:8, padding:"10px 12px",
-            fontSize:".83rem", color:"#05A85A", fontWeight:600, lineHeight:1.5,
+            fontSize:".83rem", color:"var(--success)", fontWeight:600, lineHeight:1.5,
           }}>
             <span>Offer has been republished{scenario.newOfferId ? ` (new offer: ${formatTradeId(scenario.newOfferId, "offer")})` : ""}.</span>
           </div>
@@ -1449,7 +1449,7 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
         {status === "refundOrReviveRequired" && scenario.refunded && (
           <div style={{
             display:"flex", alignItems:"center", gap:8,
-            background:"#F4F4F4", border:"1px solid rgba(0,0,0,.08)",
+            background:"var(--black-5)", border:"1px solid rgba(0,0,0,.08)",
             borderRadius:8, padding:"10px 12px",
             fontSize:".83rem", color:"var(--black-65)", fontWeight:600, lineHeight:1.5,
           }}>
@@ -1461,9 +1461,9 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
         {status === "paymentTooLate" && role === "buyer" && (
           <div style={{
             display:"flex", alignItems:"center", gap:8,
-            background:"#FFF0EE", border:"1px solid rgba(223,50,31,.15)",
+            background:"var(--error-bg)", border:"1px solid rgba(223,50,31,.15)",
             borderRadius:8, padding:"10px 12px",
-            fontSize:".83rem", color:"#DF321F", fontWeight:600, lineHeight:1.5,
+            fontSize:".83rem", color:"var(--error)", fontWeight:600, lineHeight:1.5,
           }}>
             <IconClock/>
             <span>You did not pay on time. The seller can now decide to give you more time or cancel the trade. In either case, your reputation has been impacted.</span>
@@ -1474,9 +1474,9 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
         {(status === "tradeCanceled" || status === "confirmCancelation") && (
           <div style={{
             display:"flex", alignItems:"center", gap:8,
-            background:"#FFF0EE", border:"1px solid rgba(223,50,31,.2)",
+            background:"var(--error-bg)", border:"1px solid rgba(223,50,31,.2)",
             borderRadius:8, padding:"12px 14px",
-            fontSize:".83rem", color:"#DF321F", fontWeight:600, lineHeight:1.5,
+            fontSize:".83rem", color:"var(--error)", fontWeight:600, lineHeight:1.5,
           }}>
             <IconAlert/>
             <span>{(() => {
@@ -1508,7 +1508,7 @@ export function ActionPanel({ scenario, onAction, showPostCancel = false, pendin
         {/* Cancel trade — available during active trade phases for buyer only (seller cancels at offer level or via dispute) */}
         {["paymentRequired", "fundEscrow", "createEscrow", "waitingForFunding", "escrowWaitingForConfirmation"].includes(status)
           && role === "buyer" && !scenario.disputeActive && (
-          <Btn label="Cancel Trade" bg="#FFF0EE" color="#DF321F" onClick={() => setShowCancelConfirm(true)}/>
+          <Btn label="Cancel Trade" bg="var(--error-bg)" color="var(--error)" onClick={() => setShowCancelConfirm(true)}/>
         )}
       </div>
     </>
@@ -1524,7 +1524,7 @@ export function RatingPanel({ counterparty, onRate, pending, onPendingClick }) {
     return (
       <div style={{
         textAlign:"center", padding:"20px 0",
-        fontSize:".9rem", color: pending ? "#F56522" : "#65A519", fontWeight:700,
+        fontSize:".9rem", color: pending ? "var(--primary)" : "var(--success)", fontWeight:700,
       }}>
         {pending ? (
           <>
@@ -1532,9 +1532,9 @@ export function RatingPanel({ counterparty, onRate, pending, onPendingClick }) {
             Rating pending in mobile app
             <div style={{ marginTop:12 }}>
               <button onClick={onPendingClick} style={{
-                border:"1.5px dashed #F56522", background:"#FFF9F6",
+                border:"1.5px dashed var(--primary)", background:"var(--bg)",
                 borderRadius:999, fontFamily:"'Baloo 2',cursive",
-                fontWeight:700, fontSize:".82rem", color:"#F56522",
+                fontWeight:700, fontSize:".82rem", color:"var(--primary)",
                 padding:"8px 20px", cursor:"pointer",
               }}>📱 Open signing request</button>
             </div>
@@ -1551,12 +1551,12 @@ export function RatingPanel({ counterparty, onRate, pending, onPendingClick }) {
 
   return (
     <div style={{
-      background:"linear-gradient(135deg,#FFF9F6,#FEEDE5)",
+      background:"linear-gradient(135deg,var(--bg),var(--primary-mild))",
       border:"1.5px solid rgba(245,101,34,.2)",
       borderRadius:14, padding:"20px", marginTop:8,
     }}>
       <div style={{ fontWeight:800, fontSize:"1rem", marginBottom:4 }}>Trade Complete! 🎉</div>
-      <div style={{ fontSize:".85rem", color:"#7D675E", marginBottom:16 }}>
+      <div style={{ fontSize:".85rem", color:"var(--black-65)", marginBottom:16 }}>
         How was trading with <strong>{counterparty.name}</strong>?
       </div>
       <div style={{ display:"flex", gap:12, marginBottom:16 }}>
@@ -1658,13 +1658,13 @@ export function ChatPanel({ messages, tradeId, role, disabled, status, onSend, o
         }}>
           <div style={{
             width:40, height:40, borderRadius:"50%",
-            background:"#EAE3DF",
+            background:"var(--black-10)",
             display:"flex", alignItems:"center", justifyContent:"center",
           }}>
             <IconLock/>
           </div>
           <div style={{
-            fontSize:".85rem", fontWeight:700, color:"#7D675E",
+            fontSize:".85rem", fontWeight:700, color:"var(--black-65)",
             textAlign:"center", maxWidth:240, lineHeight:1.5,
           }}>
             Chat disabled while waiting for seller to fund escrow
@@ -1684,7 +1684,7 @@ export function ChatPanel({ messages, tradeId, role, disabled, status, onSend, o
 
       <div className="chat-messages" ref={messagesRef}>
         {loadingMore && (
-          <div style={{ textAlign:"center", padding:"8px 0", fontSize:".78rem", color:"#7D675E", fontWeight:600 }}>
+          <div style={{ textAlign:"center", padding:"8px 0", fontSize:".78rem", color:"var(--black-65)", fontWeight:600 }}>
             Loading…
           </div>
         )}
@@ -1712,7 +1712,7 @@ export function ChatPanel({ messages, tradeId, role, disabled, status, onSend, o
                 <div className="chat-ts">
                   {relTime(msg.ts)}
                   {msg.optimistic && <span style={{ opacity:.6 }}> · sending…</span>}
-                  {msg.failed && <span style={{ color:"#DF321F" }}> · failed to send</span>}
+                  {msg.failed && <span style={{ color:"var(--error)" }}> · failed to send</span>}
                 </div>
               </div>
             </div>

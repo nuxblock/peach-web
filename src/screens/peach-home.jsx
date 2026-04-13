@@ -116,7 +116,7 @@ const css = `
   .profile-badges{display:flex;gap:5px;flex-wrap:wrap}
   .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;
     font-size:.65rem;font-weight:700;white-space:nowrap}
-  .badge-super{background:linear-gradient(90deg,#FF4D42,#FFA24C);color:white}
+  .badge-super{background:var(--grad);color:white}
   .badge-fast{background:var(--primary-mild);color:var(--primary-dark)}
   .profile-methods{display:flex;gap:5px;flex-wrap:wrap}
   .pref-chip{padding:3px 9px;border-radius:999px;font-size:.72rem;font-weight:600;
@@ -524,10 +524,10 @@ export default function PeachHome() {
 
             {/* ── ATTENTION ALERT (only when logged in + trades need action) ── */}
             {isLoggedIn && urgentCount > 0 && (
-              <div style={{background:"#FEFCE5",border:"1.5px solid #F5CE22",borderRadius:12,
+              <div style={{background:"var(--warning-soft)",border:"1.5px solid var(--warning)",borderRadius:12,
                 padding:"12px 18px",display:"inline-flex",alignItems:"center",gap:12,width:"fit-content"}}>
                 <span style={{fontSize:"1.1rem"}}>⚠️</span>
-                <span style={{fontSize:".88rem",fontWeight:700,color:"#2B1911"}}>
+                <span style={{fontSize:".88rem",fontWeight:700,color:"var(--black)"}}>
                   {urgentCount} trade{urgentCount > 1 ? "s" : ""} need{urgentCount === 1 ? "s" : ""} your attention
                 </span>
                 <span style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",cursor:"pointer",paddingLeft:42}} onClick={() => navigate("/trades")}>View →</span>
@@ -595,11 +595,11 @@ export default function PeachHome() {
                   <div key={i} style={{
                     display:"flex",alignItems:"center",gap:16,
                     padding:"11px 0",
-                    borderBottom: i < arr.length-1 ? "1px solid #F4EEEB" : "none",
+                    borderBottom: i < arr.length-1 ? "1px solid var(--black-5)" : "none",
                   }}>
-                    <span style={{fontSize:".7rem",fontWeight:600,color:"#C4B5AE",whiteSpace:"nowrap",minWidth:80}}>{item.date}</span>
-                    <span style={{fontSize:".85rem",fontWeight:600,color:"#2B1911",flex:1}}>{item.headline}</span>
-                    <span style={{fontSize:".78rem",fontWeight:700,color:"#C4B5AE",whiteSpace:"nowrap",paddingLeft:42}} title="Coming soon">Read →</span>
+                    <span style={{fontSize:".7rem",fontWeight:600,color:"var(--black-25)",whiteSpace:"nowrap",minWidth:80}}>{item.date}</span>
+                    <span style={{fontSize:".85rem",fontWeight:600,color:"var(--black)",flex:1}}>{item.headline}</span>
+                    <span style={{fontSize:".78rem",fontWeight:700,color:"var(--black-25)",whiteSpace:"nowrap",paddingLeft:42}} title="Coming soon">Read →</span>
                   </div>
                 ))}
               </div>

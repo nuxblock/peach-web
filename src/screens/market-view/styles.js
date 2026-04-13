@@ -70,15 +70,6 @@ export const CSS = `
   }
   .ms-clear:hover{color:var(--error)}
 
-  /* ── REPUTATION DROPDOWN (single select, native-style) ── */
-  .filter-select{appearance:none;border:1.5px solid var(--black-10);border-radius:8px;
-    padding:5px 28px 5px 10px;font-family:var(--font);font-size:.8rem;font-weight:600;
-    color:var(--black);background:var(--surface);cursor:pointer;outline:none;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237D675E'/%3E%3C/svg%3E");
-    background-repeat:no-repeat;background-position:right 9px center;
-    transition:border-color .14s}
-  .filter-select:focus{border-color:var(--primary)}
-
   /* ── CTA ── */
   .cta-btn{margin-left:auto;padding:7px 20px;border-radius:999px;background:var(--grad);
     color:white;font-family:var(--font);font-size:.85rem;font-weight:800;border:none;
@@ -118,12 +109,12 @@ export const CSS = `
   .rep-info{display:flex;flex-direction:column;gap:2px}
   .rep-row{display:flex;align-items:center;gap:4px}
   .rep-stars{font-size:.78rem;font-weight:700;color:var(--black);display:flex;align-items:center;gap:2px}
-  .rep-stars .star{color:#F7931A}
+  .rep-stars .star{color:var(--btc)}
   .rep-trades{font-size:.67rem;color:var(--black-65);font-weight:500}
   .badges-row{display:flex;gap:3px;flex-wrap:wrap}
   .badge{display:inline-flex;align-items:center;padding:1px 6px;border-radius:999px;
     font-size:.62rem;font-weight:700;white-space:nowrap}
-  .badge-super{background:linear-gradient(90deg,#FF4D42,#FFA24C);color:white}
+  .badge-super{background:var(--grad);color:white}
   .badge-fast{background:var(--primary-mild);color:var(--primary-dark)}
 
   /* ── AUTO BADGE ── */
@@ -173,10 +164,6 @@ export const CSS = `
   .info-popup p{margin:0 0 6px}
   .info-popup ul{margin:0 0 6px;padding-left:18px}
   .info-popup li{margin-bottom:3px}
-  .refresh-btn{padding:6px 10px;min-width:0;border-radius:999px;background:var(--surface);
-    border:1.5px solid var(--black-10);font-size:1rem;cursor:pointer;
-    transition:border-color .14s;line-height:1}
-  .refresh-btn:hover{border-color:var(--primary)}
 
   /* ── AMOUNT ── */
   .amount-cell{display:flex;flex-direction:column;gap:4px}
@@ -290,11 +277,11 @@ export const CSS = `
   .how-to-start:hover{color:var(--primary-dark)}
 
   /* ── REQUESTED ── */
-  .requested-tag{font-size:.62rem;font-weight:800;color:#2D8048;background:#E6F5EA;border:1px solid #B6DEC1;padding:1px 7px;border-radius:999px;white-space:nowrap;letter-spacing:.03em}
+  .requested-tag{font-size:.62rem;font-weight:800;color:var(--success);background:var(--success-bg);border:1px solid var(--success-mild);padding:1px 7px;border-radius:999px;white-space:nowrap;letter-spacing:.03em}
   .offer-table tbody tr.requested-row td{background:rgba(101,165,25,.06)}
-  .offer-table tbody tr.requested-row td:first-child{border-left:3px solid #65A519}
+  .offer-table tbody tr.requested-row td:first-child{border-left:3px solid var(--success)}
   .offer-table tbody tr.requested-row:hover td{background:rgba(101,165,25,.11)}
-  .offer-card.requested-card{border-color:#B6DEC1;background:linear-gradient(135deg,rgba(101,165,25,.06),var(--surface))}
+  .offer-card.requested-card{border-color:var(--success-mild);background:linear-gradient(135deg,rgba(101,165,25,.06),var(--surface))}
 
   @media(max-width:768px){
     .subheader{padding:10px 14px;gap:8px}
@@ -410,7 +397,7 @@ export const CSS = `
   .popup-pm-warning{
     display:flex;align-items:flex-start;gap:10px;
     padding:14px;border-radius:10px;
-    background:#FFF8E1;border:1px solid #FFE082;
+    background:var(--warning-soft);border:1px solid var(--warning);
   }
   .popup-pm-link{
     display:inline-block;margin-top:6px;

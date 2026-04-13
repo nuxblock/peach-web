@@ -13,33 +13,33 @@ const css = `
 }
 .msm-icon-wrap{
   width:64px;height:64px;border-radius:50%;
-  background:#FFF4EC;display:flex;align-items:center;justify-content:center;
+  background:var(--primary-mild);display:flex;align-items:center;justify-content:center;
   margin:0 auto 18px;
 }
 .msm-title{
-  font-weight:800;font-size:1.1rem;color:#2B1911;margin-bottom:6px;
+  font-weight:800;font-size:1.1rem;color:var(--black);margin-bottom:6px;
 }
 .msm-desc{
-  font-size:.88rem;color:#7D675E;line-height:1.6;margin-bottom:24px;
+  font-size:.88rem;color:var(--black-65);line-height:1.6;margin-bottom:24px;
 }
 .msm-spinner{
-  width:28px;height:28px;border:3px solid #EAE3DF;
-  border-top-color:#F56522;border-radius:50%;
+  width:28px;height:28px;border:3px solid var(--black-10);
+  border-top-color:var(--primary);border-radius:50%;
   animation:spin .8s linear infinite;
   margin:0 auto 20px;
 }
 .msm-cancel{
-  border:1.5px solid #EAE3DF;background:white;
+  border:1.5px solid var(--black-10);background:white;
   border-radius:999px;font-family:"Baloo 2",cursive;
-  font-weight:700;font-size:.87rem;color:#2B1911;
+  font-weight:700;font-size:.87rem;color:var(--black);
   padding:10px 28px;cursor:pointer;transition:border-color .15s;
 }
-.msm-cancel:hover{border-color:#F56522}
+.msm-cancel:hover{border-color:var(--primary)}
 `;
 
 function PhoneIcon() {
   return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F56522" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
       <line x1="12" y1="18" x2="12" y2="18.01"/>
     </svg>

@@ -101,13 +101,13 @@ const CSS = `
     font-size:.82rem;font-weight:700;color:var(--black-65);
     padding:5px 18px;border-radius:999px;transition:all .15s}
   .sub-tab:hover{border-color:var(--primary);color:var(--primary-dark)}
-  .sub-tab.active.buy{background:#F2F9E7;border-color:#65A519;color:#65A519}
-  .sub-tab.active.sell{background:#FFF0EE;border-color:#DF321F;color:#DF321F}
+  .sub-tab.active.buy{background:var(--success-bg);border-color:var(--success);color:var(--success)}
+  .sub-tab.active.sell{background:var(--error-bg);border-color:var(--error);color:var(--error)}
   .sub-tab-count{border-radius:999px;
     padding:1px 7px;font-size:.65rem;font-weight:800;margin-left:4px;
     background:var(--black-10);color:var(--black-65)}
-  .sub-tab.active.buy .sub-tab-count{background:#65A519;color:white}
-  .sub-tab.active.sell .sub-tab-count{background:#DF321F;color:white}
+  .sub-tab.active.buy .sub-tab-count{background:var(--success);color:white}
+  .sub-tab.active.sell .sub-tab-count{background:var(--error);color:white}
 
   /* Filter row */
   .filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center}
@@ -263,8 +263,8 @@ const CSS = `
   /* Direction badge — 40% bigger than before */
   .direction-badge{display:inline-flex;align-items:center;border-radius:999px;
     padding:3px 13px;font-size:.82rem;font-weight:800;letter-spacing:.04em;flex-shrink:0}
-  .direction-buy{background:#F2F9E7;color:#65A519}
-  .direction-sell{background:#FFF0EE;color:#DF321F}
+  .direction-buy{background:var(--success-bg);color:var(--success)}
+  .direction-sell{background:var(--error-bg);color:var(--error)}
 
   /* Unread badge — number + icon inline */
   .unread-badge{display:inline-flex;align-items:center;gap:4px;
@@ -311,7 +311,7 @@ const CSS = `
 
   /* Urgent alert banner */
   .urgent-banner{
-    background:linear-gradient(90deg,#FFF0EE,#FFF9F6);
+    background:linear-gradient(90deg,var(--error-bg),var(--bg));
     border:1px solid rgba(245,101,34,.25);border-radius:12px;
     padding:10px 16px;margin-bottom:20px;
     display:flex;align-items:center;gap:10px;font-size:.83rem;color:var(--primary-dark);font-weight:600;width:fit-content}
@@ -433,7 +433,7 @@ const CSS = `
   .offer-detail-btn:disabled{opacity:.4;cursor:not-allowed}
   .offer-detail-btn-edit{background:var(--primary-mild);color:var(--primary-dark)}
   .offer-detail-btn-edit:hover:not(:disabled){background:var(--primary);color:white}
-  .offer-detail-btn-withdraw{background:var(--error-bg, #FFF0EE);color:var(--error)}
+  .offer-detail-btn-withdraw{background:var(--error-bg, var(--error-bg));color:var(--error)}
   .offer-detail-btn-withdraw:hover:not(:disabled){background:var(--error);color:white}
 
   /* ── Premium editor (mobile-inspired) ── */
@@ -447,7 +447,7 @@ const CSS = `
     cursor:pointer;font-size:1.1rem;font-weight:700;color:var(--black-65);
     transition:border-color .15s,color .15s,background .15s;flex-shrink:0;
   }
-  .premium-circle-btn:hover{border-color:var(--success, #1B8A2A);color:var(--success, #1B8A2A)}
+  .premium-circle-btn:hover{border-color:var(--success, var(--success));color:var(--success, var(--success))}
   .premium-circle-btn:disabled{opacity:.3;cursor:not-allowed}
   .premium-input-group{display:flex;align-items:center;gap:6px}
   .premium-input-label{font-size:.82rem;font-weight:700;color:var(--primary-dark)}
@@ -461,7 +461,7 @@ const CSS = `
   .premium-slider-wrap{width:100%;padding:0 4px}
   .premium-slider{
     -webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:3px;
-    background:linear-gradient(90deg, var(--error) 0%, var(--black-10) 50%, var(--success, #1B8A2A) 100%);
+    background:linear-gradient(90deg, var(--error) 0%, var(--black-10) 50%, var(--success, var(--success)) 100%);
     outline:none;cursor:pointer;
   }
   .premium-slider::-webkit-slider-thumb{
@@ -477,7 +477,7 @@ const CSS = `
   .premium-btn-save{
     flex:1;padding:12px;border-radius:999px;border:none;font-family:var(--font);
     font-size:.88rem;font-weight:800;cursor:pointer;
-    background:var(--success, #1B8A2A);color:white;transition:opacity .15s;
+    background:var(--success, var(--success));color:white;transition:opacity .15s;
   }
   .premium-btn-save:hover{opacity:.85}
   .premium-btn-save:disabled{opacity:.4;cursor:not-allowed}
@@ -509,12 +509,12 @@ const CSS = `
   /* Chat bubbles (shared pattern with trade-execution) */
   .chat-enc-notice{
     display:flex;align-items:center;gap:6px;padding:7px 18px;
-    background:#F4EEEB;border-bottom:1px solid var(--black-10);
+    background:var(--black-5);border-bottom:1px solid var(--black-10);
     font-size:.7rem;font-weight:600;color:var(--black-65);flex-shrink:0;font-family:monospace}
   .chat-bubble-row{display:flex}
   .chat-bubble-row-me{justify-content:flex-end}
   .chat-bubble{max-width:72%;border-radius:14px;padding:9px 13px;line-height:1.5}
-  .chat-bubble-me{background:linear-gradient(135deg,#FF7A50,#F56522);color:white;border-bottom-right-radius:4px}
+  .chat-bubble-me{background:var(--grad);color:white;border-bottom-right-radius:4px}
   .chat-bubble-them{background:var(--surface);border:1px solid var(--black-10);color:var(--black);border-bottom-left-radius:4px}
   .chat-text{font-size:.85rem}
   .chat-ts{font-size:.65rem;opacity:.65;margin-top:3px;text-align:right}
@@ -1785,7 +1785,7 @@ export default function TradesDashboard() {
               <div className="offer-detail-body">
                 <div className="offer-detail-row">
                   <span className="offer-detail-label">Direction</span>
-                  <span className="offer-detail-value" style={{color: isBuy ? "var(--success, #1B8A2A)" : "var(--error)"}}>
+                  <span className="offer-detail-value" style={{color: isBuy ? "var(--success, var(--success))" : "var(--error)"}}>
                     {isBuy ? "Buy" : "Sell"}
                   </span>
                 </div>
@@ -1795,7 +1795,7 @@ export default function TradesDashboard() {
                 </div>
                 <div className="offer-detail-row">
                   <span className="offer-detail-label">Premium</span>
-                  <span className="offer-detail-value" style={{color: (o.premium ?? 0) > 0 ? "var(--success, #1B8A2A)" : (o.premium ?? 0) < 0 ? "var(--error)" : "var(--black)"}}>
+                  <span className="offer-detail-value" style={{color: (o.premium ?? 0) > 0 ? "var(--success, var(--success))" : (o.premium ?? 0) < 0 ? "var(--error)" : "var(--black)"}}>
                     {(o.premium ?? 0) > 0 ? "+" : ""}{(o.premium ?? 0).toFixed(1)}%
                   </span>
                 </div>
@@ -1892,7 +1892,7 @@ export default function TradesDashboard() {
                             value={odQrWithAmount
                               ? `bitcoin:${odEscrowAddress}?amount=${(o.amount / 1e8).toFixed(8)}`
                               : odEscrowAddress}
-                            size={128} level="L" bgColor="white" fgColor="#2B1911"
+                            size={128} level="L" bgColor="#ffffff" fgColor="#2B1911"
                           />
                         </div>
                       </div>
@@ -1901,7 +1901,7 @@ export default function TradesDashboard() {
                       <div style={{display:"flex",justifyContent:"center",marginBottom:6}}>
                         <div style={{
                           display:"flex", alignItems:"center", gap:0,
-                          background:"#F4EEEB", borderRadius:999, padding:3,
+                          background:"var(--black-5)", borderRadius:999, padding:3,
                           fontSize:".72rem", fontWeight:700,
                         }}>
                           <button
@@ -1910,7 +1910,7 @@ export default function TradesDashboard() {
                               border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
                               fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
                               background: !odQrWithAmount ? "white" : "transparent",
-                              color: !odQrWithAmount ? "#2B1911" : "#7D675E",
+                              color: !odQrWithAmount ? "#2B1911" : "var(--black-65)",
                               boxShadow: !odQrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
                               transition:"all .15s",
                             }}
@@ -1922,7 +1922,7 @@ export default function TradesDashboard() {
                               border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
                               fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
                               background: odQrWithAmount ? "white" : "transparent",
-                              color: odQrWithAmount ? "#2B1911" : "#7D675E",
+                              color: odQrWithAmount ? "#2B1911" : "var(--black-65)",
                               boxShadow: odQrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
                               transition:"all .15s",
                             }}
@@ -1930,7 +1930,7 @@ export default function TradesDashboard() {
                           >Address + amount</button>
                         </div>
                       </div>
-                      <div style={{fontSize:".68rem",color:"#7D675E",textAlign:"center",lineHeight:1.5,marginBottom:10}}>
+                      <div style={{fontSize:".68rem",color:"var(--black-65)",textAlign:"center",lineHeight:1.5,marginBottom:10}}>
                         {odQrWithAmount
                           ? "QR includes amount — most wallets will fill it in automatically"
                           : "QR contains address only — enter the amount manually in your wallet"}
@@ -1983,7 +1983,7 @@ export default function TradesDashboard() {
 
                       {/* Wrong-amount call to action — parity with offer-creation step 2 */}
                       {offerDetails?.funding?.status === "WRONG_FUNDING_AMOUNT" && (
-                        <div style={{background:"var(--error-bg,#FFE6E1)",border:"1px solid var(--error)",borderRadius:10,padding:"12px 14px"}}>
+                        <div style={{background:"var(--error-bg,var(--error-bg))",border:"1px solid var(--error)",borderRadius:10,padding:"12px 14px"}}>
                           <div style={{fontSize:".78rem",fontWeight:700,color:"var(--error)",marginBottom:6}}>
                             ⚠ Wrong amount funded
                           </div>

@@ -11,12 +11,12 @@ const QRDisplay = ({ qrPayload, size = 189 }) => {
     return (
       <div style={{width:size,height:size,display:"flex",alignItems:"center",justifyContent:"center",
         background:"white",borderRadius:6}}>
-        <div style={{width:32,height:32,borderRadius:"50%",border:"3px solid #EAE3DF",
-          borderTopColor:"#F56522",animation:"spin .8s linear infinite"}}/>
+        <div style={{width:32,height:32,borderRadius:"50%",border:"3px solid var(--black-10)",
+          borderTopColor:"var(--primary)",animation:"spin .8s linear infinite"}}/>
       </div>
     );
   }
-  return <QRCodeSVG value={qrPayload} size={size} level="L" bgColor="white" fgColor="#2B1911"/>;
+  return <QRCodeSVG value={qrPayload} size={size} level="L" bgColor="#ffffff" fgColor="#2B1911"/>;
 };
 
 // ─── COUNTDOWN RING ───────────────────────────────────────────────────────────
@@ -25,9 +25,9 @@ const CountdownRing = ({ secondsLeft, total=30, size=220 }) => {
   const urgent = secondsLeft<=10;
   return (
     <svg width={size} height={size} style={{position:"absolute",top:-8,left:-8,pointerEvents:"none"}}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#EAE3DF" strokeWidth="3.5"/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--black-10)" strokeWidth="3.5"/>
       <circle cx={size/2} cy={size/2} r={r} fill="none"
-        stroke={urgent?"#DF321F":"url(#rg)"} strokeWidth="3.5"
+        stroke={urgent?"var(--error)":"url(#rg)"} strokeWidth="3.5"
         strokeDasharray={circ} strokeDashoffset={off} strokeLinecap="round"
         transform={`rotate(-90 ${size/2} ${size/2})`}
         style={{transition:"stroke-dashoffset 1s linear, stroke .4s"}}/>
@@ -43,26 +43,26 @@ const CountdownRing = ({ secondsLeft, total=30, size=220 }) => {
 // ─── GHOST MARKET ROWS ────────────────────────────────────────────────────────
 const GhostRow = ({ w1, w2, accent }) => (
   <div style={{display:"flex",alignItems:"center",gap:12,
-    padding:"10px 24px",borderBottom:"1px solid #F4EEEB"}}>
+    padding:"10px 24px",borderBottom:"1px solid var(--black-5)"}}>
     <div style={{display:"flex",alignItems:"center",gap:8,flex:"0 0 160px"}}>
       <div style={{width:30,height:30,borderRadius:"50%",
-        background:"linear-gradient(135deg,#FF7A50,#FFA24C)",opacity:.6}}/>
+        background:"var(--grad)",opacity:.6}}/>
       <div style={{display:"flex",flexDirection:"column",gap:3}}>
-        <div style={{width:w1,height:8,borderRadius:4,background:"#EAE3DF"}}/>
-        <div style={{width:40,height:6,borderRadius:4,background:"#F4EEEB"}}/>
+        <div style={{width:w1,height:8,borderRadius:4,background:"var(--black-10)"}}/>
+        <div style={{width:40,height:6,borderRadius:4,background:"var(--black-5)"}}/>
       </div>
     </div>
     <div style={{flex:"0 0 100px",display:"flex",flexDirection:"column",gap:3}}>
-      <div style={{width:w2,height:8,borderRadius:4,background:"#EAE3DF"}}/>
-      <div style={{width:40,height:6,borderRadius:4,background:"#F4EEEB"}}/>
+      <div style={{width:w2,height:8,borderRadius:4,background:"var(--black-10)"}}/>
+      <div style={{width:40,height:6,borderRadius:4,background:"var(--black-5)"}}/>
     </div>
     <div style={{flex:"0 0 60px"}}>
       <div style={{width:44,height:8,borderRadius:4,
-        background:accent==="green"?"#C8E6A0":"#FFCBC4"}}/>
+        background:accent==="green"?"var(--success-mild)":"var(--error-bg)"}}/>
     </div>
     <div style={{flex:1,display:"flex",gap:4}}>
-      <div style={{width:36,height:18,borderRadius:999,background:"#F4EEEB"}}/>
-      <div style={{width:44,height:18,borderRadius:999,background:"#F4EEEB"}}/>
+      <div style={{width:36,height:18,borderRadius:999,background:"var(--black-5)"}}/>
+      <div style={{width:44,height:18,borderRadius:999,background:"var(--black-5)"}}/>
     </div>
   </div>
 );
@@ -71,10 +71,10 @@ const GhostRow = ({ w1, w2, accent }) => (
 const Step = ({ n, children }) => (
   <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
     <div style={{width:22,height:22,borderRadius:"50%",flexShrink:0,
-      background:"linear-gradient(135deg,#FF7A50,#FF4D42)",
+      background:"var(--grad)",
       display:"flex",alignItems:"center",justifyContent:"center",
       fontSize:".65rem",fontWeight:800,color:"white",marginTop:1}}>{n}</div>
-    <div style={{fontSize:".8rem",fontWeight:600,color:"#7D675E",lineHeight:1.55}}>
+    <div style={{fontSize:".8rem",fontWeight:600,color:"var(--black-65)",lineHeight:1.55}}>
       {children}
     </div>
   </div>
@@ -196,7 +196,7 @@ export default function PeachAuth() {
         <div style={{
           minHeight:"100vh",paddingTop:56,
           display:"flex",flexDirection:"column",
-          background:"#FFF9F6"
+          background:"var(--bg)"
         }}>
           <div style={{flex:1,display:"flex",flexDirection:"column",
             padding:"28px 20px 32px",gap:24,animation:"fadeUp .4s ease both"}}>
@@ -212,7 +212,7 @@ export default function PeachAuth() {
                     lineHeight:1.2,marginBottom:10}}>
                     Sign in to<br/>
                     <span style={{
-                      background:"linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)",
+                      background:"var(--grad)",
                       WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"
                     }}>start trading.</span>
                   </h1>
@@ -221,7 +221,7 @@ export default function PeachAuth() {
                 {/* Instructions — connect from mobile app */}
                 <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
                   <div style={{width:56,height:56,borderRadius:"50%",
-                    background:"linear-gradient(135deg,#FF7A50,#FFA24C)",
+                    background:"var(--grad)",
                     display:"flex",alignItems:"center",justifyContent:"center"}}>
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="5" y="1" width="14" height="22" rx="3"/>
@@ -229,10 +229,10 @@ export default function PeachAuth() {
                     </svg>
                   </div>
                   <div style={{textAlign:"center"}}>
-                    <div style={{fontSize:".95rem",fontWeight:800,color:"#2B1911",marginBottom:4}}>
+                    <div style={{fontSize:".95rem",fontWeight:800,color:"var(--black)",marginBottom:4}}>
                       Connect from your Peach app
                     </div>
-                    <div style={{fontSize:".76rem",color:"#7D675E",fontWeight:500,lineHeight:1.55}}>
+                    <div style={{fontSize:".76rem",color:"var(--black-65)",fontWeight:500,lineHeight:1.55}}>
                       Since you're on mobile, open the Peach app directly to connect your web session.
                     </div>
                   </div>
@@ -240,29 +240,29 @@ export default function PeachAuth() {
 
                 {/* Steps */}
                 <div style={{display:"flex",flexDirection:"column",gap:10,
-                  background:"#FFFFFF",borderRadius:14,border:"1px solid #EAE3DF",padding:"16px 14px"}}>
-                  <Step n="1"><strong style={{color:"#2B1911"}}>Open</strong> the Peach app</Step>
-                  <Step n="2">Go to <strong style={{color:"#2B1911"}}>Settings → Desktop Connection</strong></Step>
-                  <Step n="3"><strong style={{color:"#2B1911"}}>Follow</strong> the instructions to link your session</Step>
+                  background:"var(--surface)",borderRadius:14,border:"1px solid var(--black-10)",padding:"16px 14px"}}>
+                  <Step n="1"><strong style={{color:"var(--black)"}}>Open</strong> the Peach app</Step>
+                  <Step n="2">Go to <strong style={{color:"var(--black)"}}>Settings → Desktop Connection</strong></Step>
+                  <Step n="3"><strong style={{color:"var(--black)"}}>Follow</strong> the instructions to link your session</Step>
                 </div>
 
                 {/* Connection ID (if available) */}
                 {connectionId && (
                   <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                    <label style={{fontSize:".78rem",fontWeight:700,color:"#624D44",
+                    <label style={{fontSize:".78rem",fontWeight:700,color:"var(--black-75)",
                       letterSpacing:".02em",textTransform:"uppercase"}}>Connection ID</label>
                     <div style={{
                       display:"flex",alignItems:"center",justifyContent:"space-between",
                       padding:"14px 16px",borderRadius:12,
-                      background:"#F4EEEB",border:"1.5px solid #EAE3DF",gap:10
+                      background:"var(--black-5)",border:"1.5px solid var(--black-10)",gap:10
                     }}>
                       <span style={{
                         fontFamily:"monospace",fontSize:".95rem",fontWeight:700,
-                        color:"#2B1911",letterSpacing:".08em",wordBreak:"break-all"
+                        color:"var(--black)",letterSpacing:".08em",wordBreak:"break-all"
                       }}>{connectionId}</span>
                       <button onClick={handleCopyConnId} style={{
                         flexShrink:0,padding:"8px 14px",borderRadius:999,
-                        background: connIdCopied ? "#65A519" : "linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)",
+                        background: connIdCopied ? "var(--success)" : "var(--grad)",
                         color:"white",border:"none",cursor:"pointer",
                         fontFamily:"'Baloo 2',cursive",fontSize:".78rem",fontWeight:800,
                         letterSpacing:".02em",transition:"background .2s",
@@ -277,11 +277,11 @@ export default function PeachAuth() {
                 {/* Error state */}
                 {qrPhase === "error" && (
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10,
-                    padding:"16px 14px",borderRadius:12,background:"#FFF0EE",border:"1.5px solid #FFCBC4"}}>
-                    <span style={{fontSize:".8rem",fontWeight:700,color:"#DF321F"}}>{qrError || "Connection failed"}</span>
+                    padding:"16px 14px",borderRadius:12,background:"var(--error-bg)",border:"1.5px solid var(--error-bg)"}}>
+                    <span style={{fontSize:".8rem",fontWeight:700,color:"var(--error)"}}>{qrError || "Connection failed"}</span>
                     <button onClick={qrRestart} style={{
                       padding:"8px 18px",borderRadius:999,
-                      background:"linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)",
+                      background:"var(--grad)",
                       color:"white",border:"none",cursor:"pointer",
                       fontFamily:"'Baloo 2',cursive",fontSize:".76rem",fontWeight:800
                     }}>Try again</button>
@@ -290,18 +290,18 @@ export default function PeachAuth() {
 
                 {/* Security note */}
                 <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"12px 14px",
-                  borderRadius:12,background:"#F4EEEB",border:"1px solid #EAE3DF"}}>
+                  borderRadius:12,background:"var(--black-5)",border:"1px solid var(--black-10)"}}>
                   <span style={{fontSize:".95rem",flexShrink:0}}>🔒</span>
-                  <span style={{fontSize:".72rem",color:"#7D675E",fontWeight:500,lineHeight:1.5}}>
-                    <strong style={{color:"#2B1911"}}>Connection codes</strong> are single-use and expire after <strong style={{color:"#2B1911"}}>30 seconds</strong>. Your keys never leave your device.
+                  <span style={{fontSize:".72rem",color:"var(--black-65)",fontWeight:500,lineHeight:1.5}}>
+                    <strong style={{color:"var(--black)"}}>Connection codes</strong> are single-use and expire after <strong style={{color:"var(--black)"}}>30 seconds</strong>. Your keys never leave your device.
                   </span>
                 </div>
 
                 {/* New to Peach — mobile */}
-                <div style={{borderTop:"1px solid #EAE3DF",paddingTop:18}}>
-                  <div style={{fontSize:"1.1rem",fontWeight:800,color:"#2B1911",
+                <div style={{borderTop:"1px solid var(--black-10)",paddingTop:18}}>
+                  <div style={{fontSize:"1.1rem",fontWeight:800,color:"var(--black)",
                     letterSpacing:"-.02em",marginBottom:8}}>New to Peach?</div>
-                  <p style={{fontSize:".78rem",color:"#7D675E",fontWeight:500,lineHeight:1.55,marginBottom:12}}>
+                  <p style={{fontSize:".78rem",color:"var(--black-65)",fontWeight:500,lineHeight:1.55,marginBottom:12}}>
                     Peach accounts are created on the mobile app — your Bitcoin keys are generated and stored securely on your phone. Download it first, then come back here to sign in.
                   </p>
                   <div style={{display:"flex",gap:8}}>
@@ -309,10 +309,10 @@ export default function PeachAuth() {
                       style={{
                         flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
                         padding:"10px 12px",borderRadius:10,textDecoration:"none",
-                        border:"1.5px solid #EAE3DF",background:"#FFFFFF",
-                        fontSize:".75rem",fontWeight:700,color:"#2B1911"
+                        border:"1.5px solid var(--black-10)",background:"var(--surface)",
+                        fontSize:".75rem",fontWeight:700,color:"var(--black)"
                       }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="#2B1911">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--black)">
                         <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                       </svg>
                       App Store
@@ -321,10 +321,10 @@ export default function PeachAuth() {
                       style={{
                         flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
                         padding:"10px 12px",borderRadius:10,textDecoration:"none",
-                        border:"1.5px solid #EAE3DF",background:"#FFFFFF",
-                        fontSize:".75rem",fontWeight:700,color:"#2B1911"
+                        border:"1.5px solid var(--black-10)",background:"var(--surface)",
+                        fontSize:".75rem",fontWeight:700,color:"var(--black)"
                       }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="#2B1911">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--black)">
                         <path d="M3 20.5v-17c0-.83.94-1.3 1.6-.8l14 8.5c.6.36.6 1.24 0 1.6l-14 8.5c-.66.5-1.6.03-1.6-.8z"/>
                       </svg>
                       Google Play
@@ -340,15 +340,15 @@ export default function PeachAuth() {
                 animation:"fadeUp .4s ease both"}}>
                 <div style={{
                   width:88,height:88,borderRadius:"50%",
-                  background:"linear-gradient(135deg,#8DC33B,#65A519)",
+                  background:"linear-gradient(135deg,var(--success),var(--success))",
                   display:"flex",alignItems:"center",justifyContent:"center",
                   fontSize:"2.2rem",color:"white",
                   animation:"successPop .4s cubic-bezier(.175,.885,.32,1.275) both",
                   boxShadow:"0 8px 32px rgba(101,165,25,.3)"
                 }}>✓</div>
                 <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:"1.4rem",fontWeight:800,color:"#65A519",marginBottom:6}}>Signed in!</div>
-                  <div style={{fontSize:".85rem",color:"#7D675E",fontWeight:500}}>Redirecting to the market…</div>
+                  <div style={{fontSize:"1.4rem",fontWeight:800,color:"var(--success)",marginBottom:6}}>Signed in!</div>
+                  <div style={{fontSize:".85rem",color:"var(--black-65)",fontWeight:500}}>Redirecting to the market…</div>
                 </div>
               </div>
             )}
@@ -397,33 +397,33 @@ export default function PeachAuth() {
       {/* Ghost market */}
       <div style={{position:"fixed",top:56,left:68,right:0,bottom:0,
         overflow:"hidden",pointerEvents:"none",userSelect:"none"}}>
-        <div style={{padding:"12px 24px",background:"#FFFFFF",
-          borderBottom:"1px solid #EAE3DF",display:"flex",alignItems:"center",gap:10}}>
-          <div style={{display:"flex",gap:2,background:"#F4EEEB",padding:3,borderRadius:10}}>
-            <div style={{padding:"6px 20px",borderRadius:7,background:"#FFFFFF",
-              fontSize:".85rem",fontWeight:700,color:"#65A519"}}>Buy BTC</div>
+        <div style={{padding:"12px 24px",background:"var(--surface)",
+          borderBottom:"1px solid var(--black-10)",display:"flex",alignItems:"center",gap:10}}>
+          <div style={{display:"flex",gap:2,background:"var(--black-5)",padding:3,borderRadius:10}}>
+            <div style={{padding:"6px 20px",borderRadius:7,background:"var(--surface)",
+              fontSize:".85rem",fontWeight:700,color:"var(--success)"}}>Buy BTC</div>
             <div style={{padding:"6px 20px",borderRadius:7,
-              fontSize:".85rem",fontWeight:700,color:"#7D675E"}}>Sell BTC</div>
+              fontSize:".85rem",fontWeight:700,color:"var(--black-65)"}}>Sell BTC</div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:5,padding:"5px 11px",
-            borderRadius:999,background:"#F4EEEB",fontSize:".76rem",fontWeight:600,color:"#7D675E"}}>
-            7 offers · Avg <span style={{color:"#65A519",fontWeight:700,marginLeft:3}}>−0.4%</span>
-            <span style={{color:"#C4B5AE",margin:"0 4px"}}>·</span>
-            Best <span style={{color:"#65A519",fontWeight:700,marginLeft:3}}>−1.2%</span>
+            borderRadius:999,background:"var(--black-5)",fontSize:".76rem",fontWeight:600,color:"var(--black-65)"}}>
+            7 offers · Avg <span style={{color:"var(--success)",fontWeight:700,marginLeft:3}}>−0.4%</span>
+            <span style={{color:"var(--black-25)",margin:"0 4px"}}>·</span>
+            Best <span style={{color:"var(--success)",fontWeight:700,marginLeft:3}}>−1.2%</span>
           </div>
           <div style={{marginLeft:"auto",display:"flex",gap:8}}>
             {[90,110,80].map(w=>(
-              <div key={w} style={{width:w,height:33,borderRadius:8,background:"#EAE3DF"}}/>
+              <div key={w} style={{width:w,height:33,borderRadius:8,background:"var(--black-10)"}}/>
             ))}
             <div style={{width:100,height:33,borderRadius:999,
-              background:"linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)",opacity:.5}}/>
+              background:"var(--grad)",opacity:.5}}/>
           </div>
         </div>
         <div style={{display:"flex",gap:12,padding:"8px 24px",
-          borderBottom:"2px solid #EAE3DF",background:"#FFFFFF"}}>
+          borderBottom:"2px solid var(--black-10)",background:"var(--surface)"}}>
           {["REPUTATION","AMOUNT","PREMIUM","PAYMENT","CURRENCIES",""].map((h,i)=>(
             <div key={i} style={{flex:i===5?0:1,minWidth:i===5?60:0,
-              fontSize:".67rem",fontWeight:700,color:"#C4B5AE",letterSpacing:".09em"}}>{h}</div>
+              fontSize:".67rem",fontWeight:700,color:"var(--black-25)",letterSpacing:".09em"}}>{h}</div>
           ))}
         </div>
         {[{w1:70,w2:60,accent:"green"},{w1:55,w2:80,accent:"green"},
@@ -432,14 +432,14 @@ export default function PeachAuth() {
           {w1:65,w2:75,accent:"red"},{w1:70,w2:58,accent:"green"}
         ].map((r,i)=><GhostRow key={i} {...r}/>)}
         <div style={{position:"absolute",inset:0,
-          background:"linear-gradient(to bottom,rgba(255,249,246,.55) 0%,rgba(255,249,246,.92) 100%)"}}/>
+          background:"linear-gradient(to bottom,color-mix(in srgb,var(--bg) 55%,transparent) 0%,color-mix(in srgb,var(--bg) 92%,transparent) 100%)"}}/>
       </div>
 
       {/* Auth card */}
       <div style={{position:"fixed",top:56,left:68,right:0,bottom:0,
         display:"flex",alignItems:"center",justifyContent:"center",zIndex:10,padding:20}}>
         <div style={{
-          background:"#FFFFFF",border:"1px solid #EAE3DF",borderRadius:20,
+          background:"var(--surface)",border:"1px solid var(--black-10)",borderRadius:20,
           boxShadow:"0 8px 48px rgba(43,25,17,.12),0 2px 12px rgba(43,25,17,.06)",
           padding:"36px 40px",display:"flex",gap:48,alignItems:"center",
           maxWidth:780,width:"100%",overflow:"hidden",animation:"fadeUp .5s ease both"
@@ -448,35 +448,35 @@ export default function PeachAuth() {
           <div style={{flex:1,display:"flex",flexDirection:"column",gap:20}}>
             <div>
               <h1 style={{fontSize:"1.7rem",fontWeight:800,letterSpacing:"-.03em",
-                lineHeight:1.2,color:"#2B1911",marginBottom:10}}>
+                lineHeight:1.2,color:"var(--black)",marginBottom:10}}>
                 Sign in to<br/>
                 <span style={{
-                  background:"linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)",
+                  background:"var(--grad)",
                   WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"
                 }}>start trading.</span>
               </h1>
-              <p style={{fontSize:".85rem",color:"#7D675E",lineHeight:1.65,fontWeight:500}}>
+              <p style={{fontSize:".85rem",color:"var(--black-65)",lineHeight:1.65,fontWeight:500}}>
                 Use your Peach mobile app to scan the QR code and link your account. Your keys stay on your phone — always.
               </p>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              <Step n="1"><strong style={{color:"#2B1911"}}>Open</strong> the Peach app on your phone</Step>
-              <Step n="2"><strong style={{color:"#2B1911"}}>Tap</strong> "connect to desktop" in the settings</Step>
-              <Step n="3"><strong style={{color:"#2B1911"}}>Scan</strong> the code — you'll be signed in instantly</Step>
+              <Step n="1"><strong style={{color:"var(--black)"}}>Open</strong> the Peach app on your phone</Step>
+              <Step n="2"><strong style={{color:"var(--black)"}}>Tap</strong> "connect to desktop" in the settings</Step>
+              <Step n="3"><strong style={{color:"var(--black)"}}>Scan</strong> the code — you'll be signed in instantly</Step>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",
-              borderRadius:10,background:"#F4EEEB",border:"1px solid #EAE3DF"}}>
+              borderRadius:10,background:"var(--black-5)",border:"1px solid var(--black-10)"}}>
               <span style={{fontSize:"1rem"}}>🔒</span>
-              <span style={{fontSize:".73rem",color:"#7D675E",fontWeight:500,lineHeight:1.5}}>
-                Session tokens expire after <strong style={{color:"#2B1911"}}>120 minutes</strong>. Your keypair never leaves your device.
+              <span style={{fontSize:".73rem",color:"var(--black-65)",fontWeight:500,lineHeight:1.5}}>
+                Session tokens expire after <strong style={{color:"var(--black)"}}>120 minutes</strong>. Your keypair never leaves your device.
               </span>
             </div>
 
             {/* New to Peach */}
-            <div style={{borderTop:"1px solid #EAE3DF",paddingTop:18}}>
-              <div style={{fontSize:"1.1rem",fontWeight:800,color:"#2B1911",
+            <div style={{borderTop:"1px solid var(--black-10)",paddingTop:18}}>
+              <div style={{fontSize:"1.1rem",fontWeight:800,color:"var(--black)",
                 letterSpacing:"-.02em",marginBottom:8}}>New to Peach?</div>
-              <p style={{fontSize:".78rem",color:"#7D675E",fontWeight:500,lineHeight:1.55,marginBottom:12}}>
+              <p style={{fontSize:".78rem",color:"var(--black-65)",fontWeight:500,lineHeight:1.55,marginBottom:12}}>
                 Peach accounts are created on the mobile app — your Bitcoin keys are generated and stored securely on your phone. Download it first, then come back here to sign in.
               </p>
               <div style={{display:"flex",gap:8}}>
@@ -484,13 +484,13 @@ export default function PeachAuth() {
                   style={{
                     flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
                     padding:"9px 12px",borderRadius:10,textDecoration:"none",
-                    border:"1.5px solid #EAE3DF",background:"#F4EEEB",
-                    fontSize:".75rem",fontWeight:700,color:"#2B1911",transition:"border-color .15s"
+                    border:"1.5px solid var(--black-10)",background:"var(--black-5)",
+                    fontSize:".75rem",fontWeight:700,color:"var(--black)",transition:"border-color .15s"
                   }}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor="#F56522"}
-                  onMouseLeave={e=>e.currentTarget.style.borderColor="#EAE3DF"}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor="var(--primary)"}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor="var(--black-10)"}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#2B1911">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--black)">
                     <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                   </svg>
                   App Store
@@ -499,13 +499,13 @@ export default function PeachAuth() {
                   style={{
                     flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
                     padding:"9px 12px",borderRadius:10,textDecoration:"none",
-                    border:"1.5px solid #EAE3DF",background:"#F4EEEB",
-                    fontSize:".75rem",fontWeight:700,color:"#2B1911",transition:"border-color .15s"
+                    border:"1.5px solid var(--black-10)",background:"var(--black-5)",
+                    fontSize:".75rem",fontWeight:700,color:"var(--black)",transition:"border-color .15s"
                   }}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor="#F56522"}
-                  onMouseLeave={e=>e.currentTarget.style.borderColor="#EAE3DF"}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor="var(--primary)"}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor="var(--black-10)"}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#2B1911">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--black)">
                     <path d="M3 20.5v-17c0-.83.94-1.3 1.6-.8l14 8.5c.6.36.6 1.24 0 1.6l-14 8.5c-.66.5-1.6.03-1.6-.8z"/>
                   </svg>
                   Google Play
@@ -514,32 +514,32 @@ export default function PeachAuth() {
             </div>
 
           </div>
-          <div style={{width:1,alignSelf:"stretch",background:"#EAE3DF",flexShrink:0}}/>
+          <div style={{width:1,alignSelf:"stretch",background:"var(--black-10)",flexShrink:0}}/>
 
           {/* Right: QR */}
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,flexShrink:0,width:320}}>
             {phase!=="success" && (
               <>
                 <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:".92rem",fontWeight:800,color:"#2B1911",marginBottom:4}}>
+                  <div style={{fontSize:".92rem",fontWeight:800,color:"var(--black)",marginBottom:4}}>
                     {qrPhase==="error" ? "Connection failed" : "Scan with Peach Mobile App"}
                   </div>
-                  <div style={{fontSize:".73rem",color:"#C4B5AE",fontWeight:500}}>
+                  <div style={{fontSize:".73rem",color:"var(--black-25)",fontWeight:500}}>
                     {qrPhase==="error" ? "Something went wrong" : "Valid for 30 seconds"}
                   </div>
                 </div>
 
                 {qrPhase === "error" ? (
                   <div style={{width:204,height:204,borderRadius:14,
-                    background:"#FFF0EE",border:"1.5px solid #FFCBC4",
+                    background:"var(--error-bg)",border:"1.5px solid var(--error-bg)",
                     display:"flex",flexDirection:"column",alignItems:"center",
                     justifyContent:"center",gap:12,padding:20}}>
-                    <span style={{fontSize:".8rem",fontWeight:700,color:"#DF321F",textAlign:"center"}}>
+                    <span style={{fontSize:".8rem",fontWeight:700,color:"var(--error)",textAlign:"center"}}>
                       {qrError || "Connection failed"}
                     </span>
                     <button onClick={qrRestart} style={{
                       padding:"8px 20px",borderRadius:999,
-                      background:"linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)",
+                      background:"var(--grad)",
                       color:"white",border:"none",cursor:"pointer",
                       fontFamily:"'Baloo 2',cursive",fontSize:".78rem",fontWeight:800,
                       letterSpacing:".02em"
@@ -550,16 +550,17 @@ export default function PeachAuth() {
                     <CountdownRing secondsLeft={secsLeft} total={TOTAL} size={320}/>
                     <div style={{width:304,height:304,borderRadius:14,overflow:"hidden",
                       position:"relative",boxShadow:"0 4px 24px rgba(43,25,17,.1)",
-                      display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      background:"#ffffff"}}>
                       <QRDisplay qrPayload={qrPayload} size={288}/>
                       {phase==="scanning" && (
-                        <div style={{position:"absolute",inset:0,background:"rgba(255,249,246,.85)",
+                        <div style={{position:"absolute",inset:0,background:"color-mix(in srgb,var(--bg) 85%,transparent)",
                           display:"flex",flexDirection:"column",alignItems:"center",
                           justifyContent:"center",gap:10,animation:"fadeIn .2s ease",borderRadius:14}}>
                           <div style={{width:32,height:32,borderRadius:"50%",
-                            border:"3px solid #EAE3DF",borderTopColor:"#F56522",
+                            border:"3px solid var(--black-10)",borderTopColor:"var(--primary)",
                             animation:"spin .8s linear infinite"}}/>
-                          <span style={{fontSize:".78rem",fontWeight:700,color:"#624D44"}}>Connecting…</span>
+                          <span style={{fontSize:".78rem",fontWeight:700,color:"var(--black-75)"}}>Connecting…</span>
                         </div>
                       )}
                     </div>
@@ -568,10 +569,10 @@ export default function PeachAuth() {
 
                 {(phase==="waiting"||phase==="scanning") && qrPhase !== "error" && (
                   <div style={{display:"flex",alignItems:"center",gap:6,fontSize:".73rem",
-                    fontWeight:600,color:urgent?"#DF321F":"#C4B5AE",transition:"color .3s"}}>
+                    fontWeight:600,color:urgent?"var(--error)":"var(--black-25)",transition:"color .3s"}}>
                     <span>Expires in</span>
                     <span style={{fontWeight:800,fontSize:".82rem",fontVariantNumeric:"tabular-nums",
-                      letterSpacing:".04em",color:urgent?"#DF321F":"#7D675E"}}>{mins}:{secs_}</span>
+                      letterSpacing:".04em",color:urgent?"var(--error)":"var(--black-65)"}}>{mins}:{secs_}</span>
                   </div>
                 )}
               </>
@@ -581,34 +582,34 @@ export default function PeachAuth() {
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",
                 gap:16,animation:"fadeUp .4s ease both"}}>
                 <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:".92rem",fontWeight:800,color:"#65A519"}}>Signed in!</div>
-                  <div style={{fontSize:".73rem",color:"#C4B5AE",fontWeight:500,marginTop:4}}>
+                  <div style={{fontSize:".92rem",fontWeight:800,color:"var(--success)"}}>Signed in!</div>
+                  <div style={{fontSize:".73rem",color:"var(--black-25)",fontWeight:500,marginTop:4}}>
                     Redirecting to the market…
                   </div>
                 </div>
-                <div style={{width:204,height:204,borderRadius:14,background:"#F2F9E7",
-                  border:"1.5px solid #C8E6A0",display:"flex",flexDirection:"column",
+                <div style={{width:204,height:204,borderRadius:14,background:"var(--success-bg)",
+                  border:"1.5px solid var(--success-mild)",display:"flex",flexDirection:"column",
                   alignItems:"center",justifyContent:"center",gap:10}}>
-                  <div style={{width:56,height:56,borderRadius:"50%",background:"#65A519",
+                  <div style={{width:56,height:56,borderRadius:"50%",background:"var(--success)",
                     display:"flex",alignItems:"center",justifyContent:"center",
                     fontSize:"1.6rem",color:"white",
                     animation:"successPop .4s cubic-bezier(.175,.885,.32,1.275) both"}}>✓</div>
-                  <div style={{fontSize:".8rem",fontWeight:700,color:"#65A519"}}>Account linked</div>
+                  <div style={{fontSize:".8rem",fontWeight:700,color:"var(--success)"}}>Account linked</div>
                 </div>
               </div>
             )}
 
             {/* Connection ID fallback — always shown except on success */}
             {phase !== "success" && qrPhase !== "error" && (
-              <div style={{width:"100%",borderTop:"1px solid #EAE3DF",paddingTop:14}}>
+              <div style={{width:"100%",borderTop:"1px solid var(--black-10)",paddingTop:14}}>
                 <button onClick={() => setDesktopShowCode(c => !c)} style={{
                   background:"none",border:"none",cursor:"pointer",
                   display:"flex",alignItems:"center",gap:5,
                   fontFamily:"'Baloo 2',cursive",fontSize:".73rem",fontWeight:700,
-                  color:"#C4B5AE",padding:0,transition:"color .15s"
+                  color:"var(--black-25)",padding:0,transition:"color .15s"
                 }}
-                  onMouseEnter={e=>e.currentTarget.style.color="#7D675E"}
-                  onMouseLeave={e=>e.currentTarget.style.color="#C4B5AE"}
+                  onMouseEnter={e=>e.currentTarget.style.color="var(--black-65)"}
+                  onMouseLeave={e=>e.currentTarget.style.color="var(--black-25)"}
                 >
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                     style={{transform:desktopShowCode?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"}}>
@@ -620,22 +621,22 @@ export default function PeachAuth() {
                 {desktopShowCode && (
                   <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:8,
                     animation:"fadeIn .2s ease both"}}>
-                    <div style={{fontSize:".7rem",color:"#7D675E",fontWeight:500,lineHeight:1.5}}>
-                      Copy this code and paste it into your Peach app under <strong style={{color:"#2B1911"}}>Settings → Connect web browser</strong>.
+                    <div style={{fontSize:".7rem",color:"var(--black-65)",fontWeight:500,lineHeight:1.5}}>
+                      Copy this code and paste it into your Peach app under <strong style={{color:"var(--black)"}}>Settings → Connect web browser</strong>.
                     </div>
                     <div style={{
                       display:"flex",alignItems:"center",justifyContent:"space-between",
                       padding:"12px 14px",borderRadius:10,
-                      background:"#F4EEEB",border:"1.5px solid #EAE3DF",gap:10
+                      background:"var(--black-5)",border:"1.5px solid var(--black-10)",gap:10
                     }}>
                       <span style={{
                         fontFamily:"monospace",fontSize:".88rem",fontWeight:700,
-                        color:"#2B1911",letterSpacing:".08em",wordBreak:"break-all",
+                        color:"var(--black)",letterSpacing:".08em",wordBreak:"break-all",
                         minWidth:0
                       }}>{connectionId || "..."}</span>
                       <button onClick={handleCopyConnId} style={{
                         flexShrink:0,padding:"7px 14px",borderRadius:999,
-                        background: connIdCopied ? "#65A519" : "linear-gradient(90deg,#FF4D42,#FF7A50,#FFA24C)",
+                        background: connIdCopied ? "var(--success)" : "var(--grad)",
                         color:"white",border:"none",cursor:"pointer",
                         fontFamily:"'Baloo 2',cursive",fontSize:".78rem",fontWeight:800,
                         letterSpacing:".02em",transition:"background .2s",

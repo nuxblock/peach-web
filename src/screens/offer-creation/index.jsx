@@ -1076,7 +1076,7 @@ export default function OfferCreation({ initialType="buy" }) {
                         border:`2px solid ${form.noNewUsers?"var(--primary)":"var(--black-10)"}`,
                         background:form.noNewUsers?"var(--primary)":"var(--surface)",
                         display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        {form.noNewUsers&&<div style={{width:6,height:6,borderRadius:"50%",background:"#fff"}}/>}
+                        {form.noNewUsers&&<div style={{width:6,height:6,borderRadius:"50%",background:"var(--surface)"}}/>}
                       </div>
                       <div>
                         <div style={{fontSize:".78rem",fontWeight:600}}>No new users</div>
@@ -1093,7 +1093,7 @@ export default function OfferCreation({ initialType="buy" }) {
                         border:`2px solid ${form.minReputation?"var(--primary)":"var(--black-10)"}`,
                         background:form.minReputation?"var(--primary)":"var(--surface)",
                         display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        {form.minReputation&&<div style={{width:6,height:6,borderRadius:"50%",background:"#fff"}}/>}
+                        {form.minReputation&&<div style={{width:6,height:6,borderRadius:"50%",background:"var(--surface)"}}/>}
                       </div>
                       <span style={{fontSize:".78rem",fontWeight:600}}>Minimum reputation : 4.5</span>
                     </div>
@@ -1138,7 +1138,7 @@ export default function OfferCreation({ initialType="buy" }) {
                           border:`2px solid ${form.experienceLevel===val?"var(--primary)":"var(--black-10)"}`,
                           background:form.experienceLevel===val?"var(--primary)":"var(--surface)",
                           display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                          {form.experienceLevel===val&&<div style={{width:6,height:6,borderRadius:"50%",background:"#fff"}}/>}
+                          {form.experienceLevel===val&&<div style={{width:6,height:6,borderRadius:"50%",background:"var(--surface)"}}/>}
                         </div>
                         <span style={{fontSize:".78rem",fontWeight:600}}>{label}</span>
                       </div>
@@ -1293,7 +1293,7 @@ export default function OfferCreation({ initialType="buy" }) {
                           value={qrWithAmount
                             ? `bitcoin:${escrowAddress}?amount=${(form.amtFixed / 1e8).toFixed(8)}`
                             : escrowAddress}
-                          size={140} level="L" bgColor="white" fgColor="#2B1911"
+                          size={140} level="L" bgColor="#ffffff" fgColor="#2B1911"
                         />
                       )}
                     </div>
@@ -1303,7 +1303,7 @@ export default function OfferCreation({ initialType="buy" }) {
                   <div style={{display:"flex",justifyContent:"center",marginBottom:8}}>
                     <div style={{
                       display:"flex", alignItems:"center", gap:0,
-                      background:"#F4EEEB", borderRadius:999, padding:3,
+                      background:"var(--black-5)", borderRadius:999, padding:3,
                       fontSize:".72rem", fontWeight:700,
                     }}>
                       <button
@@ -1312,7 +1312,7 @@ export default function OfferCreation({ initialType="buy" }) {
                           border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
                           fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
                           background: !qrWithAmount ? "white" : "transparent",
-                          color: !qrWithAmount ? "#2B1911" : "#7D675E",
+                          color: !qrWithAmount ? "#2B1911" : "var(--black-65)",
                           boxShadow: !qrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
                           transition:"all .15s",
                         }}
@@ -1324,7 +1324,7 @@ export default function OfferCreation({ initialType="buy" }) {
                           border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
                           fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
                           background: qrWithAmount ? "white" : "transparent",
-                          color: qrWithAmount ? "#2B1911" : "#7D675E",
+                          color: qrWithAmount ? "#2B1911" : "var(--black-65)",
                           boxShadow: qrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
                           transition:"all .15s",
                         }}
@@ -1333,7 +1333,7 @@ export default function OfferCreation({ initialType="buy" }) {
                     </div>
                   </div>
                   <div style={{
-                    fontSize:".68rem", color:"#7D675E", textAlign:"center",
+                    fontSize:".68rem", color:"var(--black-65)", textAlign:"center",
                     lineHeight:1.5, marginBottom:20,
                   }}>
                     {qrWithAmount
@@ -1426,7 +1426,7 @@ export default function OfferCreation({ initialType="buy" }) {
                       </div>
                     </div>
                   ) : fundingStatus === "FUNDED" ? (
-                    <div style={{background:"#E8F5E9",borderRadius:12,
+                    <div style={{background:"var(--success-bg)",borderRadius:12,
                       border:"1px solid var(--success)",padding:"14px 16px",
                       display:"flex",alignItems:"center",gap:14,marginBottom:18,
                       animation:"stepFwd .4s ease both"}}>
@@ -1443,7 +1443,7 @@ export default function OfferCreation({ initialType="buy" }) {
                       </div>
                     </div>
                   ) : fundingStatus === "MEMPOOL" ? (
-                    <div style={{background:"#E8F5E9",borderRadius:12,
+                    <div style={{background:"var(--success-bg)",borderRadius:12,
                       border:"1px solid var(--success)",padding:"14px 16px",
                       display:"flex",alignItems:"center",gap:14,marginBottom:18,
                       animation:"stepFwd .4s ease both"}}>

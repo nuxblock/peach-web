@@ -124,7 +124,7 @@ export const CSS = `
   .pm-cat-card{display:flex;align-items:center;gap:14px;border:1.5px solid var(--black-10);
     border-radius:12px;padding:14px 16px;background:var(--surface);cursor:pointer;
     font-family:var(--font);transition:all .15s;text-align:left;width:100%}
-  .pm-cat-card:hover{border-color:var(--primary);background:#FFFAF8}
+  .pm-cat-card:hover{border-color:var(--primary);background:var(--error-bg)}
   .pm-cat-card.selected{border-color:var(--primary);background:var(--primary-mild)}
   .pm-cat-icon{width:40px;height:40px;border-radius:10px;background:var(--primary-mild);
     display:flex;align-items:center;justify-content:center;color:var(--primary-dark);flex-shrink:0}
@@ -179,7 +179,7 @@ export const CSS = `
   .btn-delete{flex:1;background:var(--error);color:white;border:none;border-radius:10px;
     font-family:var(--font);font-size:.85rem;font-weight:700;padding:10px;cursor:pointer;
     transition:background .14s}
-  .btn-delete:hover{background:#B01807}
+  .btn-delete:hover{background:var(--error)}
 
   /* Animations */
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}

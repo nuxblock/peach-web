@@ -412,7 +412,7 @@ export default function MatchesPopup({
                     <div className="chat-ts">
                       {relativeTime(msg.ts)}
                       {msg.optimistic && <span style={{opacity:.6}}> · sending\u2026</span>}
-                      {msg.failed && <span style={{color:"#DF321F"}}> · failed to send</span>}
+                      {msg.failed && <span style={{color:"var(--error)"}}> · failed to send</span>}
                     </div>
                   </div>
                 </div>
@@ -500,7 +500,7 @@ export default function MatchesPopup({
               })()}
               <div className="match-detail-row">
                 <span className="match-detail-label">Premium</span>
-                <span style={{fontWeight:700,color:m.premium < 0 ? "#65A519" : m.premium > 0 ? "#DF321F" : "var(--black)"}}>
+                <span style={{fontWeight:700,color:m.premium < 0 ? "var(--success)" : m.premium > 0 ? "var(--error)" : "var(--black)"}}>
                   {m.premium > 0 ? "+" : ""}{m.premium.toFixed(2)}%
                 </span>
               </div>
@@ -558,8 +558,8 @@ export default function MatchesPopup({
             {trade.premium !== undefined && (
               <span style={{fontSize:".78rem",fontWeight:700,
                 color: isBuy
-                  ? (trade.premium < 0 ? "#65A519" : "#DF321F")
-                  : (trade.premium > 0 ? "#65A519" : "#DF321F"),
+                  ? (trade.premium < 0 ? "var(--success)" : "var(--error)")
+                  : (trade.premium > 0 ? "var(--success)" : "var(--error)"),
               }}>
                 {trade.premium > 0 ? "+" : ""}{trade.premium.toFixed(2)}%
               </span>
@@ -832,7 +832,7 @@ export function SentRequestPopup({ trade, onClose }) {
                     <div className="chat-ts">
                       {relativeTime(msg.ts)}
                       {msg.optimistic && <span style={{opacity:.6}}> · sending\u2026</span>}
-                      {msg.failed && <span style={{color:"#DF321F"}}> · failed to send</span>}
+                      {msg.failed && <span style={{color:"var(--error)"}}> · failed to send</span>}
                     </div>
                   </div>
                 </div>
@@ -889,8 +889,8 @@ export function SentRequestPopup({ trade, onClose }) {
             {trade.premium !== undefined && (
               <span style={{fontSize:".78rem",fontWeight:700,
                 color: isBuy
-                  ? (trade.premium < 0 ? "#65A519" : "#DF321F")
-                  : (trade.premium > 0 ? "#65A519" : "#DF321F"),
+                  ? (trade.premium < 0 ? "var(--success)" : "var(--error)")
+                  : (trade.premium > 0 ? "var(--success)" : "var(--error)"),
               }}>
                 {trade.premium > 0 ? "+" : ""}{trade.premium.toFixed(2)}%
               </span>

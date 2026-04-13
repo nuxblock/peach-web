@@ -60,7 +60,7 @@ export function LivePreview({ type, form, btcPrice, offerMethods, offerCurrencie
               <div className="prev-avatar">PW<div className="prev-dot"/></div>
               <div>
                 <div style={{fontSize:".76rem",fontWeight:700,display:"flex",alignItems:"center",gap:3}}>
-                  <span style={{color:"#F7931A"}}>★</span>4.7
+                  <span style={{color:"var(--btc)"}}>★</span>4.7
                   <span style={{fontSize:".65rem",color:"var(--black-65)",fontWeight:500,marginLeft:2}}>(23)</span>
                 </div>
                 <div style={{fontSize:".58rem",fontWeight:800,color:"var(--primary-dark)",
@@ -128,7 +128,7 @@ export function AmountSlider({ form, setF, btcPrice }) {
     ? ((LIMIT_EUR / currentFiat) - 1) * 100
     : null;
 
-  const barColor = pctOfLimit < 0.9 ? "var(--success)" : "#E6A000";
+  const barColor = pctOfLimit < 0.9 ? "var(--success)" : "var(--warning)";
 
   // Editable sats input state
   const [inputVal, setInputVal] = useState(String(val));
@@ -209,7 +209,7 @@ export function AmountSlider({ form, setF, btcPrice }) {
       <div className="limit-bar-wrap">
         <div className="limit-bar-label">
           <span>Daily limit usage</span>
-          <span style={{color:pctOfLimit>=0.9?"#7A5F00":"var(--black-65)"}}>
+          <span style={{color:pctOfLimit>=0.9?"var(--warning)":"var(--black-65)"}}>
             €{Math.round(currentFiat).toLocaleString()} / €{Math.round(LIMIT_EUR).toLocaleString()}
           </span>
         </div>
@@ -370,14 +370,14 @@ export function MultiEscrowFunding({
               value={qrWithAmount
                 ? `bitcoin:${selected.escrowAddress}?amount=${(amtFixed / 1e8).toFixed(8)}`
                 : selected.escrowAddress}
-              size={140} level="L" bgColor="white" fgColor="#2B1911"
+              size={140} level="L" bgColor="#ffffff" fgColor="#2B1911"
             />
           </div>
           {/* Address only / Address + amount toggle */}
           <div style={{display:"flex",justifyContent:"center",marginTop:10}}>
             <div style={{
               display:"flex", alignItems:"center", gap:0,
-              background:"#F4EEEB", borderRadius:999, padding:3,
+              background:"var(--black-5)", borderRadius:999, padding:3,
               fontSize:".72rem", fontWeight:700,
             }}>
               <button
@@ -386,7 +386,7 @@ export function MultiEscrowFunding({
                   border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
                   fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
                   background: !qrWithAmount ? "white" : "transparent",
-                  color: !qrWithAmount ? "#2B1911" : "#7D675E",
+                  color: !qrWithAmount ? "#2B1911" : "var(--black-65)",
                   boxShadow: !qrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
                   transition:"all .15s",
                 }}
@@ -398,7 +398,7 @@ export function MultiEscrowFunding({
                   border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
                   fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
                   background: qrWithAmount ? "white" : "transparent",
-                  color: qrWithAmount ? "#2B1911" : "#7D675E",
+                  color: qrWithAmount ? "#2B1911" : "var(--black-65)",
                   boxShadow: qrWithAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
                   transition:"all .15s",
                 }}
@@ -407,7 +407,7 @@ export function MultiEscrowFunding({
             </div>
           </div>
           <div style={{
-            fontSize:".68rem", color:"#7D675E", textAlign:"center",
+            fontSize:".68rem", color:"var(--black-65)", textAlign:"center",
             lineHeight:1.5, marginTop:6,
           }}>
             {qrWithAmount

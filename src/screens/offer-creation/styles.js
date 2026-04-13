@@ -2,7 +2,7 @@
 // Extracted from peach-offer-creation.jsx (purely mechanical — 451 lines of CSS)
 // ─────────────────────────────────────────────────────────────────────────────
 export const CSS = `
-  :root{--error-bg:#FFE6E1}
+  :root{--error-bg:var(--error-bg)}
 
 
   .back-btn{display:flex;align-items:center;gap:6px;font-size:.82rem;font-weight:700;
@@ -98,8 +98,8 @@ export const CSS = `
   .sb-item{display:flex;flex-direction:column;align-items:center;gap:5px}
   .sb-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;
     justify-content:center;font-size:.68rem;font-weight:800;transition:all .22s;flex-shrink:0}
-  .sb-dot.done{background:var(--grad);color:white}
-  .sb-dot.active{background:var(--black);color:white;box-shadow:0 0 0 4px rgba(43,25,17,.1)}
+  .sb-dot.done{background:var(--grad);color:var(--surface)}
+  .sb-dot.active{background:var(--black);color:var(--surface);box-shadow:0 0 0 4px rgba(43,25,17,.1)}
   .sb-dot.todo{background:var(--black-5);color:var(--black-25);border:1.5px solid var(--black-10)}
   .sb-label{font-size:.62rem;font-weight:700;text-transform:uppercase;
     letter-spacing:.07em;white-space:nowrap;transition:color .2s}
@@ -184,7 +184,7 @@ export const CSS = `
   .fiat-pill{cursor:default}
   .amt-pill-display{display:inline-flex;align-items:center;gap:5px;
     white-space:nowrap;cursor:text;width:100%}
-  .amt-pill-grey{color:#C4B5AE;font-weight:700;font-size:.88rem}
+  .amt-pill-grey{color:var(--black-25);font-weight:700;font-size:.88rem}
   .amt-pill-black{color:var(--black);font-weight:800;font-size:.88rem}
   .amt-pill-input{border:none;background:transparent;outline:none;
     font-family:var(--font);font-size:.92rem;font-weight:800;
@@ -193,9 +193,9 @@ export const CSS = `
     white-space:nowrap}
 
   /* Limit warning */
-  .limit-warn{display:flex;gap:9px;align-items:flex-start;background:#FFFBEB;
-    border:1px solid #F5CE22;border-radius:10px;padding:10px 12px;
-    font-size:.76rem;font-weight:600;color:#7A5F00;line-height:1.55;margin-top:10px}
+  .limit-warn{display:flex;gap:9px;align-items:flex-start;background:var(--warning-soft);
+    border:1px solid var(--warning);border-radius:10px;padding:10px 12px;
+    font-size:.76rem;font-weight:600;color:var(--warning);line-height:1.55;margin-top:10px}
 
   /* Limit bar */
   .limit-bar-wrap{margin-top:10px}
@@ -292,9 +292,9 @@ export const CSS = `
   .btn-next:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 18px rgba(245,101,34,.42)}
   .btn-next:disabled{background:var(--black-10);color:var(--black-25);
     box-shadow:none;cursor:not-allowed;transform:none}
-  .btn-publish-buy{background:linear-gradient(90deg,#4F910C,#65A519);
+  .btn-publish-buy{background:linear-gradient(90deg,var(--success),var(--success));
     box-shadow:0 2px 12px rgba(101,165,25,.3)}
-  .btn-publish-sell{background:linear-gradient(90deg,#B01807,#DF321F);
+  .btn-publish-sell{background:linear-gradient(90deg,var(--error),var(--error));
     box-shadow:0 2px 12px rgba(223,50,31,.3)}
 
   /* Review */
@@ -342,7 +342,7 @@ export const CSS = `
   .pt-c{background:var(--primary-mild);color:var(--primary-dark);
     border-color:transparent;border-radius:4px;letter-spacing:.04em}
   .pt-g{color:var(--success);border-color:var(--success-mild);background:var(--success-bg)}
-  .pt-r{color:var(--error);border-color:#FFD1CA;background:var(--error-bg)}
+  .pt-r{color:var(--error);border-color:var(--error-bg);background:var(--error-bg)}
   .pt-n{color:var(--black-65);border-color:var(--black-10);background:var(--black-5)}
   .info-box{background:var(--surface);border-radius:12px;
     border:1px solid var(--black-10);padding:11px 13px}
@@ -393,7 +393,7 @@ export const CSS = `
   }
   .multi-escrow-row:hover{border-color:var(--primary)}
   .multi-escrow-row.selected{border-color:var(--primary);background:var(--primary-mild)}
-  .multi-escrow-row.funded{opacity:.65;border-color:var(--success);background:#E8F5E9}
+  .multi-escrow-row.funded{opacity:.65;border-color:var(--success);background:var(--success-bg)}
 
   .multi-escrow-radio{
     width:16px;height:16px;border-radius:50%;border:2px solid var(--black-10);
@@ -421,7 +421,7 @@ export const CSS = `
     flex-shrink:0;text-transform:uppercase;letter-spacing:.04em;
   }
   .multi-escrow-status.waiting{background:var(--black-5);color:var(--black-65)}
-  .multi-escrow-status.mempool{background:#E8F5E9;color:var(--success)}
+  .multi-escrow-status.mempool{background:var(--success-bg);color:var(--success)}
   .multi-escrow-status.funded{background:var(--success);color:white}
   .multi-escrow-status.error{background:var(--error-bg);color:var(--error)}
 

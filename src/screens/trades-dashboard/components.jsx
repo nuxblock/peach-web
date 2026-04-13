@@ -19,7 +19,7 @@ export const IconChevDown  = () => <svg width="14" height="14" viewBox="0 0 14 1
 export const IconMsg       = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 2h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H8l-3 2V10H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/></svg>;
 export const IconClock     = () => <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="6.5" cy="6.5" r="5"/><path d="M6.5 3.5v3l2 1.5"/></svg>;
 export const IconAlert     = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M7 2L1 12h12L7 2z"/><line x1="7" y1="6" x2="7" y2="9"/><circle cx="7" cy="11" r=".5" fill="currentColor"/></svg>;
-export const IconEmpty     = () => <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#C4B5AE" strokeWidth="1.5" strokeLinecap="round"><rect x="8" y="12" width="32" height="28" rx="4"/><path d="M16 12V9a8 8 0 0 1 16 0v3"/><line x1="19" y1="24" x2="29" y2="24"/><line x1="19" y1="30" x2="25" y2="30"/></svg>;
+export const IconEmpty     = () => <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="var(--black-25)" strokeWidth="1.5" strokeLinecap="round"><rect x="8" y="12" width="32" height="28" rx="4"/><path d="M16 12V9a8 8 0 0 1 16 0v3"/><line x1="19" y1="24" x2="29" y2="24"/><line x1="19" y1="30" x2="25" y2="30"/></svg>;
 
 
 // satsToFiat for dashboard: whole euros (no decimals) for compact display
@@ -95,25 +95,25 @@ export const PILL_CONFIG = {
   fundEscrow:          { bg:"var(--primary)", color:"white", label:"Fund Escrow",        passive:false },
   waitingForFunding:   { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Waiting for funding",  passive:true  },
   escrowWaitingForConfirmation: { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Escrow confirming", passive:true },
-  fundingAmountDifferent: { bg:"#FEFCE5", color:"#7A5C00", label:"Wrong funding amount", passive:false },
+  fundingAmountDifferent: { bg:"var(--warning-soft)", color:"var(--warning)", label:"Wrong funding amount", passive:false },
   // Payment stage
   paymentRequired:     { bg:"var(--primary)", color:"white", label:"Send Payment",       passive:false },
   confirmPaymentRequired:{ bg:"var(--primary)", color:"white", label:"Confirm Payment",  passive:false },
-  releaseEscrow:       { bg:"#65A519",        color:"white", label:"Release Bitcoin",    passive:false },
-  paymentTooLate:      { bg:"#FEFCE5",        color:"#7A5C00", label:"Not paid in time", passive:false },
+  releaseEscrow:       { bg:"var(--success)",        color:"white", label:"Release Bitcoin",    passive:false },
+  paymentTooLate:      { bg:"var(--warning-soft)",        color:"var(--warning)", label:"Not paid in time", passive:false },
   // Post-trade
   payoutPending:       { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Payout pending",       passive:true  },
   rateUser:            { bg:"var(--primary)",    color:"white", label:"Rate counterparty", passive:false },
-  tradeCompleted:      { bg:"#F2F9E7", color:"#65A519", label:"Completed",               passive:true  },
+  tradeCompleted:      { bg:"var(--success-bg)", color:"var(--success)", label:"Completed",               passive:true  },
   // Dispute / cancel
-  dispute:             { bg:"#DF321F",        color:"white", label:"View Dispute",       passive:false },
-  disputeWithoutEscrowFunded: { bg:"#DF321F", color:"white", label:"View Dispute",       passive:false },
-  confirmCancelation:  { bg:"#DF321F",        color:"white", label:"Confirm Cancel",     passive:false },
+  dispute:             { bg:"var(--error)",        color:"white", label:"View Dispute",       passive:false },
+  disputeWithoutEscrowFunded: { bg:"var(--error)", color:"white", label:"View Dispute",       passive:false },
+  confirmCancelation:  { bg:"var(--error)",        color:"white", label:"Confirm Cancel",     passive:false },
   // Finished
   offerCanceled:       { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Offer cancelled",      passive:true  },
   tradeCanceled:       { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Cancelled",             passive:true  },
   fundingExpired:      { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Funding expired",       passive:true  },
-  wrongAmountFundedOnContract: { bg:"#FEFCE5", color:"#7A5C00", label:"Wrong amount",     passive:false },
+  wrongAmountFundedOnContract: { bg:"var(--warning-soft)", color:"var(--warning)", label:"Wrong amount",     passive:false },
   wrongAmountFundedOnContractRefundWaiting: { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Refund pending", passive:true },
   // Refund
   refundAddressRequired:     { bg:"var(--primary)", color:"white", label:"Refund address needed", passive:false },
@@ -272,7 +272,7 @@ export function TradeCard({ trade, onSelect, layout = "grid" }) {
           {hasSatsRange ? (
             <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
               <IcoBtc size={14}/>
-              <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:".88rem" }}>0.00</span>
+              <span style={{ color:"var(--black-25)", fontWeight:700, fontSize:".88rem" }}>0.00</span>
               <span style={{ color:"var(--black)", fontWeight:800, fontSize:".88rem" }}>
                 {trade.amount[0].toLocaleString("fr-FR")}–{trade.amount[1].toLocaleString("fr-FR")} Sats
               </span>
@@ -284,13 +284,13 @@ export function TradeCard({ trade, onSelect, layout = "grid" }) {
           {trade.premium !== undefined && (
             <span style={{ fontSize:".72rem", fontWeight:700,
               color: isBuy
-                ? (trade.premium < 0 ? "#65A519" : "#DF321F")
-                : (trade.premium > 0 ? "#65A519" : "#DF321F"),
+                ? (trade.premium < 0 ? "var(--success)" : "var(--error)")
+                : (trade.premium > 0 ? "var(--success)" : "var(--error)"),
             }}>
               {trade.premium > 0 ? "+" : ""}{trade.premium.toFixed(2)}%
             </span>
           )}
-          <span style={{ fontSize:".68rem", color: isUrgentTime ? "#DF321F" : "var(--black-65)",
+          <span style={{ fontSize:".68rem", color: isUrgentTime ? "var(--error)" : "var(--black-65)",
             display:"flex", alignItems:"center", gap:3, marginTop:1 }}>
             <IconClock/> {timeStr()}
           </span>
@@ -332,7 +332,7 @@ export function HistorySatsAmount({ sats }) {
   return (
     <span style={{ display:"inline-flex", alignItems:"center", gap:4, flexWrap:"nowrap", whiteSpace:"nowrap" }}>
       <IcoBtc size={13}/>
-      <span style={{ color:"#C4B5AE", fontWeight:700, fontSize:".78rem", whiteSpace:"nowrap" }}>{greyPart}</span>
+      <span style={{ color:"var(--black-25)", fontWeight:700, fontSize:".78rem", whiteSpace:"nowrap" }}>{greyPart}</span>
       <span style={{ color:"var(--black)", fontWeight:800, fontSize:".78rem", whiteSpace:"nowrap" }}>{satsStr} Sats</span>
     </span>
   );
@@ -445,7 +445,7 @@ export function HistoryTable({ rows, onTradeSelect, selectedCurrency, tab, onRef
     );
   }
 
-  const statusColor = { completed:"#65A519", cancelled:"#7D675E" };
+  const statusColor = { completed:"var(--success)", cancelled:"var(--black-65)" };
 
   return (
     <div>
@@ -459,28 +459,27 @@ export function HistoryTable({ rows, onTradeSelect, selectedCurrency, tab, onRef
         />
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           {onRefresh && <button
+            className="refresh-btn"
             onClick={onRefresh}
             disabled={isLoading}
             title="Refresh trades"
-            style={{border:"1.5px solid var(--black-10)",borderRadius:8,background:"var(--surface)",
-              padding:"6px 10px",cursor:"pointer",fontSize:"1rem",fontFamily:"var(--font)",
-              color:"var(--black-65)",opacity:isLoading?0.5:1,flexShrink:0}}
+            style={{opacity:isLoading?0.5:1,flexShrink:0}}
           >
             ↻
           </button>}
           <select
+            className="filter-select"
             value={dirFilter}
             onChange={e => setDirFilter(e.target.value)}
-            style={{ padding:"6px 10px", borderRadius:8, border:"1px solid var(--black-10)", fontSize:".82rem", fontFamily:"inherit", fontWeight:600, background:"white", cursor:"pointer" }}
           >
             <option value="all">All types</option>
             <option value="buy">Buy</option>
             <option value="sell">Sell</option>
           </select>
           {isHistory && <select
+            className="filter-select"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            style={{ padding:"6px 10px", borderRadius:8, border:"1px solid var(--black-10)", fontSize:".82rem", fontFamily:"inherit", fontWeight:600, background:"white", cursor:"pointer" }}
           >
             <option value="all">All statuses</option>
             <option value="completed">Completed</option>
@@ -547,7 +546,7 @@ export function HistoryTable({ rows, onTradeSelect, selectedCurrency, tab, onRef
               <span className="hist-mob-id">{r.tradeId}</span>
               <span className="hist-mob-date">{formatDate(r.createdAt)}</span>
               <span className="hist-mob-status" style={{
-                color: r.direction === "buy" ? "#65A519" : "#DF321F"
+                color: r.direction === "buy" ? "var(--success)" : "var(--error)"
               }}>
                 {r.direction === "buy"
                   ? (isHistory ? "↓ Bought" : "↓ Buy")

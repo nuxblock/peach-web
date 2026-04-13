@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { STATUS_CONFIG } from "../data/statusConfig.js";
 
-const FALLBACK = { label: "Unknown", bg: "#F4EEEB", color: "#7D675E", action: false };
+const FALLBACK = { label: "Unknown", bg: "var(--black-5)", color: "var(--black-65)", action: false };
 
 export default function StatusChip({ status, large, showAction, role }) {
   const cfg = STATUS_CONFIG[status] || FALLBACK;

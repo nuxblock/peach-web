@@ -43,13 +43,13 @@ const TYPE_ICON = {
 };
 
 const TYPE_COLOR = {
-  message:      "var(--primary, #F56522)",
-  statusChange: "var(--black-50, #7D675E)",
-  match:        "#05A85A",
-  tradeRequest: "#05A85A",
-  dispute:      "var(--error, #DF321F)",
-  expiry:       "var(--black-25, #B8A99E)",
-  warning:      "#E5A000",
+  message:      "var(--primary, var(--primary))",
+  statusChange: "var(--black-50, var(--black-65))",
+  match:        "var(--success)",
+  tradeRequest: "var(--success)",
+  dispute:      "var(--error, var(--error))",
+  expiry:       "var(--black-25, var(--black-25))",
+  warning:      "var(--warning)",
 };
 
 export default function NotificationPanel({ notifications, readIds, onMarkAllRead, onNavigate }) {
@@ -66,7 +66,7 @@ export default function NotificationPanel({ notifications, readIds, onMarkAllRea
       <div className="notif-panel-list">
         {notifications.length === 0 ? (
           <div className="notif-empty">
-            <svg width="32" height="32" viewBox="0 0 20 20" fill="none" stroke="var(--black-25,#B8A99E)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{marginBottom:8}}>
+            <svg width="32" height="32" viewBox="0 0 20 20" fill="none" stroke="var(--black-25,var(--black-25))" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{marginBottom:8}}>
               <path d="M15 7a5 5 0 00-10 0c0 5-2 7-2 7h14s-2-2-2-7"/><path d="M8.5 17a1.5 1.5 0 003 0"/>
             </svg>
             No notifications yet

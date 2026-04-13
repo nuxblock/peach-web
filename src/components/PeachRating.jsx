@@ -25,21 +25,21 @@ export default function PeachRating({ rep, size = 16 }) {
               )}
               {/* Empty / background peach */}
               <g opacity="0.25">
-                <circle cx="16" cy="17" r="11" fill="#F56522"/>
-                <path d="M14 8c1-3 5-4 6-1" stroke="#05A85A" strokeWidth="2" fill="none" strokeLinecap="round"/>
+                <circle cx="16" cy="17" r="11" fill="var(--primary)"/>
+                <path d="M14 8c1-3 5-4 6-1" stroke="var(--success)" strokeWidth="2" fill="none" strokeLinecap="round"/>
               </g>
               {/* Filled peach */}
               {fill === 1 && (
                 <g>
-                  <circle cx="16" cy="17" r="11" fill="#F56522"/>
-                  <path d="M14 8c1-3 5-4 6-1" stroke="#05A85A" strokeWidth="2" fill="none" strokeLinecap="round"/>
+                  <circle cx="16" cy="17" r="11" fill="var(--primary)"/>
+                  <path d="M14 8c1-3 5-4 6-1" stroke="var(--success)" strokeWidth="2" fill="none" strokeLinecap="round"/>
                   <path d="M11 17 Q16 13 21 17" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/>
                 </g>
               )}
               {fill > 0 && fill < 1 && (
                 <g clipPath={`url(#${uid}-${i})`}>
-                  <circle cx="16" cy="17" r="11" fill="#F56522"/>
-                  <path d="M14 8c1-3 5-4 6-1" stroke="#05A85A" strokeWidth="2" fill="none" strokeLinecap="round"/>
+                  <circle cx="16" cy="17" r="11" fill="var(--primary)"/>
+                  <path d="M14 8c1-3 5-4 6-1" stroke="var(--success)" strokeWidth="2" fill="none" strokeLinecap="round"/>
                   <path d="M11 17 Q16 13 21 17" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/>
                 </g>
               )}

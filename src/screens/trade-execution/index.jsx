@@ -161,13 +161,13 @@ const CSS = `
   .chat-panel{display:flex;flex-direction:column;flex:1;overflow:hidden}
   .chat-enc-notice{
     display:flex;align-items:center;gap:6px;padding:7px 18px;
-    background:#F4EEEB;border-bottom:1px solid var(--black-10);
+    background:var(--black-5);border-bottom:1px solid var(--black-10);
     font-size:.7rem;font-weight:600;color:var(--black-65);flex-shrink:0;font-family:monospace}
   .chat-messages{flex:1;overflow-y:auto;padding:20px 18px;display:flex;flex-direction:column;gap:10px}
   .chat-bubble-row{display:flex}
   .chat-bubble-row-me{justify-content:flex-end}
   .chat-bubble{max-width:72%;border-radius:14px;padding:9px 13px;line-height:1.5}
-  .chat-bubble-me{background:linear-gradient(135deg,#FF7A50,#F56522);color:white;border-bottom-right-radius:4px}
+  .chat-bubble-me{background:var(--grad);color:white;border-bottom-right-radius:4px}
   .chat-bubble-them{background:var(--surface);border:1px solid var(--black-10);color:var(--black);border-bottom-left-radius:4px}
   .chat-text{font-size:.85rem}
   .chat-ts{font-size:.65rem;opacity:.65;margin-top:3px;text-align:right}
@@ -183,14 +183,14 @@ const CSS = `
   .chat-system-label{
     display:inline-flex;align-items:center;gap:5px;
     font-size:.62rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
-    color:var(--primary-dark,#C45104);
+    color:var(--primary-dark,var(--primary-dark));
   }
   .chat-system-text{
-    font-size:.8rem;line-height:1.5;color:var(--black,#2B1911);
+    font-size:.8rem;line-height:1.5;color:var(--black,var(--black));
     white-space:pre-wrap;
   }
   .chat-system-ts{
-    font-size:.62rem;color:var(--black-65,#7D675E);opacity:.8;
+    font-size:.62rem;color:var(--black-65,var(--black-65));opacity:.8;
   }
   .chat-input-row{
     display:flex;align-items:flex-end;gap:10px;
@@ -209,22 +209,22 @@ const CSS = `
   .chat-send-btn:hover:not(:disabled){transform:scale(1.07)}
 
   /* ── Direction badge ── */
-  .dir-buy{background:#F2F9E7;color:#65A519;border-radius:999px;padding:2px 10px;font-size:.7rem;font-weight:800}
-  .dir-sell{background:#FFF0EE;color:#DF321F;border-radius:999px;padding:2px 10px;font-size:.7rem;font-weight:800}
+  .dir-buy{background:var(--success-bg);color:var(--success);border-radius:999px;padding:2px 10px;font-size:.7rem;font-weight:800}
+  .dir-sell{background:var(--error-bg);color:var(--error);border-radius:999px;padding:2px 10px;font-size:.7rem;font-weight:800}
 
   /* ── Badge ── */
-  .badge-supertrader{background:linear-gradient(90deg,#FF4D42,#FFA24C);color:white;border-radius:999px;padding:1px 7px;font-size:.68rem;font-weight:700}
-  .badge-fast{background:#FEEDE5;color:#C45104;border-radius:999px;padding:1px 7px;font-size:.68rem;font-weight:700}
+  .badge-supertrader{background:var(--grad);color:white;border-radius:999px;padding:1px 7px;font-size:.68rem;font-weight:700}
+  .badge-fast{background:var(--primary-mild);color:var(--primary-dark);border-radius:999px;padding:1px 7px;font-size:.68rem;font-weight:700}
   .badge-role{background:#D7F2FE;color:#037DB5;border-radius:999px;padding:2px 10px;font-size:.7rem;font-weight:700}
   .tag-method{background:var(--black-5);color:var(--black-75);border-radius:999px;padding:2px 8px;font-size:.72rem;font-weight:600}
   .tag-currency{background:var(--primary-mild);color:var(--primary-dark);border-radius:999px;padding:2px 8px;font-size:.72rem;font-weight:600}
 
   .chat-dispute-btn{
     display:flex;align-items:center;gap:5px;flex-shrink:0;
-    border:1.5px solid #DF321F;background:white;border-radius:999px;
-    font-family:var(--font);font-size:.75rem;font-weight:700;color:#DF321F;
+    border:1.5px solid var(--error);background:white;border-radius:999px;
+    font-family:var(--font);font-size:.75rem;font-weight:700;color:var(--error);
     padding:0 12px;height:34px;cursor:pointer;white-space:nowrap;transition:all .15s}
-  .chat-dispute-btn-active:hover{background:#FFF0EE;border-color:#DF321F}
+  .chat-dispute-btn-active:hover{background:var(--error-bg);border-color:var(--error)}
   .chat-dispute-btn-inactive{opacity:.5;cursor:default;border-style:dashed}
 
   /* scrollbar */
@@ -451,7 +451,7 @@ export default function TradeExecution() {
   };
   const messages = liveMessages ?? [];
   const { contract, counterparty: rawCounterparty, tradeStatus: status, tradeStatusWithoutDispute, role, paymentDetails, paymentDetailsError } = scenario;
-  const counterparty = rawCounterparty ?? { initials: "??", color: "#7D675E", name: "Unknown", rep: 0, trades: 0, badges: [], online: false };
+  const counterparty = rawCounterparty ?? { initials: "??", color: "var(--black-65)", name: "Unknown", rep: 0, trades: 0, badges: [], online: false };
 
   useEffect(() => {
     async function fetchPrices() {
@@ -509,7 +509,7 @@ export default function TradeExecution() {
             const short = "Peach" + shortHex;
             return {
               initials: shortHex.slice(0, 2),
-              color: "#7D675E",
+              color: "var(--black-65)",
               name: short,
               rep: toPeaches(cp.rating ?? cp.peachRating ?? 0),
               trades: cp.trades ?? 0,
@@ -768,8 +768,8 @@ export default function TradeExecution() {
 
   // Premium color (perspective-aware)
   const premColor = role === "buyer"
-    ? (contract.premium < 0 ? "#65A519" : "#DF321F")
-    : (contract.premium > 0 ? "#65A519" : "#DF321F");
+    ? (contract.premium < 0 ? "var(--success)" : "var(--error)")
+    : (contract.premium > 0 ? "var(--success)" : "var(--error)");
 
   const unreadCount = messages.filter(m => m.from !== "me").length;
 
@@ -822,8 +822,8 @@ export default function TradeExecution() {
             display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
             flex:1, gap:16, padding:"80px 0",
           }}>
-            <div className="spinner" style={{ width:32, height:32, border:"3px solid #EAE3DF", borderTopColor:"var(--primary)", borderRadius:"50%" }}/>
-            <span style={{ fontSize:".85rem", color:"#7D675E", fontWeight:600 }}>Loading trade…</span>
+            <div className="spinner" style={{ width:32, height:32, border:"3px solid var(--black-10)", borderTopColor:"var(--primary)", borderRadius:"50%" }}/>
+            <span style={{ fontSize:".85rem", color:"var(--black-65)", fontWeight:600 }}>Loading trade…</span>
           </div>
         )}
 
@@ -845,7 +845,7 @@ export default function TradeExecution() {
             Trade Details
           </button>
           <button className={`mobile-tab${mobileTab === "chat" ? " active" : ""}`} onClick={() => setMobileTab("chat")}>
-            Chat {unreadCount > 0 && <span style={{ background:"#DF321F", color:"white", borderRadius:999, padding:"0 6px", fontSize:".65rem", fontWeight:800, marginLeft:4 }}>{unreadCount}</span>}
+            Chat {unreadCount > 0 && <span style={{ background:"var(--error)", color:"white", borderRadius:999, padding:"0 6px", fontSize:".65rem", fontWeight:800, marginLeft:4 }}>{unreadCount}</span>}
           </button>
         </div>
 
@@ -904,11 +904,11 @@ export default function TradeExecution() {
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  fontSize:".72rem", fontWeight:600, color:"#7D675E",
+                  fontSize:".72rem", fontWeight:600, color:"var(--black-65)",
                   textDecoration:"none", display:"inline-flex", alignItems:"center", gap:4,
                 }}
-                onMouseEnter={e => e.currentTarget.style.color="#F56522"}
-                onMouseLeave={e => e.currentTarget.style.color="#7D675E"}
+                onMouseEnter={e => e.currentTarget.style.color="var(--primary)"}
+                onMouseLeave={e => e.currentTarget.style.color="var(--black-65)"}
               >
                 View escrow on mempool.space
                 <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -926,13 +926,13 @@ export default function TradeExecution() {
               {deadlineStr && !(status === "paymentRequired" && role === "seller") && status !== "dispute" && status !== "disputeWithoutEscrowFunded" && status !== "tradeCanceled" && status !== "refundOrReviveRequired" && status !== "confirmCancelation" && status !== "fundEscrow" && status !== "createEscrow" && status !== "waitingForFunding" && status !== "escrowWaitingForConfirmation" && status !== "fundingAmountDifferent" && status !== "wrongAmountFundedOnContract" && status !== "wrongAmountFundedOnContractRefundWaiting" && (
                 <div style={{
                   display:"flex", alignItems:"center", gap:12,
-                  background:"#FEEDE5", border:"1.5px solid rgba(196,81,4,.2)",
+                  background:"var(--primary-mild)", border:"1.5px solid rgba(196,81,4,.2)",
                   borderRadius:12, padding:"12px 16px", marginBottom:12,
                 }}>
                   <span style={{ fontSize:"1.5rem", flexShrink:0 }}>⏳</span>
                   <div>
-                    <div style={{ fontSize:".72rem", fontWeight:700, color:"#C45104", textTransform:"uppercase", letterSpacing:".05em", marginBottom:1 }}>Payment deadline</div>
-                    <div style={{ fontSize:"1.05rem", fontWeight:800, color:"#C45104" }}>{deadlineStr} remaining</div>
+                    <div style={{ fontSize:".72rem", fontWeight:700, color:"var(--primary-dark)", textTransform:"uppercase", letterSpacing:".05em", marginBottom:1 }}>Payment deadline</div>
+                    <div style={{ fontSize:"1.05rem", fontWeight:800, color:"var(--primary-dark)" }}>{deadlineStr} remaining</div>
                   </div>
                 </div>
               )}
@@ -1025,15 +1025,15 @@ export default function TradeExecution() {
                   }}>
                     <div style={{
                       width:48, height:48, borderRadius:"50%",
-                      background:"#FEFCE5", border:"2px solid #F5CE22",
+                      background:"var(--warning-soft)", border:"2px solid var(--warning)",
                       display:"flex", alignItems:"center", justifyContent:"center",
                       fontSize:"1.4rem",
                     }}>⏳</div>
                     <div style={{ fontWeight:700, fontSize:".95rem" }}>Waiting for escrow</div>
-                    <div style={{ fontSize:".83rem", color:"#7D675E", lineHeight:1.6, maxWidth:280 }}>
+                    <div style={{ fontSize:".83rem", color:"var(--black-65)", lineHeight:1.6, maxWidth:280 }}>
                       The seller is funding the escrow. Once the Bitcoin is locked in, the trade will begin and you'll be able to send payment.
                     </div>
-                    <div style={{ fontSize:".85rem", fontWeight:700, color:"#7D675E" }}>No actions required for the moment.</div>
+                    <div style={{ fontSize:".85rem", fontWeight:700, color:"var(--black-65)" }}>No actions required for the moment.</div>
                   </div>
                 </>
               )}
@@ -1046,12 +1046,12 @@ export default function TradeExecution() {
                 }}>
                   <div style={{
                     width:48, height:48, borderRadius:"50%",
-                    background:"#FEFCE5", border:"2px solid #F5CE22",
+                    background:"var(--warning-soft)", border:"2px solid var(--warning)",
                     display:"flex", alignItems:"center", justifyContent:"center",
                     fontSize:"1.4rem",
                   }}>⚠</div>
                   <div style={{ fontWeight:700, fontSize:".95rem" }}>Wrong Amount Funded</div>
-                  <div style={{ fontSize:".83rem", color:"#7D675E", lineHeight:1.6, maxWidth:280 }}>
+                  <div style={{ fontSize:".83rem", color:"var(--black-65)", lineHeight:1.6, maxWidth:280 }}>
                     The seller funded the escrow with an incorrect amount. The trade has been cancelled and the seller will be refunded.
                   </div>
                 </div>
@@ -1061,9 +1061,9 @@ export default function TradeExecution() {
               {actionError && (
                 <div style={{
                   display:"flex", alignItems:"flex-start", gap:8,
-                  background:"#FFF0EE", border:"1px solid rgba(223,50,31,.2)",
+                  background:"var(--error-bg)", border:"1px solid rgba(223,50,31,.2)",
                   borderRadius:8, padding:"10px 12px", marginBottom:8,
-                  fontSize:".82rem", color:"#DF321F", fontWeight:600, lineHeight:1.5,
+                  fontSize:".82rem", color:"var(--error)", fontWeight:600, lineHeight:1.5,
                 }}>
                   <IconAlert/>
                   <span>{actionError}</span>
@@ -1212,11 +1212,11 @@ export default function TradeExecution() {
               <div className="panel-section">
                 <div className="panel-section-title">Payment Details</div>
                 {status === "paymentRequired" && role === "buyer" && (
-                  <p style={{ fontSize:".83rem", color:"#7D675E", marginBottom:10 }}>
+                  <p style={{ fontSize:".83rem", color:"var(--black-65)", marginBottom:10 }}>
                     Send the exact fiat amount to the payment details below, then confirm using the slider.
                   </p>
                 )}
-                <p style={{ fontSize:".83rem", color:"#DF321F", fontWeight:600, marginBottom:10 }}>
+                <p style={{ fontSize:".83rem", color:"var(--error)", fontWeight:600, marginBottom:10 }}>
                   {role === "buyer"
                     ? "Make sure to include the reference with your payment"
                     : "make sure the payment you'll receive comes from the provenance announced below."}
@@ -1231,10 +1231,10 @@ export default function TradeExecution() {
                 <div className="panel-section-title">Payment Details</div>
                 <div style={{
                   display:"flex", alignItems:"center", gap:10,
-                  background:"#FFE6E1", borderRadius:10, padding:"12px 14px",
+                  background:"var(--error-bg)", borderRadius:10, padding:"12px 14px",
                 }}>
                   <IconAlert/>
-                  <span style={{ fontSize:".83rem", color:"#DF321F", fontWeight:600, lineHeight:1.5 }}>
+                  <span style={{ fontSize:".83rem", color:"var(--error)", fontWeight:600, lineHeight:1.5 }}>
                     Could not decrypt payment data, ask for details in the chat if needed
                   </span>
                 </div>

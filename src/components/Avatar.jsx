@@ -16,7 +16,7 @@ export default function Avatar({ initials, color, size = 36, online }) {
         <div style={{
           position:"absolute", bottom:0, right:0,
           width:9, height:9, borderRadius:"50%",
-          background:"#65A519", border:"2px solid white",
+          background:"var(--success)", border:"2px solid white",
         }}/>
       )}
     </div>

@@ -4,6 +4,7 @@ import { IcoBtc } from "./BitcoinAmount.jsx";
 import { useUnread } from "../hooks/useUnread.js";
 import { useSessionTimer } from "../hooks/useSessionTimer.js";
 import { useNotifications } from "../hooks/useNotifications.js";
+import { useTheme } from "../hooks/useTheme.js";
 import NotificationPanel from "./NotificationPanel.jsx";
 import peachLogo from "../assets/PEACH WEB-LOGO.svg";
 
@@ -26,9 +27,9 @@ export function getTopbarPeachId() {
 // ─── PEACH ICON ─────────────────────────────────────────────────────────────────────
 export const PeachIcon = ({ size = 28 }) => (
   <svg width={size} height={size} viewBox="0 0 352 353" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect y="0.38" width="352" height="352" rx="58.13" fill="#FFF9F6"/>
-    <path d="M151.8 45.5c11.2-1.2 21.1 5.35 24.2 16.02.54 1.88.82 3.89.88 5.86.13 4.2.05 8.41.05 12.62 0 .39-.33.69-.72.7-3.07.11-6.08-.02-9.02-1-9.21-3.03-15.33-11.47-15.42-21.35-.04-4-.01-8.01 0-12.01" fill="#05A85A"/>
-    <path d="M205.3 64.23c.99 8.75-5.26 16.21-13.69 16.46-4.77.14-9.15-3.93-7.14-8.26.95-2.06 2.42-3.88 4.47-5.44 2.3-1.76 4.93-2.69 7.82-2.74 2.83-.04 5.66 0 8.54 0" fill="#05A85A"/>
+    <rect y="0.38" width="352" height="352" rx="58.13" fill="var(--bg)"/>
+    <path d="M151.8 45.5c11.2-1.2 21.1 5.35 24.2 16.02.54 1.88.82 3.89.88 5.86.13 4.2.05 8.41.05 12.62 0 .39-.33.69-.72.7-3.07.11-6.08-.02-9.02-1-9.21-3.03-15.33-11.47-15.42-21.35-.04-4-.01-8.01 0-12.01" fill="var(--success)"/>
+    <path d="M205.3 64.23c.99 8.75-5.26 16.21-13.69 16.46-4.77.14-9.15-3.93-7.14-8.26.95-2.06 2.42-3.88 4.47-5.44 2.3-1.76 4.93-2.69 7.82-2.74 2.83-.04 5.66 0 8.54 0" fill="var(--success)"/>
     <path fillRule="evenodd" clipRule="evenodd" d="M276 155.69c0 49.73-43.64 96.87-97.47 96.87-19.52 0-37.71-6.2-52.95-16.48v49.48c0 12.29-9.96 22.26-22.26 22.26s-22.26-9.97-22.26-22.26V157.39h.02c-.01-.57-.02-1.13-.02-1.7 0-43.02 32.67-72.02 76.33-68.64 14.01 1.09 28.26 1.09 42.27 0 43.67-3.39 76.34 25.62 76.34 68.64zM125.61 163.8v-.39c.1-24.1 19.36-39.92 44.44-36.17 5.13.77 10.37.77 15.49 0 25.15-3.77 44.44 12.15 44.44 36.35 0 26.64-23.36 51.89-52.19 51.89-28.75 0-52.07-25.13-52.18-51.68z" fill="url(#pg_navbar)"/>
     <defs>
       <radialGradient id="pg_navbar" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(276 88) rotate(159) scale(220 130)">
@@ -48,6 +49,8 @@ const IconSettings   = () => <svg width="20" height="20" viewBox="0 0 20 20" fil
 const IconCreditCard = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="18" height="13" rx="2"/><line x1="1" y1="9" x2="19" y2="9"/><line x1="5" y1="14" x2="8" y2="14"/></svg>;
 export const IconBurger = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="2" y1="4.5" x2="16" y2="4.5"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="13.5" x2="16" y2="13.5"/></svg>;
 const IconBell = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 7a5 5 0 00-10 0c0 5-2 7-2 7h14s-2-2-2-7"/><path d="M8.5 17a1.5 1.5 0 003 0"/></svg>;
+const IconMoon = () => <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 12.5A7 7 0 017.5 3.5a7 7 0 109 9z"/></svg>;
+const IconSun  = () => <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="3.5"/><path d="M10 1.5v2M10 16.5v2M1.5 10h2M16.5 10h2M3.8 3.8l1.4 1.4M14.8 14.8l1.4 1.4M3.8 16.2l1.4-1.4M14.8 5.2l1.4-1.4"/></svg>;
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 export const NAV_ITEMS = [
@@ -109,6 +112,7 @@ export function Topbar({
 }) {
   const { total: unreadTotal } = useUnread();
   const { notifications, unreadCount: unreadNotifs, readIds, markAllRead, markRead } = useNotifications();
+  const { theme, toggleTheme } = useTheme();
   const session = useSessionTimer();
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const navigate = useNavigate();
@@ -188,6 +192,14 @@ export function Topbar({
             )}
           </div>
         )}
+        <button
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+          aria-label="Toggle theme"
+        >
+          {theme === "light" ? <IconMoon/> : <IconSun/>}
+        </button>
         {isLoggedIn ? (
           <div className="avatar-menu-wrap">
             <div className="avatar-peachid" onClick={openAvatarMenu}>
