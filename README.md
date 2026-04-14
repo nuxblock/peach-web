@@ -1,41 +1,47 @@
 # Peach Bitcoin — Web Prototype
 
-## First-time setup
+Frontend-only web companion app for [Peach Bitcoin](https://peachbitcoin.com), a peer-to-peer Bitcoin exchange. React 18 + Vite 6. All data comes from the existing Peach REST API — there is no backend in this repo.
 
-1. **Create a GitHub repository** — name it `peach-web` (or anything you like)
+## Run locally
 
-2. **Update `vite.config.js`** — change the `base` value to match your repo name exactly:
-   ```js
-   base: '/your-repo-name/',
-   ```
-
-3. **Push this folder to the repo**
-   ```bash
-   git init
-   git add .
-   git commit -m "initial commit"
-   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
-   git push -u origin main
-   ```
-
-4. **Enable GitHub Pages**
-   - Go to your repo on GitHub → Settings → Pages
-   - Under "Source", select **GitHub Actions**
-   - Save
-
-5. **Done.** Every push to `main` triggers a build and deploys automatically.
-   Your site will be live at: `https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/`
-
----
-
-## Local development
+**Prerequisites:** Node 20+ (see `.nvmrc`) and npm.
 
 ```bash
+git clone <repo-url> peach-web
+cd peach-web
+nvm use         # optional, picks up .nvmrc
 npm install
 npm run dev
 ```
 
-Then open `http://localhost:5173/peach-web/` in your browser.
+Then open **http://localhost:5173/peach-web/** in your browser.
+
+The Vite dev server automatically proxies `/api` → `https://api.peachbitcoin.com/v1` (see `vite.config.js`), so no API keys or environment setup are required to browse the app. To sign in, scan the QR code on the landing page with the Peach mobile app.
+
+### Other commands
+
+```bash
+npm run build     # production build into dist/
+npm run preview   # serve the production build locally
+npm test          # run the vitest suite once
+npm run test:watch
+```
+
+---
+
+## Deploy to GitHub Pages
+
+The repo is already wired for GitHub Actions deployment to GitHub Pages. Every push to `main` triggers a build and deploys automatically via `.github/workflows/`.
+
+If you fork this into a new repo:
+
+1. Update `base` in `vite.config.js` to match your repo name: `base: '/your-repo-name/'`.
+2. Push to GitHub.
+3. In the repo: Settings → Pages → Source → **GitHub Actions**.
+
+Your site will be live at `https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/`.
+
+Because GitHub Pages is static, production API calls go through a Cloudflare Worker proxy (see `cloudflare/` and `.env.production`) to work around CORS. You do **not** need to touch this to run the app locally.
 
 ---
 

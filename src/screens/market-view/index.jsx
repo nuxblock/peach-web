@@ -11,25 +11,21 @@ import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat, formatTradeId, toPeac
 import PeachRating from "../../components/PeachRating.jsx";
 import { CSS } from "./styles.js";
 import { premiumStats, premiumCls, currSym, MultiSelect, Chips, RepCell, AmountCell, PriceCell } from "./components.jsx";
-import { FALLBACK_METHODS, CATEGORY_META } from "../../components/AddPMFlow.jsx";
+import { CATEGORY_META } from "../../components/AddPMFlow.jsx";
+import {
+  PM_NAMES, PM_CATEGORIES,
+  METHOD_ID_BY_DISPLAY, methodDisplayName,
+} from "../../data/paymentMethodMeta.js";
 
-// ── Derived from FALLBACK_METHODS (static, computed once at module load) ──
-const METHOD_DISPLAY_NAMES = Object.fromEntries(
-  Object.entries(FALLBACK_METHODS).map(([id, m]) => [id, m.name])
-);
-const METHOD_ID_BY_DISPLAY = Object.fromEntries(
-  Object.entries(FALLBACK_METHODS).map(([id, m]) => [m.name, id])
-);
+// ── Derived from static metadata (computed once at module load) ──
 const CATEGORY_METHOD_IDS = {};
-for (const [id, m] of Object.entries(FALLBACK_METHODS)) {
-  (CATEGORY_METHOD_IDS[m.category] ??= []).push(id);
+for (const id of Object.keys(PM_NAMES)) {
+  const cat = PM_CATEGORIES[id] || "onlineWallet";
+  (CATEGORY_METHOD_IDS[cat] ??= []).push(id);
 }
 const CATEGORY_ID_BY_LABEL = Object.fromEntries(
   Object.entries(CATEGORY_META).map(([id, meta]) => [meta.label, id])
 );
-function methodDisplayName(id) {
-  return METHOD_DISPLAY_NAMES[id] || id;
-}
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function PeachMarket() {

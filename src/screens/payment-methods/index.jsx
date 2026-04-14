@@ -16,7 +16,7 @@ import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE } from "../../utils/format.js";
 import { CSS } from "./styles.js";
 import { IconPlus, IconEdit, IconTrash, DeleteModal } from "./components.jsx";
 import {
-  AddPMFlow, CATEGORY_META, FALLBACK_METHODS, methodLabel,
+  AddPMFlow, CATEGORY_META, methodLabel, normalizeApiPaymentMethods,
 } from "../../components/AddPMFlow.jsx";
 
 export default function PeachPaymentMethods() {
@@ -41,8 +41,9 @@ export default function PeachPaymentMethods() {
   const satsPerCur = Math.round(SAT / btcPrice);
 
   // Payment methods catalogue from API
-  const [methodsCatalogue, setMethodsCatalogue] = useState(FALLBACK_METHODS);
+  const [methodsCatalogue, setMethodsCatalogue] = useState({});
   const [catalogueLoading, setCatalogueLoading] = useState(true);
+  const [catalogueError, setCatalogueError] = useState(false);
 
   // User's saved PMs
   const [savedMethods, setSavedMethods] = useState([]);
@@ -72,20 +73,26 @@ export default function PeachPaymentMethods() {
   }, []);
 
   // Fetch payment methods catalogue
-  useEffect(() => {
-    async function fetchMethods() {
-      try {
-        const res = await get('/info/paymentMethods');
-        const data = await res.json();
-        if (data && typeof data === "object" && !Array.isArray(data)) {
-          // Attempt to use API data — TODO: normalise shape when confirmed
-        }
-      } catch {
-      } finally {
-        setCatalogueLoading(false);
+  const fetchCatalogue = async () => {
+    setCatalogueLoading(true);
+    setCatalogueError(false);
+    try {
+      const res = await get('/info/paymentMethods');
+      const data = await res.json();
+      if (Array.isArray(data) && data.length) {
+        setMethodsCatalogue(normalizeApiPaymentMethods(data));
+      } else {
+        setCatalogueError(true);
       }
+    } catch {
+      setCatalogueError(true);
+    } finally {
+      setCatalogueLoading(false);
     }
-    fetchMethods();
+  };
+  useEffect(() => {
+    fetchCatalogue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch user's saved payment methods (authenticated)
@@ -353,6 +360,8 @@ export default function PeachPaymentMethods() {
           onSave={handleSavePM}
           onClose={() => { setShowAddFlow(false); setEditPM(null); }}
           editData={editPM}
+          error={catalogueError}
+          onRetry={fetchCatalogue}
         />
       )}
       {deletePM && (

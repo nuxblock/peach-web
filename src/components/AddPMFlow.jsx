@@ -8,23 +8,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from "react";
-import { validateIBAN, validatePhone } from "../peach-validators.js";
+import { validateIBAN, validatePhone, validateHolder, makeBlurHandler } from "../peach-validators.js";
+import {
+  PHONE_PREFIX_MAP, getFieldMeta, getTabLabel, fieldsForTab,
+  normalizeApiPaymentMethods,
+} from "../data/paymentMethodMeta.js";
 
-// ── Local validators ────────────────────────────────────────────────────────
-
-export function validateHolder(raw) {
-  if (!raw || !raw.trim()) return { valid: false, error: "Account holder name is required" };
-  if (raw.trim().split(/\s+/).length < 2) return { valid: false, error: "Fill out your full name as per your bank details" };
-  return { valid: true, error: null };
-}
-
-export function makeBlurHandler(setErrors) {
-  return (fieldKey, value, validatorFn, ...extraArgs) => {
-    const result = validatorFn(value, ...extraArgs);
-    setErrors(prev => ({ ...prev, [fieldKey]: result.valid ? null : result.error }));
-    return result.valid;
-  };
-}
+// Re-export the API normalizer so screens can `import { normalizeApiPaymentMethods } from AddPMFlow`.
+export { normalizeApiPaymentMethods };
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -63,83 +54,9 @@ export const CURRENCY_REGIONS = {
 };
 const ALL_REGIONS = Object.keys(CURRENCY_REGIONS);
 
-export const FALLBACK_METHODS = {
-  sepa:               { name: "SEPA",                  currencies: ["EUR","CHF"],                        category: "bankTransfer" },
-  fasterPayments:     { name: "Faster Payments",       currencies: ["GBP"],                              category: "bankTransfer" },
-  instantSepa:        { name: "SEPA Instant",          currencies: ["EUR"],                              category: "bankTransfer" },
-  revolut:            { name: "Revolut",               currencies: ["EUR","CHF","GBP","USD","SEK","NOK","DKK","PLN","CZK","HUF"], category: "onlineWallet" },
-  wise:               { name: "Wise",                  currencies: ["EUR","CHF","GBP","USD","SEK","NOK","DKK","PLN","CZK","HUF"], category: "onlineWallet" },
-  paypal:             { name: "PayPal",                currencies: ["EUR","GBP","USD","CHF"],            category: "onlineWallet" },
-  advcash:            { name: "Advcash",               currencies: ["EUR","USD"],                        category: "onlineWallet" },
-  strike:             { name: "Strike",                currencies: ["USD"],                              category: "onlineWallet" },
-  n26:                { name: "N26",                   currencies: ["EUR"],                              category: "onlineWallet" },
-  amazonGiftCard:     { name: "Amazon Gift Card",      currencies: ["EUR","GBP","USD","CHF","SEK"],      category: "giftCard" },
-  dollarOnChain:      { name: "Dollar On Chain (DOC)", currencies: ["DOC"],                              category: "onlineWallet" },
-  lnurlBtcSwap:       { name: "LNURL BTC Swap",        currencies: ["LNURL"],                            category: "onlineWallet" },
-  usdt:               { name: "USDT",                  currencies: ["USDT"],                             category: "onlineWallet" },
-  usdc:               { name: "USDC",                  currencies: ["USDC"],                             category: "onlineWallet" },
-  bizum:              { name: "Bizum",                 currencies: ["EUR"],                              category: "national" },
-  twint:              { name: "Twint",                 currencies: ["CHF"],                              category: "national" },
-  swish:              { name: "Swish",                 currencies: ["SEK"],                              category: "national" },
-  mobilePay:          { name: "MobilePay",             currencies: ["DKK","EUR"],                        category: "national" },
-  vipps:              { name: "Vipps",                 currencies: ["NOK"],                              category: "national" },
-  satispay:           { name: "Satispay",              currencies: ["EUR"],                              category: "national" },
-  mbWay:              { name: "MB Way",                currencies: ["EUR"],                              category: "national" },
-  iris:               { name: "IRIS",                  currencies: ["EUR"],                              category: "national" },
-  paylib:             { name: "Paylib",                currencies: ["EUR"],                              category: "national" },
-  verse:              { name: "Verse",                 currencies: ["EUR"],                              category: "national" },
-  blik:               { name: "BLIK",                  currencies: ["PLN"],                              category: "national" },
-};
-
-export const PHONE_PREFIX_MAP = {
-  bizum:     "+34",
-  twint:     "+41",
-  swish:     "+46",
-  mobilePay: "+45",
-  vipps:     "+47",
-  satispay:  "+39",
-  mbWay:     "+351",
-  iris:      "+30",
-  paylib:    "+33",
-  verse:     "+34",
-  blik:      "+48",
-};
-
-export const METHOD_FIELDS = {
-  sepa:           [{ key:"beneficiary", label:"Account holder name", placeholder:"Full name" },
-                   { key:"iban",   label:"IBAN",                placeholder:"DE89 3704 0044 0532 0130 00" },
-                   { key:"bic",    label:"BIC",                 placeholder:"COBADEFFXXX", optional:true }],
-  instantSepa:    [{ key:"beneficiary", label:"Account holder name", placeholder:"Full name" },
-                   { key:"iban",   label:"IBAN",                placeholder:"DE89 3704 0044 0532 0130 00" },
-                   { key:"bic",    label:"BIC",                 placeholder:"COBADEFFXXX", optional:true }],
-  fasterPayments: [{ key:"beneficiary",        label:"Account holder name", placeholder:"Full name" },
-                   { key:"ukSortCode",        label:"Sort code",           placeholder:"12-34-56" },
-                   { key:"bankAccountNumber", label:"Account number",      placeholder:"12345678" }],
-  revolut:        [{ key:"userName", label:"Revolut username or phone", placeholder:"@username or +33..." }],
-  wise:           [{ key:"email",    label:"Email or @handle",         placeholder:"you@example.com" }],
-  paypal:         [{ key:"email",    label:"PayPal email",             placeholder:"you@example.com" }],
-  advcash:        [{ key:"email",    label:"Advcash email",            placeholder:"you@example.com" }],
-  strike:         [{ key:"userName", label:"Strike username",          placeholder:"@username" }],
-  n26:            [{ key:"email",    label:"N26 email or IBAN",        placeholder:"you@example.com" }],
-  amazonGiftCard: [{ key:"email",    label:"Email for gift card code", placeholder:"you@example.com" }],
-  dollarOnChain:  [{ key:"address",  label:"Wallet address",           placeholder:"0x... or RSK address" }],
-  lnurlBtcSwap:   [{ key:"lnurlAddress", label:"LNURL or Lightning address", placeholder:"LNURL1... or user@domain.com" }],
-  usdt:           [{ key:"address",  label:"Wallet address",           placeholder:"Network + address" },
-                   { key:"network",  label:"Network",                  placeholder:"Ethereum, Tron, etc." }],
-  usdc:           [{ key:"address",  label:"Wallet address",           placeholder:"Network + address" },
-                   { key:"network",  label:"Network",                  placeholder:"Ethereum, Solana, etc." }],
-  bizum:          [{ key:"phone",    label:"Phone number",             placeholder:"+34 612 345 678" }],
-  twint:          [{ key:"phone",    label:"Phone number",             placeholder:"+41 79 123 45 67" }],
-  swish:          [{ key:"phone",    label:"Phone number",             placeholder:"+46 70 123 45 67" }],
-  mobilePay:      [{ key:"phone",    label:"Phone number",             placeholder:"+45 12 34 56 78" }],
-  vipps:          [{ key:"phone",    label:"Phone number",             placeholder:"+47 912 34 567" }],
-  satispay:       [{ key:"phone",    label:"Phone number",             placeholder:"+39 312 345 6789" }],
-  mbWay:          [{ key:"phone",    label:"Phone number",             placeholder:"+351 912 345 678" }],
-  iris:           [{ key:"phone",    label:"Phone number",             placeholder:"+30 691 234 5678" }],
-  paylib:         [{ key:"phone",    label:"Phone number",             placeholder:"+33 6 12 34 56 78" }],
-  verse:          [{ key:"phone",    label:"Phone number",             placeholder:"+34 612 345 678" }],
-  blik:           [{ key:"phone",    label:"Phone number",             placeholder:"+48 512 345 678" }],
-};
+// Re-export PHONE_PREFIX_MAP from the meta module so existing imports in
+// other screens (if any) keep working.
+export { PHONE_PREFIX_MAP } from "../data/paymentMethodMeta.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -179,7 +96,7 @@ function ProgressBar({ step, total = 4 }) {
 
 // ── AddPMFlow ────────────────────────────────────────────────────────────────
 
-export function AddPMFlow({ methods, onSave, onClose, editData }) {
+export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }) {
   const isEdit = !!editData;
   const [step, setStep] = useState(isEdit ? 3 : 0);
 
@@ -195,6 +112,22 @@ export function AddPMFlow({ methods, onSave, onClose, editData }) {
   const handleBlur = makeBlurHandler(setErrors);
   const [selRegion, setSelRegion] = useState("Europe");
 
+  // Tab index for methods whose fields.mandatory has multiple alternative groups
+  // (e.g. Revolut: username | phone | m-pesa). Restored from edit data when present.
+  const [variantIndex, setVariantIndex] = useState(() => {
+    if (!isEdit) return 0;
+    const v = Number(editData?.details?._variant);
+    if (Number.isInteger(v) && v >= 0) return v;
+    // Heuristic for pre-migration saves: pick the tab whose fields overlap the saved keys.
+    const m = methods[editData?.methodId];
+    const tabs = m?.fields?.mandatory || [];
+    for (let i = 0; i < tabs.length; i++) {
+      const tabFields = fieldsForTab(tabs[i]);
+      if (tabFields.some((k) => editData.details && k in editData.details)) return i;
+    }
+    return 0;
+  });
+
   const allCurrencies = [...new Set(Object.values(methods).flatMap(m => m.currencies))].sort();
   const regionCurrencies = (CURRENCY_REGIONS[selRegion] || [])
     .filter(c => allCurrencies.includes(c))
@@ -209,11 +142,18 @@ export function AddPMFlow({ methods, onSave, onClose, editData }) {
     .sort((a, b) => a[1].name.localeCompare(b[1].name));
 
   const selMethod = methods[selMethodId] || null;
-  const fields = METHOD_FIELDS[selMethodId] || [{ key:"details", label:"Account details", placeholder:"Enter your details" }];
   const methodCurrencies = selMethod?.currencies || [];
 
-  const step3Ok = fields.every(f => f.optional || (details[f.key] || "").trim().length > 0) && selCurrencies.length > 0
-    && !Object.values(errors).some(e => e);
+  // Derive the fields for the active tab from the API schema.
+  const tabs = selMethod?.fields?.mandatory || [];
+  const hasTabs = tabs.length > 1;
+  const activeTabIdx = Math.min(variantIndex, Math.max(tabs.length - 1, 0));
+  const mandatoryFields = tabs.length > 0 ? fieldsForTab(tabs[activeTabIdx]) : [];
+  const optionalFields = (selMethod?.fields?.optional || []).filter((f) => !mandatoryFields.includes(f));
+
+  const step3Ok = mandatoryFields.every((k) => (details[k] || "").trim().length > 0)
+    && selCurrencies.length > 0
+    && !Object.values(errors).some((e) => e);
 
   function handleSelectCurrency(c) {
     setSelCurrency(c);
@@ -255,30 +195,39 @@ export function AddPMFlow({ methods, onSave, onClose, editData }) {
 
   function handleSave() {
     const newErrors = {};
-    fields.forEach(f => {
-      if (f.key === "iban") {
-        const r = validateIBAN(details[f.key]);
-        if (!r.valid) newErrors[f.key] = r.error;
-      } else if (f.key === "phone") {
-        const r = validatePhone(details[f.key], PHONE_PREFIX_MAP[selMethodId]);
-        if (!r.valid) newErrors[f.key] = r.error;
-      } else if (f.key === "beneficiary") {
-        const r = validateHolder(details[f.key]);
-        if (!r.valid) newErrors[f.key] = r.error;
+    const phonePrefix = PHONE_PREFIX_MAP[selMethodId];
+    for (const fid of mandatoryFields) {
+      const val = (details[fid] || "").trim();
+      if (!val) {
+        newErrors[fid] = "Required";
+        continue;
       }
-    });
+      if (fid === "iban") {
+        const r = validateIBAN(val);
+        if (!r.valid) newErrors[fid] = r.error;
+      } else if (fid === "phone" || fid === "phoneNumber") {
+        const r = validatePhone(val, phonePrefix);
+        if (!r.valid) newErrors[fid] = r.error;
+      } else if (fid === "beneficiary" || fid === "accountHolder" || fid === "holder") {
+        const r = validateHolder(val);
+        if (!r.valid) newErrors[fid] = r.error;
+      }
+    }
     if (Object.keys(newErrors).length > 0) {
-      setErrors(prev => ({ ...prev, ...newErrors }));
+      setErrors((prev) => ({ ...prev, ...newErrors }));
       return;
     }
 
-    const allowedKeys = new Set(fields.map(f => f.key));
+    // Only persist fields that belong to the active tab or the optional set,
+    // plus the payment-reference metadata and the variant index.
+    const allowedKeys = new Set([...mandatoryFields, ...optionalFields]);
     const cleanDetails = {};
     for (const [k, v] of Object.entries(details)) {
       if (allowedKeys.has(k)) cleanDetails[k] = v;
     }
     cleanDetails._payRefType = payRefType;
     cleanDetails._payRefCustom = payRefCustom;
+    if (hasTabs) cleanDetails._variant = activeTabIdx;
 
     const pm = {
       id:         editData?.id || `${selMethodId}-${Date.now()}`,
@@ -326,8 +275,18 @@ export function AddPMFlow({ methods, onSave, onClose, editData }) {
 
           {/* Body */}
           <div className="modal-body">
+            {/* Catalog loading / error states (shown in place of the picker) */}
+            {!isEdit && Object.keys(methods).length === 0 && !error && (
+              <div className="pm-empty-msg">Loading payment methods…</div>
+            )}
+            {!isEdit && error && (
+              <div className="pm-empty-msg" style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
+                <span>Couldn't load payment methods.</span>
+                {onRetry && <button className="btn-save-pm" style={{ maxWidth:200 }} onClick={onRetry}>Retry</button>}
+              </div>
+            )}
             {/* ── STEP 0: Currency with region tabs ── */}
-            {step === 0 && (
+            {step === 0 && Object.keys(methods).length > 0 && !error && (
               <>
                 <div className="region-tabs">
                   {ALL_REGIONS.map(r => {
@@ -432,35 +391,61 @@ export function AddPMFlow({ methods, onSave, onClose, editData }) {
                   </div>
                 )}
 
-                {fields.map(f => {
-                  const isIBAN = f.key === "iban";
-                  const isPhone = f.key === "phone";
-                  const isHolder = f.key === "holder";
+                {hasTabs && (
+                  <div className="pm-variant-tabs">
+                    {tabs.map((g, i) => (
+                      <button key={i}
+                        className={`pm-variant-tab${i === activeTabIdx ? " active" : ""}`}
+                        onClick={() => {
+                          // Clear errors and details keys from the previous tab when switching.
+                          setErrors({});
+                          setDetails((prev) => {
+                            const stale = new Set(fieldsForTab(tabs[activeTabIdx]));
+                            const kept = {};
+                            for (const [k, v] of Object.entries(prev)) {
+                              if (!stale.has(k)) kept[k] = v;
+                            }
+                            return kept;
+                          });
+                          setVariantIndex(i);
+                        }}>
+                        {getTabLabel(g)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {[...mandatoryFields, ...optionalFields].map((fid) => {
+                  const meta = getFieldMeta(fid);
+                  const isOptional = optionalFields.includes(fid);
+                  const isIBAN = fid === "iban";
+                  const isPhone = fid === "phone" || fid === "phoneNumber";
+                  const isHolder = fid === "beneficiary" || fid === "accountHolder" || fid === "holder";
                   const phonePrefix = isPhone ? PHONE_PREFIX_MAP[selMethodId] : null;
 
                   function handleFieldBlur() {
-                    const val = (details[f.key] || "").trim();
-                    if (!val && f.optional) { setErrors(p => ({ ...p, [f.key]: null })); return; }
-                    if (isIBAN) handleBlur(f.key, details[f.key], validateIBAN);
-                    else if (isPhone) handleBlur(f.key, details[f.key], validatePhone, phonePrefix);
-                    else if (isHolder) handleBlur(f.key, details[f.key], validateHolder);
+                    const val = (details[fid] || "").trim();
+                    if (!val && isOptional) { setErrors((p) => ({ ...p, [fid]: null })); return; }
+                    if (isIBAN) handleBlur(fid, details[fid], validateIBAN);
+                    else if (isPhone) handleBlur(fid, details[fid], validatePhone, phonePrefix);
+                    else if (isHolder) handleBlur(fid, details[fid], validateHolder);
                   }
 
                   return (
-                    <div key={f.key} style={{ marginBottom:14 }}>
+                    <div key={fid} style={{ marginBottom:14 }}>
                       <label className="field-label">
-                        {f.label}
-                        {f.optional && <span style={{ fontWeight:500, textTransform:"none",
+                        {meta.label}
+                        {isOptional && <span style={{ fontWeight:500, textTransform:"none",
                           letterSpacing:0, color:"var(--black-25)", marginLeft:4 }}>(optional)</span>}
                       </label>
                       <input className="modal-input"
-                        placeholder={f.placeholder}
-                        value={details[f.key] || ""}
-                        onChange={e => { setDetails(prev => ({ ...prev, [f.key]: e.target.value })); if (errors[f.key]) setErrors(p => ({ ...p, [f.key]: null })); }}
+                        placeholder={meta.placeholder}
+                        value={details[fid] || ""}
+                        onChange={(e) => { setDetails((prev) => ({ ...prev, [fid]: e.target.value })); if (errors[fid]) setErrors((p) => ({ ...p, [fid]: null })); }}
                         onBlur={(isIBAN || isPhone || isHolder) ? handleFieldBlur : undefined}
-                        style={errors[f.key] ? { borderColor:"var(--error)" } : {}}
+                        style={errors[fid] ? { borderColor:"var(--error)" } : {}}
                       />
-                      {(isIBAN || isPhone || isHolder) && <FieldError error={errors[f.key]}/>}
+                      <FieldError error={errors[fid]}/>
                     </div>
                   );
                 })}
@@ -529,10 +514,10 @@ export function AddPMFlow({ methods, onSave, onClose, editData }) {
                     <span className="pm-summary-label">Currencies</span>
                     <span className="pm-summary-value">{selCurrencies.join(", ")}</span>
                   </div>
-                  {fields.map(f => (
-                    <div key={f.key} className="pm-summary-row">
-                      <span className="pm-summary-label">{f.label}</span>
-                      <span className="pm-summary-value">{details[f.key] || "—"}</span>
+                  {[...mandatoryFields, ...optionalFields].map((fid) => (
+                    <div key={fid} className="pm-summary-row">
+                      <span className="pm-summary-label">{getFieldMeta(fid).label}</span>
+                      <span className="pm-summary-value">{details[fid] || "—"}</span>
                     </div>
                   ))}
                   <div className="pm-summary-row">
@@ -636,6 +621,17 @@ const ADD_PM_CSS = `
   .pm-empty-msg{text-align:center;padding:24px;font-size:.85rem;color:var(--black-65)}
 
   /* Step 3: Details */
+  /* Variant tabs (alternative field groups within a method) */
+  .pm-variant-tabs{display:flex;gap:4px;border-bottom:1.5px solid var(--black-10);
+    margin-bottom:16px;overflow-x:auto;scrollbar-width:none}
+  .pm-variant-tabs::-webkit-scrollbar{display:none}
+  .pm-variant-tab{background:none;border:none;border-bottom:2px solid transparent;
+    padding:8px 14px;font-family:var(--font);font-size:.82rem;font-weight:700;
+    color:var(--black-65);cursor:pointer;white-space:nowrap;transition:color .15s,border-color .15s;
+    text-transform:lowercase;margin-bottom:-1.5px}
+  .pm-variant-tab:hover{color:var(--primary-dark)}
+  .pm-variant-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+
   .pm-detail-header{display:flex;align-items:center;gap:8px;margin-bottom:16px}
   .pm-detail-tag{background:var(--primary-mild);color:var(--primary-dark);font-size:.78rem;
     font-weight:700;padding:3px 12px;border-radius:999px}

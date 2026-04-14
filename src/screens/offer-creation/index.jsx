@@ -20,7 +20,7 @@ import {
   MultiOfferControl, MultiEscrowFunding,
 } from "./components.jsx";
 import {
-  AddPMFlow, FALLBACK_METHODS, methodLabel,
+  AddPMFlow, methodLabel, normalizeApiPaymentMethods,
 } from "../../components/AddPMFlow.jsx";
 import { syncPMsToServer } from "../../utils/pmSync.js";
 
@@ -41,7 +41,8 @@ export default function OfferCreation({ initialType="buy" }) {
   const [fundingStatus, setFundingStatus] = useState(null); // null → "MEMPOOL" → "FUNDED" | "WRONG_FUNDING_AMOUNT"
   const [fundingAmounts, setFundingAmounts] = useState(null); // amounts array from API (for wrong-amount case)
   const [savedMethods, setSavedMethods] = useState([]);
-  const [methodsCatalogue, setMethodsCatalogue] = useState(FALLBACK_METHODS);
+  const [methodsCatalogue, setMethodsCatalogue] = useState({});
+  const [catalogueError, setCatalogueError] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPM,    setEditingPM]    = useState(null); // PM object being edited
   const [pmError,      setPmError]      = useState(false);
@@ -166,17 +167,23 @@ export default function OfferCreation({ initialType="buy" }) {
   }, []);
 
   // ── FETCH PAYMENT METHOD CATALOGUE (for AddPMFlow) ──
+  const fetchCatalogue = async () => {
+    setCatalogueError(false);
+    try {
+      const res = await get('/info/paymentMethods');
+      const data = await res.json();
+      if (Array.isArray(data) && data.length) {
+        setMethodsCatalogue(normalizeApiPaymentMethods(data));
+      } else {
+        setCatalogueError(true);
+      }
+    } catch {
+      setCatalogueError(true);
+    }
+  };
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await get('/info/paymentMethods');
-        const data = await res.json();
-        if (data && typeof data === "object" && !Array.isArray(data)) {
-          // Attempt to use API data — TODO: normalise shape when confirmed.
-          // For now rely on FALLBACK_METHODS which already matches AddPMFlow's shape.
-        }
-      } catch {}
-    })();
+    fetchCatalogue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── POLL ESCROW FUNDING STATUS ──
@@ -777,11 +784,13 @@ export default function OfferCreation({ initialType="buy" }) {
       <style>{CSS}</style>
       {showAddModal&&(
         <AddPMFlow methods={methodsCatalogue} onSave={handleSavePM}
-          onClose={()=>setShowAddModal(false)}/>
+          onClose={()=>setShowAddModal(false)}
+          error={catalogueError} onRetry={fetchCatalogue}/>
       )}
       {editingPM&&(
         <AddPMFlow methods={methodsCatalogue} editData={editingPM}
-          onSave={handleSavePM} onClose={()=>setEditingPM(null)}/>
+          onSave={handleSavePM} onClose={()=>setEditingPM(null)}
+          error={catalogueError} onRetry={fetchCatalogue}/>
       )}
       <Topbar
         onBurgerClick={() => setSidebarMobileOpen(o => !o)}

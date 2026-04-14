@@ -290,6 +290,16 @@ export function validatePhone(raw, expectedPrefix) {
 
 
 /**
+ * Account holder name — at least two space-separated parts.
+ */
+export function validateHolder(raw) {
+  if (!raw || !raw.trim()) return { valid: false, error: "Account holder name is required" };
+  if (raw.trim().split(/\s+/).length < 2) return { valid: false, error: "Fill out your full name as per your bank details" };
+  return { valid: true, error: null };
+}
+
+
+/**
  * BIP322 signature — base64 format check
  *
  * Full cryptographic verification is server-side.
