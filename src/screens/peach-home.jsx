@@ -571,7 +571,7 @@ export default function PeachHome() {
               <div className="ath-price-row">
                 <span className="ath-price-value">
                   {athPrice != null
-                    ? `${athCurrSym(athCurrency)}${athCurrency === "CHF" ? " " : ""}${athPrice.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    ? `${athCurrSym(athCurrency)}${athCurrency === "CHF" ? " " : ""}${athPrice.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
                     : "\u2014"}
                 </span>
               </div>

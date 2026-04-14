@@ -351,7 +351,7 @@ export default function TradeExecution() {
         const offerId = String(liveContract.contract.id).split("-")[0];
         const pubKeyHex = deriveEscrowPubKey(auth.multisigXpub, Number(offerId));
         const returnAddress = deriveReturnAddress(auth.xpub, Number(offerId));
-        const res = await post(`/offer/${offerId}/escrow`, { publicKey: pubKeyHex, returnAddress });
+        const res = await post(`/offer/${offerId}/escrow`, { publicKey: pubKeyHex, returnAddress, derivationPathVersion: 2 });
         if (!res.ok) {
           const err = await res.json().catch(() => null);
           console.warn("[Trade] Escrow creation failed:", err?.error || res.status);
