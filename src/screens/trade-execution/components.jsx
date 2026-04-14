@@ -231,7 +231,7 @@ export function EscrowAddressCard({ address }) {
           <button
             style={{
               display:"flex", alignItems:"center", gap:5,
-              border:"1px solid var(--black-10)", background:"white", borderRadius:999,
+              border:"1px solid var(--black-10)", background:"var(--surface)", borderRadius:999,
               fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
               color: copied ? "var(--success)" : "var(--black-65)",
               padding:"3px 10px", cursor:"pointer", transition:"color .2s",
@@ -620,7 +620,7 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
 
   return (
     <div style={{
-      background:"white", border:"1.5px solid var(--black-10)", borderRadius:14,
+      background:"var(--surface)", border:"1.5px solid var(--black-10)", borderRadius:14,
       overflow:"hidden", marginBottom:16,
     }}>
       {/* Header */}
@@ -647,7 +647,7 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
         <button
           style={{
             display:"flex", alignItems:"center", gap:5,
-            border:"1px solid var(--black-10)", background: copiedAmt ? "var(--success-bg)" : "white",
+            border:"1px solid var(--black-10)", background: copiedAmt ? "var(--success-bg)" : "var(--surface)",
             borderRadius:999, fontFamily:"Baloo 2, cursive",
             fontSize:".72rem", fontWeight:700,
             color: copiedAmt ? "var(--success)" : "var(--black-65)",
@@ -684,7 +684,7 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
             style={{
               border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
               fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
-              background: !withAmount ? "white" : "transparent",
+              background: !withAmount ? "var(--surface)" : "transparent",
               color: !withAmount ? "var(--black)" : "var(--black-65)",
               boxShadow: !withAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
               transition:"all .15s",
@@ -695,7 +695,7 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
             style={{
               border:"none", borderRadius:999, padding:"4px 14px", cursor:"pointer",
               fontFamily:"Baloo 2, cursive", fontSize:".72rem", fontWeight:700,
-              background: withAmount ? "white" : "transparent",
+              background: withAmount ? "var(--surface)" : "transparent",
               color: withAmount ? "var(--black)" : "var(--black-65)",
               boxShadow: withAmount ? "0 1px 3px rgba(0,0,0,.1)" : "none",
               transition:"all .15s",
@@ -726,7 +726,7 @@ export function EscrowFundingCard({ address, sats, btcPrice, onFundViaMobile, fu
         <button
           style={{
             display:"flex", alignItems:"center", gap:5,
-            border:"1px solid var(--black-10)", background: copiedAddr ? "var(--success-bg)" : "white",
+            border:"1px solid var(--black-10)", background: copiedAddr ? "var(--success-bg)" : "var(--surface)",
             borderRadius:999, fontFamily:"Baloo 2, cursive",
             fontSize:".72rem", fontWeight:700,
             color: copiedAddr ? "var(--success)" : "var(--black-65)",

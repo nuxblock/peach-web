@@ -1196,7 +1196,10 @@ export default function TradeExecution() {
                   } else if (action === "release_bitcoin") {
                     setActionError(null);
                     try {
-                      const buyerRating = arg; // "positive" or "negative", passed from rating modal
+                      // NOTE: { buyerRating } is silently ignored by the server and results in a
+                      // negative rating on the contract regardless of value. Held until backend
+                      // confirms the correct shape (or whether rating should be a separate call).
+                      const buyerRating = arg; // "positive" or "negative"
                       const res = await post(`/contract/${contract.id}/payment/createPaymentConfirmedPendingAction`, { buyerRating });
                       if (!res.ok) {
                         const err = await res.json().catch(() => null);

@@ -374,6 +374,7 @@ export const CSS = `
     display:flex;align-items:center;gap:10px;
     padding:10px 14px;border-radius:10px;
     border:2px solid var(--black-10);background:var(--surface);
+    color:var(--black);
     cursor:pointer;font-family:var(--font);text-align:left;
     transition:all .12s;
   }
