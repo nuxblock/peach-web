@@ -302,16 +302,38 @@ export function getFieldMeta(fieldId) {
   };
 }
 
+// Override map for tab labels, keyed by the first field id of the tab's
+// alternative. Mirrors the mobile i18n strings so tabs read "username" /
+// "m-pesa" / "account number" instead of "user_name" / "mpesa_name".
+// Extend this when new methods land with awkward field ids.
+export const TAB_LABEL_OVERRIDES = {
+  userName:       "username",
+  user_name:      "username",
+  phone:          "phone",
+  phoneNumber:    "phone",
+  email:          "email",
+  mpesa:          "m-pesa",
+  mpesa_name:     "m-pesa",
+  mpesaName:      "m-pesa",
+  iban:           "IBAN",
+  accountNumber:  "account number",
+  account_number: "account number",
+  ukBankAccount:  "UK bank",
+  ukSortCode:     "UK bank",
+  lnurlAddress:   "lightning",
+};
+
 // Short lowercase label for a details-form tab, derived from the first field
 // id in that tab's group. Matches the mobile style ("username", "phone",
 // "m-pesa").
 export function getTabLabel(group) {
   const first = firstFieldInGroup(group);
   if (!first) return "option";
-  // PM_NAMES sometimes has a nicer label (e.g. m-pesa → M-Pesa). Prefer that
+  if (TAB_LABEL_OVERRIDES[first]) return TAB_LABEL_OVERRIDES[first];
+  // PM_NAMES sometimes has a nicer label (e.g. mpesa → M-Pesa). Prefer that
   // if available, otherwise lowercase the humanized form.
   if (PM_NAMES[first]) return PM_NAMES[first].toLowerCase();
-  return humanizeId(first).toLowerCase();
+  return humanizeId(first).replace(/_/g, " ").toLowerCase();
 }
 
 // Flatten one tab's inner structure into a unique list of field ids. The API
@@ -330,6 +352,22 @@ export function fieldsForTab(tabGroups) {
   };
   walk(tabGroups);
   return out;
+}
+
+// Walks `fields.mandatory` (shape: string[][][]) and returns a list of
+// sections. Each outer element is a section; sections with more than one
+// alternative render as a tab strip, sections with a single alternative render
+// inline. Mirrors mobile's PaymentMethodForm logic.
+//
+// Returns: [{ sectionIdx, alternatives: string[][], altFields: string[][] }]
+// where `altFields[i]` is the flat, deduped list of field ids for alternative i.
+export function parseSections(mandatory) {
+  if (!Array.isArray(mandatory)) return [];
+  return mandatory.map((section, sectionIdx) => {
+    const alternatives = Array.isArray(section) ? section : [];
+    const altFields = alternatives.map((alt) => fieldsForTab(alt));
+    return { sectionIdx, alternatives, altFields };
+  });
 }
 
 function firstFieldInGroup(tabGroups) {

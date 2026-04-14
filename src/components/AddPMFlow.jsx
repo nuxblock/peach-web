@@ -10,7 +10,7 @@
 import { useState } from "react";
 import { validateIBAN, validatePhone, validateHolder, makeBlurHandler } from "../peach-validators.js";
 import {
-  PHONE_PREFIX_MAP, getFieldMeta, getTabLabel, fieldsForTab,
+  PHONE_PREFIX_MAP, getFieldMeta, getTabLabel, fieldsForTab, parseSections,
   normalizeApiPaymentMethods,
 } from "../data/paymentMethodMeta.js";
 
@@ -112,20 +112,41 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
   const handleBlur = makeBlurHandler(setErrors);
   const [selRegion, setSelRegion] = useState("Europe");
 
-  // Tab index for methods whose fields.mandatory has multiple alternative groups
-  // (e.g. Revolut: username | phone | m-pesa). Restored from edit data when present.
-  const [variantIndex, setVariantIndex] = useState(() => {
-    if (!isEdit) return 0;
-    const v = Number(editData?.details?._variant);
-    if (Number.isInteger(v) && v >= 0) return v;
-    // Heuristic for pre-migration saves: pick the tab whose fields overlap the saved keys.
-    const m = methods[editData?.methodId];
-    const tabs = m?.fields?.mandatory || [];
-    for (let i = 0; i < tabs.length; i++) {
-      const tabFields = fieldsForTab(tabs[i]);
-      if (tabFields.some((k) => editData.details && k in editData.details)) return i;
+  // Per-section active-alternative index for methods whose fields.mandatory has
+  // tabbed sections (e.g. Revolut: username | phone | m-pesa, or Bulgaria NT:
+  // IBAN | account number). Keyed by outer section index. Restored from edit
+  // data when present, with legacy `_variant` and field-overlap fallbacks.
+  const [variantIndices, setVariantIndices] = useState(() => {
+    if (!isEdit) return {};
+    const saved = editData?.details?._variants;
+    if (saved && typeof saved === "object") {
+      const out = {};
+      for (const [k, v] of Object.entries(saved)) {
+        const n = Number(v);
+        if (Number.isInteger(n) && n >= 0) out[k] = n;
+      }
+      return out;
     }
-    return 0;
+    // Legacy single-tab save: map _variant → section 0.
+    const legacy = Number(editData?.details?._variant);
+    if (Number.isInteger(legacy) && legacy >= 0) return { 0: legacy };
+    // Heuristic: for each tabbed section, pick the alt whose fields overlap
+    // the saved detail keys.
+    const m = methods[editData?.methodId];
+    const out = {};
+    const secs = parseSections(m?.fields?.mandatory);
+    for (const s of secs) {
+      if (s.alternatives.length <= 1) continue;
+      let pick = 0;
+      for (let i = 0; i < s.altFields.length; i++) {
+        if (s.altFields[i].some((k) => editData.details && k in editData.details)) {
+          pick = i;
+          break;
+        }
+      }
+      out[s.sectionIdx] = pick;
+    }
+    return out;
   });
 
   const allCurrencies = [...new Set(Object.values(methods).flatMap(m => m.currencies))].sort();
@@ -144,11 +165,18 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
   const selMethod = methods[selMethodId] || null;
   const methodCurrencies = selMethod?.currencies || [];
 
-  // Derive the fields for the active tab from the API schema.
-  const tabs = selMethod?.fields?.mandatory || [];
-  const hasTabs = tabs.length > 1;
-  const activeTabIdx = Math.min(variantIndex, Math.max(tabs.length - 1, 0));
-  const mandatoryFields = tabs.length > 0 ? fieldsForTab(tabs[activeTabIdx]) : [];
+  // Walk the API schema into sections. Each section either renders inline
+  // (single alternative) or as a tab strip (multiple alternatives). Mandatory
+  // fields = union of every section's active alternative fields.
+  const sections = parseSections(selMethod?.fields?.mandatory);
+  const resolvedSections = sections.map((s) => {
+    const rawIdx = variantIndices[s.sectionIdx] ?? 0;
+    const activeAltIdx = Math.min(rawIdx, Math.max(s.alternatives.length - 1, 0));
+    const activeFields = s.altFields[activeAltIdx] || [];
+    return { ...s, activeAltIdx, activeFields };
+  });
+  const hasAnyTabs = resolvedSections.some((s) => s.alternatives.length > 1);
+  const mandatoryFields = [...new Set(resolvedSections.flatMap((s) => s.activeFields))];
   const optionalFields = (selMethod?.fields?.optional || []).filter((f) => !mandatoryFields.includes(f));
 
   const step3Ok = mandatoryFields.every((k) => (details[k] || "").trim().length > 0)
@@ -227,7 +255,13 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
     }
     cleanDetails._payRefType = payRefType;
     cleanDetails._payRefCustom = payRefCustom;
-    if (hasTabs) cleanDetails._variant = activeTabIdx;
+    if (hasAnyTabs) {
+      const variants = {};
+      for (const s of resolvedSections) {
+        if (s.alternatives.length > 1) variants[s.sectionIdx] = s.activeAltIdx;
+      }
+      cleanDetails._variants = variants;
+    }
 
     const pm = {
       id:         editData?.id || `${selMethodId}-${Date.now()}`,
@@ -391,64 +425,78 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
                   </div>
                 )}
 
-                {hasTabs && (
-                  <div className="pm-variant-tabs">
-                    {tabs.map((g, i) => (
-                      <button key={i}
-                        className={`pm-variant-tab${i === activeTabIdx ? " active" : ""}`}
-                        onClick={() => {
-                          // Clear errors and details keys from the previous tab when switching.
-                          setErrors({});
-                          setDetails((prev) => {
-                            const stale = new Set(fieldsForTab(tabs[activeTabIdx]));
-                            const kept = {};
-                            for (const [k, v] of Object.entries(prev)) {
-                              if (!stale.has(k)) kept[k] = v;
-                            }
-                            return kept;
-                          });
-                          setVariantIndex(i);
-                        }}>
-                        {getTabLabel(g)}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {(() => {
+                  const renderField = (fid, isOptional) => {
+                    const meta = getFieldMeta(fid);
+                    const isIBAN = fid === "iban";
+                    const isPhone = fid === "phone" || fid === "phoneNumber";
+                    const isHolder = fid === "beneficiary" || fid === "accountHolder" || fid === "holder";
+                    const phonePrefix = isPhone ? PHONE_PREFIX_MAP[selMethodId] : null;
 
-                {[...mandatoryFields, ...optionalFields].map((fid) => {
-                  const meta = getFieldMeta(fid);
-                  const isOptional = optionalFields.includes(fid);
-                  const isIBAN = fid === "iban";
-                  const isPhone = fid === "phone" || fid === "phoneNumber";
-                  const isHolder = fid === "beneficiary" || fid === "accountHolder" || fid === "holder";
-                  const phonePrefix = isPhone ? PHONE_PREFIX_MAP[selMethodId] : null;
+                    function handleFieldBlur() {
+                      const val = (details[fid] || "").trim();
+                      if (!val && isOptional) { setErrors((p) => ({ ...p, [fid]: null })); return; }
+                      if (isIBAN) handleBlur(fid, details[fid], validateIBAN);
+                      else if (isPhone) handleBlur(fid, details[fid], validatePhone, phonePrefix);
+                      else if (isHolder) handleBlur(fid, details[fid], validateHolder);
+                    }
 
-                  function handleFieldBlur() {
-                    const val = (details[fid] || "").trim();
-                    if (!val && isOptional) { setErrors((p) => ({ ...p, [fid]: null })); return; }
-                    if (isIBAN) handleBlur(fid, details[fid], validateIBAN);
-                    else if (isPhone) handleBlur(fid, details[fid], validatePhone, phonePrefix);
-                    else if (isHolder) handleBlur(fid, details[fid], validateHolder);
-                  }
+                    return (
+                      <div key={fid} style={{ marginBottom:14 }}>
+                        <label className="field-label">
+                          {meta.label}
+                          {isOptional && <span style={{ fontWeight:500, textTransform:"none",
+                            letterSpacing:0, color:"var(--black-25)", marginLeft:4 }}>(optional)</span>}
+                        </label>
+                        <input className="modal-input"
+                          placeholder={meta.placeholder}
+                          value={details[fid] || ""}
+                          onChange={(e) => { setDetails((prev) => ({ ...prev, [fid]: e.target.value })); if (errors[fid]) setErrors((p) => ({ ...p, [fid]: null })); }}
+                          onBlur={(isIBAN || isPhone || isHolder) ? handleFieldBlur : undefined}
+                          style={errors[fid] ? { borderColor:"var(--error)" } : {}}
+                        />
+                        <FieldError error={errors[fid]}/>
+                      </div>
+                    );
+                  };
 
                   return (
-                    <div key={fid} style={{ marginBottom:14 }}>
-                      <label className="field-label">
-                        {meta.label}
-                        {isOptional && <span style={{ fontWeight:500, textTransform:"none",
-                          letterSpacing:0, color:"var(--black-25)", marginLeft:4 }}>(optional)</span>}
-                      </label>
-                      <input className="modal-input"
-                        placeholder={meta.placeholder}
-                        value={details[fid] || ""}
-                        onChange={(e) => { setDetails((prev) => ({ ...prev, [fid]: e.target.value })); if (errors[fid]) setErrors((p) => ({ ...p, [fid]: null })); }}
-                        onBlur={(isIBAN || isPhone || isHolder) ? handleFieldBlur : undefined}
-                        style={errors[fid] ? { borderColor:"var(--error)" } : {}}
-                      />
-                      <FieldError error={errors[fid]}/>
-                    </div>
+                    <>
+                      {resolvedSections.map((s) => {
+                        const sectionHasTabs = s.alternatives.length > 1;
+                        return (
+                          <div key={s.sectionIdx}>
+                            {sectionHasTabs && (
+                              <div className="pm-variant-tabs">
+                                {s.alternatives.map((alt, i) => (
+                                  <button key={i}
+                                    className={`pm-variant-tab${i === s.activeAltIdx ? " active" : ""}`}
+                                    onClick={() => {
+                                      // Clear errors + stale values from the previously active alternative.
+                                      setErrors({});
+                                      setDetails((prev) => {
+                                        const stale = new Set(s.altFields[s.activeAltIdx] || []);
+                                        const kept = {};
+                                        for (const [k, v] of Object.entries(prev)) {
+                                          if (!stale.has(k)) kept[k] = v;
+                                        }
+                                        return kept;
+                                      });
+                                      setVariantIndices((prev) => ({ ...prev, [s.sectionIdx]: i }));
+                                    }}>
+                                    {getTabLabel(alt)}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            {s.activeFields.map((fid) => renderField(fid, false))}
+                          </div>
+                        );
+                      })}
+                      {optionalFields.map((fid) => renderField(fid, true))}
+                    </>
                   );
-                })}
+                })()}
 
                 {/* Payment reference */}
                 <div style={{ marginBottom:14 }}>

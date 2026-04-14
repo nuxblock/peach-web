@@ -39,7 +39,8 @@ Each journey records the exact UI string, expected state, and API call firing un
 
 ## Journey 1 — First-time login
 
-**Prerequisites:** logged out, mobile app installed and provisioned
+**Prerequisites:** logged out, mobile app installed and provisioned.
+
 **Counterparty:** none
 **Expected duration:** ~1 min
 
