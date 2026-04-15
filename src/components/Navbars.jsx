@@ -210,7 +210,20 @@ export function Topbar({
                 </span>
               )}
               <span className="peach-id">{getTopbarPeachId()}</span>
-              <div className="avatar">PW{unreadTotal > 0 && <div className="avatar-badge">{unreadTotal > 99 ? "99+" : unreadTotal}</div>}</div>
+              <div className="avatar-ring-wrap">
+                {session.show && (
+                  <svg className="avatar-ring" width="44" height="44" viewBox="0 0 44 44" aria-hidden="true">
+                    <circle className="avatar-ring-track" cx="22" cy="22" r="20" />
+                    <circle
+                      className={`avatar-ring-progress avatar-ring-${session.progress < 0.25 ? "danger" : session.progress < 0.5 ? "warn" : "ok"}`}
+                      cx="22" cy="22" r="20"
+                      strokeDasharray={2 * Math.PI * 20}
+                      strokeDashoffset={2 * Math.PI * 20 * (1 - Math.max(0, Math.min(1, session.progress)))}
+                    />
+                  </svg>
+                )}
+                <div className="avatar">PW{unreadTotal > 0 && <div className="avatar-badge">{unreadTotal > 99 ? "99+" : unreadTotal}</div>}</div>
+              </div>
             </div>
             {showAvatarMenu && (
               <div className="avatar-menu">
