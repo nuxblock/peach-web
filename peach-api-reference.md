@@ -101,7 +101,10 @@ The web app cannot sign Bitcoin transactions directly (private key stays on mobi
 
 | Method | Endpoint | Used in | Description |
 |--------|----------|---------|-------------|
-| POST | `/offer/:offerId/refundPendingAction` | trade-execution, trades-dashboard | Request escrow refund — triggers mobile signing via push notification. |
+| POST | `/offer/:offerId/fundEscrowPendingAction` | offer-creation, trades-dashboard | Request escrow funding — triggers mobile signing. **Offer stage only** (pre-contract, e.g. sell offer in `fundEscrow` status). |
+| POST | `/offer/:offerId/refundPendingAction` | trades-dashboard | Request escrow refund for a cancelled sell offer — triggers mobile signing. **Offer stage only** (pre-contract). |
+| POST | `/contract/:contractId/createFundEscrowContractPendingAction` | trade-execution | Seller funds escrow after match — triggers mobile signing. **Contract stage** (replaces offer-level `fundEscrowPendingAction` once a contract exists). |
+| POST | `/contract/:contractId/createRefundEscrowContractPendingAction` | trade-execution | Seller refunds escrow during/after contract (e.g. `wrongAmountFundedOnContract`, cancellation) — triggers mobile signing. **Contract stage** (replaces offer-level `refundPendingAction` once a contract exists). |
 | POST | `/contract/:id/payment/createPaymentMadePendingAction` | trade-execution | Buyer confirms payment sent — triggers mobile signing. |
 | POST | `/contract/:id/payment/createPaymentConfirmedPendingAction` | trade-execution | Seller confirms payment received + releases BTC — triggers mobile signing (release + rating bundled). |
 
