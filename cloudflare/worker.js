@@ -1,8 +1,8 @@
 const ALLOWED_ORIGINS = [
+  "https://peach2peach.github.io",
   "https://nuxblock.github.io",
   "http://localhost:5173",
   "http://localhost:4173",
-  "https://peach2peach.github.io",
 ];
 
 function getCorsOrigin(request) {
