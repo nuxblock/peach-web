@@ -12,7 +12,11 @@
 // the entry.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { validateIBAN, validatePhone, validateHolder } from "../peach-validators.js";
+import {
+  validateIBAN,
+  validatePhone,
+  validateHolder,
+} from "../peach-validators.js";
 
 // ─── DISPLAY NAMES ──────────────────────────────────────────────────────────
 export const PM_NAMES = {
@@ -157,38 +161,130 @@ export const PM_NAMES = {
 // category slots for them yet, and they render fine as wallet-like.
 const MOBILE_CATEGORIES = {
   bankTransfer: [
-    "alias", "bancolombia", "guatemalaBankDeposit", "peruBankDeposit",
-    "cashDepositCanada", "chileBankTransfer", "cbu", "cvu", "fasterPayments",
-    "furicomi", "kcbBankKenya", "instantSepa", "interac", "sadaPay", "sepa",
-    "sinpe", "straksbetaling", "nationalTransferBG", "nationalTransferCH",
-    "nationalTransferCZ", "nationalTransferDK", "nationalTransferHU",
-    "nationalTransferIS", "nationalTransferNO", "nationalTransferNZ",
-    "nationalTransferPL", "nationalTransferRO", "nationalTransferSA",
-    "nationalTransferSE", "nationalTransferSG", "nationalTransferTR",
-    "nationalTransferUY", "nationalTransferZA", "paraguayBankTransfer",
-    "philippineBankTransfer", "spei", "stp", "uaeBankTransfer",
+    "alias",
+    "bancolombia",
+    "guatemalaBankDeposit",
+    "peruBankDeposit",
+    "cashDepositCanada",
+    "chileBankTransfer",
+    "cbu",
+    "cvu",
+    "fasterPayments",
+    "furicomi",
+    "kcbBankKenya",
+    "instantSepa",
+    "interac",
+    "sadaPay",
+    "sepa",
+    "sinpe",
+    "straksbetaling",
+    "nationalTransferBG",
+    "nationalTransferCH",
+    "nationalTransferCZ",
+    "nationalTransferDK",
+    "nationalTransferHU",
+    "nationalTransferIS",
+    "nationalTransferNO",
+    "nationalTransferNZ",
+    "nationalTransferPL",
+    "nationalTransferRO",
+    "nationalTransferSA",
+    "nationalTransferSE",
+    "nationalTransferSG",
+    "nationalTransferTR",
+    "nationalTransferUY",
+    "nationalTransferZA",
+    "paraguayBankTransfer",
+    "philippineBankTransfer",
+    "spei",
+    "stp",
+    "uaeBankTransfer",
   ],
   onlineWallet: [
-    "accrue", "advcash", "airtelMoney", "apaym", "bankera", "blik",
-    "chippercash", "dana", "daviPlata", "djamo", "eversend", "friends24",
-    "gcash", "goPay", "klasha", "imps", "instaPay", "m-pesa", "mercadoPago",
-    "moov", "mpesa", "mtn", "mtnMobileMoney", "n26", "nequi", "neteller",
-    "orangeMoney", "osko", "ovo", "papara", "payday", "payeer", "payID",
-    "payLah", "paypal", "paysera", "paytm", "perfectMoney", "pix", "rappipay",
-    "revolut", "sinpeMovil", "skrill", "strike", "swish",
-    "tigoMoneyElSalvador", "tigoMoneyGuatemala", "tigoMoneyHonduras",
-    "tigoMoneyParaguay", "tigoPesa", "twint", "UPI", "vipps", "vodafoneCash",
-    "wave", "weChat", "westernUnion", "wirepay", "wise", "ziraat",
+    "accrue",
+    "advcash",
+    "airtelMoney",
+    "apaym",
+    "bankera",
+    "blik",
+    "chippercash",
+    "dana",
+    "daviPlata",
+    "djamo",
+    "eversend",
+    "friends24",
+    "gcash",
+    "goPay",
+    "klasha",
+    "imps",
+    "instaPay",
+    "m-pesa",
+    "mercadoPago",
+    "moov",
+    "mpesa",
+    "mtn",
+    "mtnMobileMoney",
+    "n26",
+    "nequi",
+    "neteller",
+    "orangeMoney",
+    "osko",
+    "ovo",
+    "papara",
+    "payday",
+    "payeer",
+    "payID",
+    "payLah",
+    "paypal",
+    "paysera",
+    "paytm",
+    "perfectMoney",
+    "pix",
+    "rappipay",
+    "revolut",
+    "sinpeMovil",
+    "skrill",
+    "strike",
+    "swish",
+    "tigoMoneyElSalvador",
+    "tigoMoneyGuatemala",
+    "tigoMoneyHonduras",
+    "tigoMoneyParaguay",
+    "tigoPesa",
+    "twint",
+    "UPI",
+    "vipps",
+    "vodafoneCash",
+    "wave",
+    "weChat",
+    "westernUnion",
+    "wirepay",
+    "wise",
+    "ziraat",
   ],
   giftCard: [
-    "giftCard.steam", "giftCard.amazon",
-    "giftCard.amazon.DE", "giftCard.amazon.FR", "giftCard.amazon.IT",
-    "giftCard.amazon.ES", "giftCard.amazon.NL", "giftCard.amazon.UK",
-    "giftCard.amazon.SE", "giftCard.amazon.PT",
+    "giftCard.steam",
+    "giftCard.amazon",
+    "giftCard.amazon.DE",
+    "giftCard.amazon.FR",
+    "giftCard.amazon.IT",
+    "giftCard.amazon.ES",
+    "giftCard.amazon.NL",
+    "giftCard.amazon.UK",
+    "giftCard.amazon.SE",
+    "giftCard.amazon.PT",
   ],
   national: [
-    "bizum", "iris", "keksPay", "lydia", "mbWay", "mobilePay", "postePay",
-    "rebellion", "satispay", "wero",
+    "bizum",
+    "iris",
+    "keksPay",
+    "lydia",
+    "mbWay",
+    "mobilePay",
+    "postePay",
+    "rebellion",
+    "satispay",
+    "wero",
   ],
   // Mobile also has `cash` (dynamic) and `global` (crypto-ish). The web
   // routes both into onlineWallet for now.
@@ -200,9 +296,16 @@ for (const [cat, ids] of Object.entries(MOBILE_CATEGORIES)) {
 }
 // Global/crypto methods → onlineWallet slot on the web.
 for (const id of [
-  "liquid", "lnurl", "dollaronchain",
-  "ethereumusdt", "tronusdt", "rootstockusdt", "arbitrumusdt",
-  "baseusdt", "bnbusdt", "solanausdt",
+  "liquid",
+  "lnurl",
+  "dollaronchain",
+  "ethereumusdt",
+  "tronusdt",
+  "rootstockusdt",
+  "arbitrumusdt",
+  "baseusdt",
+  "bnbusdt",
+  "solanausdt",
 ]) {
   PM_CATEGORIES[id] = "onlineWallet";
 }
@@ -231,41 +334,71 @@ export const PHONE_PREFIX_MAP = {
 // with required-only validation.
 export const PM_FIELD_META = {
   // Identity
-  beneficiary:       { label: "Account holder name", placeholder: "Full name",             validator: validateHolder },
-  accountHolder:     { label: "Account holder name", placeholder: "Full name",             validator: validateHolder },
-  holder:            { label: "Account holder name", placeholder: "Full name",             validator: validateHolder },
-  name:              { label: "Name",                placeholder: "Full name" },
+  beneficiary: {
+    label: "Account holder name",
+    placeholder: "Full name",
+    validator: validateHolder,
+  },
+  accountHolder: {
+    label: "Account holder name",
+    placeholder: "Full name",
+    validator: validateHolder,
+  },
+  holder: {
+    label: "Account holder name",
+    placeholder: "Full name",
+    validator: validateHolder,
+  },
+  name: { label: "Name", placeholder: "Full name" },
   // Digital identity
-  email:             { label: "Email",               placeholder: "you@example.com" },
-  userName:          { label: "Username",            placeholder: "@username" },
-  username:          { label: "Username",            placeholder: "@username" },
-  phone:             { label: "Phone number",        placeholder: "+34 612 345 678",       validatorWithPrefix: true },
-  phoneNumber:       { label: "Phone number",        placeholder: "+34 612 345 678",       validatorWithPrefix: true },
+  email: { label: "Email", placeholder: "you@example.com" },
+  userName: { label: "Username", placeholder: "@username" },
+  username: { label: "Username", placeholder: "@username" },
+  phone: {
+    label: "Phone number",
+    placeholder: "+34 612 345 678",
+    validatorWithPrefix: true,
+  },
+  phoneNumber: {
+    label: "Phone number",
+    placeholder: "+34 612 345 678",
+    validatorWithPrefix: true,
+  },
   // Bank
-  iban:              { label: "IBAN",                placeholder: "DE89 3704 0044 0532 0130 00", validator: validateIBAN },
-  bic:               { label: "BIC",                 placeholder: "COBADEFFXXX" },
-  swiftCode:         { label: "SWIFT code",          placeholder: "COBADEFFXXX" },
-  bankAccountNumber: { label: "Account number",     placeholder: "12345678" },
-  accountNumber:     { label: "Account number",     placeholder: "12345678" },
-  bankCode:          { label: "Bank code",           placeholder: "123456" },
-  sortCode:          { label: "Sort code",           placeholder: "12-34-56" },
-  ukSortCode:        { label: "Sort code",           placeholder: "12-34-56" },
-  ukBankAccount:     { label: "Account number",     placeholder: "12345678" },
-  reference:         { label: "Reference",           placeholder: "Reference" },
+  iban: {
+    label: "IBAN",
+    placeholder: "DE89 3704 0044 0532 0130 00",
+    validator: validateIBAN,
+  },
+  bic: { label: "BIC", placeholder: "COBADEFFXXX" },
+  swiftCode: { label: "SWIFT code", placeholder: "COBADEFFXXX" },
+  bankAccountNumber: { label: "Account number", placeholder: "12345678" },
+  accountNumber: { label: "Account number", placeholder: "12345678" },
+  bankCode: { label: "Bank code", placeholder: "123456" },
+  sortCode: { label: "Sort code", placeholder: "12-34-56" },
+  ukSortCode: { label: "Sort code", placeholder: "12-34-56" },
+  ukBankAccount: { label: "Account number", placeholder: "12345678" },
+  reference: { label: "Reference", placeholder: "Reference" },
   // Crypto
-  address:           { label: "Wallet address",      placeholder: "Address" },
-  wallet:            { label: "Wallet address",      placeholder: "Address" },
-  network:           { label: "Network",             placeholder: "Ethereum, Tron, …" },
-  lnurlAddress:      { label: "LNURL or Lightning address", placeholder: "LNURL1... or user@domain.com" },
+  address: { label: "Wallet address", placeholder: "Address" },
+  wallet: { label: "Wallet address", placeholder: "Address" },
+  network: { label: "Network", placeholder: "Ethereum, Tron, …" },
+  lnurlAddress: {
+    label: "LNURL or Lightning address",
+    placeholder: "LNURL1... or user@domain.com",
+  },
   // Latin America
-  pixAlias:          { label: "PIX key",             placeholder: "CPF, email, phone, or random key" },
-  cbu:               { label: "CBU",                 placeholder: "2850590940090418135201" },
-  cvu:               { label: "CVU",                 placeholder: "0000003100000000000000" },
+  pixAlias: {
+    label: "PIX key",
+    placeholder: "CPF, email, phone, or random key",
+  },
+  cbu: { label: "CBU", placeholder: "2850590940090418135201" },
+  cvu: { label: "CVU", placeholder: "0000003100000000000000" },
   // National / mobile
-  mpesa:             { label: "M-Pesa number",       placeholder: "+254 7…" },
-  "m-pesa":          { label: "M-Pesa number",       placeholder: "+254 7…" },
-  upi:               { label: "UPI ID",              placeholder: "name@upi" },
-  UPI:               { label: "UPI ID",              placeholder: "name@upi" },
+  mpesa: { label: "M-Pesa number", placeholder: "+254 7…" },
+  "m-pesa": { label: "M-Pesa number", placeholder: "+254 7…" },
+  upi: { label: "UPI ID", placeholder: "name@upi" },
+  UPI: { label: "UPI ID", placeholder: "name@upi" },
 };
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
@@ -290,16 +423,18 @@ export function methodDisplayName(id) {
 
 export function getMethodMeta(id) {
   return {
-    name:     PM_NAMES[id]       || humanizeId(id),
-    category: PM_CATEGORIES[id]  || "onlineWallet",
+    name: PM_NAMES[id] || humanizeId(id),
+    category: PM_CATEGORIES[id] || "onlineWallet",
   };
 }
 
 export function getFieldMeta(fieldId) {
-  return PM_FIELD_META[fieldId] || {
-    label:       humanizeId(fieldId),
-    placeholder: "",
-  };
+  return (
+    PM_FIELD_META[fieldId] || {
+      label: humanizeId(fieldId),
+      placeholder: "",
+    }
+  );
 }
 
 // Override map for tab labels, keyed by the first field id of the tab's
@@ -307,20 +442,20 @@ export function getFieldMeta(fieldId) {
 // "m-pesa" / "account number" instead of "user_name" / "mpesa_name".
 // Extend this when new methods land with awkward field ids.
 export const TAB_LABEL_OVERRIDES = {
-  userName:       "username",
-  user_name:      "username",
-  phone:          "phone",
-  phoneNumber:    "phone",
-  email:          "email",
-  mpesa:          "m-pesa",
-  mpesa_name:     "m-pesa",
-  mpesaName:      "m-pesa",
-  iban:           "IBAN",
-  accountNumber:  "account number",
+  userName: "username",
+  user_name: "username",
+  phone: "phone",
+  phoneNumber: "phone",
+  email: "email",
+  mpesa: "m-pesa",
+  mpesa_name: "m-pesa",
+  mpesaName: "m-pesa",
+  iban: "IBAN",
+  accountNumber: "account number",
   account_number: "account number",
-  ukBankAccount:  "UK bank",
-  ukSortCode:     "UK bank",
-  lnurlAddress:   "lightning",
+  ukBankAccount: "UK bank",
+  ukSortCode: "UK bank",
+  lnurlAddress: "lightning",
 };
 
 // Short lowercase label for a details-form tab, derived from the first field
@@ -383,7 +518,7 @@ function firstFieldInGroup(tabGroups) {
 
 // ─── INVERSE LOOKUPS (for market-view chip filters) ─────────────────────────
 export const METHOD_ID_BY_DISPLAY = Object.fromEntries(
-  Object.entries(PM_NAMES).map(([id, name]) => [name, id])
+  Object.entries(PM_NAMES).map(([id, name]) => [name, id]),
 );
 
 export function getMethodsByCategory(catId) {
@@ -403,12 +538,12 @@ export function normalizeApiPaymentMethods(apiArray) {
     if (!m || typeof m !== "object" || !m.id) continue;
     const meta = getMethodMeta(m.id);
     out[m.id] = {
-      name:       meta.name,
-      category:   meta.category,
+      name: meta.name,
+      category: meta.category,
       currencies: Array.isArray(m.currencies) ? m.currencies : [],
-      fields:     m.fields || { mandatory: [], optional: [] },
-      countries:  m.countries || [],
-      anonymous:  !!m.anonymous,
+      fields: m.fields || { mandatory: [], optional: [] },
+      countries: m.countries || [],
+      anonymous: !!m.anonymous,
     };
   }
   return out;

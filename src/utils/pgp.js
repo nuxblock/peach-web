@@ -15,24 +15,65 @@ const GOPENPGP_COMPAT = {
   preferredHashAlgorithm: openpgp.enums.hash.sha256,
   preferredSymmetricAlgorithm: openpgp.enums.symmetric.aes256,
   nonDeterministicSignaturesViaNotation: false,
-  aeadProtect: false,              // explicit: SKESK v4 + SEIPD v1 (no AEAD)
-  s2kIterationCountByte: 96,       // ~65 536 iterations — matches typical GopenPGP default
+  aeadProtect: false, // explicit: SKESK v4 + SEIPD v1 (no AEAD)
+  s2kIterationCountByte: 96, // ~65 536 iterations — matches typical GopenPGP default
 };
 
 // ── All PM detail fields the server knows about (matches mobile app's PaymentDataInfoFields) ──
 const ALL_PAYMENT_FIELDS = [
-  "accountNumber", "accountType", "alias", "aliasType", "bankAccountNumber",
-  "bankBranch", "bankCode", "bankName", "beneficiary", "beneficiaryAddress",
-  "bic", "branchCode", "branchName", "bsbNumber", "cedulaID", "DNI", "email",
-  "iban", "lnurlAddress", "mobileMoneyIdentifier", "name", "nameTag", "phone",
-  "pixAlias", "postePayNumber", "receiveAddress", "receiveAddressEthereum",
-  "receiveAddressSolana", "receiveAddressTron", "reference", "residentialAddress",
-  "routingDetails", "RUT", "steamFriendCode", "ukBankAccount", "ukSortCode",
-  "userId", "userName", "wallet", "mpesa_name", "mpesa_phone", "mpesa_finalCurrency",
+  "accountNumber",
+  "accountType",
+  "alias",
+  "aliasType",
+  "bankAccountNumber",
+  "bankBranch",
+  "bankCode",
+  "bankName",
+  "beneficiary",
+  "beneficiaryAddress",
+  "bic",
+  "branchCode",
+  "branchName",
+  "bsbNumber",
+  "cedulaID",
+  "DNI",
+  "email",
+  "iban",
+  "lnurlAddress",
+  "mobileMoneyIdentifier",
+  "name",
+  "nameTag",
+  "phone",
+  "pixAlias",
+  "postePayNumber",
+  "receiveAddress",
+  "receiveAddressEthereum",
+  "receiveAddressSolana",
+  "receiveAddressTron",
+  "reference",
+  "residentialAddress",
+  "routingDetails",
+  "RUT",
+  "steamFriendCode",
+  "ukBankAccount",
+  "ukSortCode",
+  "userId",
+  "userName",
+  "wallet",
+  "mpesa_name",
+  "mpesa_phone",
+  "mpesa_finalCurrency",
 ];
 
 // Fields that must NOT be hashed (mobile app's doNotHash list)
-const DO_NOT_HASH = new Set(["beneficiary", "bic", "name", "reference", "ukSortCode"]);
+const DO_NOT_HASH = new Set([
+  "beneficiary",
+  "bic",
+  "name",
+  "reference",
+  "ukSortCode",
+  "mpesa_finalCurrency",
+]);
 
 function isPGPString(val) {
   return typeof val === "string" && val.trimStart().startsWith(PGP_HEADER);
@@ -48,7 +89,7 @@ function hexToBytes(hex) {
 }
 
 function bytesToHex(bytes) {
-  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /**
@@ -72,9 +113,15 @@ export function generateSymmetricKey() {
  * @param {string[]} armoredPubKeys - Array of armored PGP public key strings
  * @param {string} armoredPrivKey - Sender's armored PGP private key
  */
-export async function encryptForRecipients(plaintext, armoredPubKeys, armoredPrivKey) {
+export async function encryptForRecipients(
+  plaintext,
+  armoredPubKeys,
+  armoredPrivKey,
+) {
   try {
-    let privateKey = await openpgp.readPrivateKey({ armoredKey: armoredPrivKey });
+    let privateKey = await openpgp.readPrivateKey({
+      armoredKey: armoredPrivKey,
+    });
     if (!privateKey.isDecrypted()) {
       try {
         privateKey = await openpgp.decryptKey({ privateKey, passphrase: "" });
@@ -189,7 +236,7 @@ export async function hashPaymentFields(methodType, pmData, country) {
       const val = pmData[field];
       if (!val || typeof val !== "string") continue;
       const encoded = new TextEncoder().encode(val.toLowerCase());
-      const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
       hashes.push(bytesToHex(new Uint8Array(hashBuffer)));
     }
     const result = { hashes };
@@ -206,9 +253,13 @@ export async function hashPaymentFields(methodType, pmData, country) {
  * (e.g. {"error": "forbidden"}). These should not be treated as PM data.
  */
 export function isApiError(data) {
-  return data && typeof data === "object" && !Array.isArray(data)
-    && ("error" in data || "message" in data)
-    && !("id" in data || "methodId" in data || "currencies" in data);
+  return (
+    data &&
+    typeof data === "object" &&
+    !Array.isArray(data) &&
+    ("error" in data || "message" in data) &&
+    !("id" in data || "methodId" in data || "currencies" in data)
+  );
 }
 
 /**
@@ -217,19 +268,26 @@ export function isApiError(data) {
  */
 export async function decryptPGPMessage(armoredMessage, armoredPrivKey) {
   try {
-    let privateKey = await openpgp.readPrivateKey({ armoredKey: armoredPrivKey });
+    let privateKey = await openpgp.readPrivateKey({
+      armoredKey: armoredPrivKey,
+    });
 
     if (!privateKey.isDecrypted()) {
       try {
         privateKey = await openpgp.decryptKey({ privateKey, passphrase: "" });
       } catch {
-        console.warn("[PGP] Private key is passphrase-protected and cannot be unlocked");
+        console.warn(
+          "[PGP] Private key is passphrase-protected and cannot be unlocked",
+        );
         return null;
       }
     }
 
     const message = await openpgp.readMessage({ armoredMessage });
-    const { data } = await openpgp.decrypt({ message, decryptionKeys: privateKey });
+    const { data } = await openpgp.decrypt({
+      message,
+      decryptionKeys: privateKey,
+    });
     return data;
   } catch (err) {
     console.warn("[PGP] Decryption failed:", err.message);
@@ -245,13 +303,17 @@ export async function decryptPGPMessage(armoredMessage, armoredPrivKey) {
  */
 export async function encryptPGPMessage(plaintext, armoredPrivKey) {
   try {
-    let privateKey = await openpgp.readPrivateKey({ armoredKey: armoredPrivKey });
+    let privateKey = await openpgp.readPrivateKey({
+      armoredKey: armoredPrivKey,
+    });
 
     if (!privateKey.isDecrypted()) {
       try {
         privateKey = await openpgp.decryptKey({ privateKey, passphrase: "" });
       } catch {
-        console.warn("[PGP] Private key is passphrase-protected and cannot be unlocked for encryption");
+        console.warn(
+          "[PGP] Private key is passphrase-protected and cannot be unlocked for encryption",
+        );
         return null;
       }
     }
@@ -300,19 +362,28 @@ export async function encryptForPublicKey(plaintext, armoredPubKey) {
  */
 export async function signPGPMessage(plaintext, armoredPrivKey) {
   try {
-    let privateKey = await openpgp.readPrivateKey({ armoredKey: armoredPrivKey });
+    let privateKey = await openpgp.readPrivateKey({
+      armoredKey: armoredPrivKey,
+    });
 
     if (!privateKey.isDecrypted()) {
       try {
         privateKey = await openpgp.decryptKey({ privateKey, passphrase: "" });
       } catch {
-        console.warn("[PGP] Private key is passphrase-protected and cannot be unlocked for signing");
+        console.warn(
+          "[PGP] Private key is passphrase-protected and cannot be unlocked for signing",
+        );
         return null;
       }
     }
 
     const message = await openpgp.createMessage({ text: plaintext });
-    const signature = await openpgp.sign({ message, signingKeys: privateKey, detached: true, config: GOPENPGP_COMPAT });
+    const signature = await openpgp.sign({
+      message,
+      signingKeys: privateKey,
+      detached: true,
+      config: GOPENPGP_COMPAT,
+    });
     return signature;
   } catch (err) {
     console.warn("[PGP] Signing failed:", err.message);
@@ -357,27 +428,36 @@ export async function decryptPaymentMethods(apiResponse, armoredPrivKey) {
     }
 
     // Shape 2: array of PGP strings
-    if (Array.isArray(apiResponse) && apiResponse.length > 0 && isPGPString(apiResponse[0])) {
+    if (
+      Array.isArray(apiResponse) &&
+      apiResponse.length > 0 &&
+      isPGPString(apiResponse[0])
+    ) {
       const results = await Promise.all(
-        apiResponse.map(msg => decryptPGPMessage(msg, armoredPrivKey))
+        apiResponse.map((msg) => decryptPGPMessage(msg, armoredPrivKey)),
       );
-      return results
-        .filter(Boolean)
-        .map(txt => JSON.parse(txt));
+      return results.filter(Boolean).map((txt) => JSON.parse(txt));
     }
 
     // Shape 3: array of objects with an encrypted field
-    if (Array.isArray(apiResponse) && apiResponse.length > 0 && typeof apiResponse[0] === "object") {
+    if (
+      Array.isArray(apiResponse) &&
+      apiResponse.length > 0 &&
+      typeof apiResponse[0] === "object"
+    ) {
       const encKey = findEncryptedKey(apiResponse[0]);
       if (encKey) {
         const results = await Promise.all(
           apiResponse.map(async (item) => {
-            const plaintext = await decryptPGPMessage(item[encKey], armoredPrivKey);
+            const plaintext = await decryptPGPMessage(
+              item[encKey],
+              armoredPrivKey,
+            );
             if (!plaintext) return null;
             const decrypted = JSON.parse(plaintext);
             const { [encKey]: _removed, ...rest } = item;
             return { ...rest, ...decrypted };
-          })
+          }),
         );
         return results.filter(Boolean);
       }
@@ -386,10 +466,17 @@ export async function decryptPaymentMethods(apiResponse, armoredPrivKey) {
     }
 
     // Shape 4: object map with PGP string values
-    if (apiResponse && typeof apiResponse === "object" && !Array.isArray(apiResponse)) {
+    if (
+      apiResponse &&
+      typeof apiResponse === "object" &&
+      !Array.isArray(apiResponse)
+    ) {
       // Reject API error responses (e.g. {"error": "forbidden"})
       if (isApiError(apiResponse)) {
-        console.warn("[PGP] API returned error object:", apiResponse.error || apiResponse.message);
+        console.warn(
+          "[PGP] API returned error object:",
+          apiResponse.error || apiResponse.message,
+        );
         return null;
       }
       const firstKey = Object.keys(apiResponse)[0];
@@ -399,7 +486,7 @@ export async function decryptPaymentMethods(apiResponse, armoredPrivKey) {
             const plaintext = await decryptPGPMessage(val, armoredPrivKey);
             if (!plaintext) return null;
             return [key, JSON.parse(plaintext)];
-          })
+          }),
         );
         return Object.fromEntries(entries.filter(Boolean));
       }
@@ -441,7 +528,8 @@ export async function extractPMsFromProfile(profile, armoredPrivKey) {
         encryptedEntries.push([key, val]);
       } else if (val && typeof val === "object" && !Array.isArray(val)) {
         for (const [subKey, subVal] of Object.entries(val)) {
-          if (isPGPString(subVal)) encryptedEntries.push([`${key}.${subKey}`, subVal]);
+          if (isPGPString(subVal))
+            encryptedEntries.push([`${key}.${subKey}`, subVal]);
         }
       }
     }
@@ -452,7 +540,6 @@ export async function extractPMsFromProfile(profile, armoredPrivKey) {
       if (profile.paymentMethods) return profile.paymentMethods;
       return null;
     }
-
 
     // Decrypt each encrypted field
     const decrypted = {};
@@ -510,7 +597,9 @@ export async function generateEphemeralKeyPair() {
  * Derive the armored public key from an armored private key.
  */
 export async function derivePublicKeyArmored(armoredPrivKey) {
-  const privateKey = await openpgp.readPrivateKey({ armoredKey: armoredPrivKey });
+  const privateKey = await openpgp.readPrivateKey({
+    armoredKey: armoredPrivKey,
+  });
   return privateKey.toPublic().armor();
 }
 
@@ -522,10 +611,16 @@ export async function derivePublicKeyArmored(armoredPrivKey) {
  * @param {string} publicKeyArmored - armored public key of the signer
  * @returns {Promise<boolean>}
  */
-export async function verifyDetachedSignature(data, signatureArmored, publicKeyArmored) {
+export async function verifyDetachedSignature(
+  data,
+  signatureArmored,
+  publicKeyArmored,
+) {
   try {
     const publicKey = await openpgp.readKey({ armoredKey: publicKeyArmored });
-    const signature = await openpgp.readSignature({ armoredSignature: signatureArmored });
+    const signature = await openpgp.readSignature({
+      armoredSignature: signatureArmored,
+    });
     const verified = await openpgp.verify({
       message: await openpgp.createMessage({ text: data }),
       signature,

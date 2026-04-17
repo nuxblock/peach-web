@@ -105,6 +105,9 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
   const [selMethodId, setSelMethodId] = useState(editData?.methodId || "");
   const [details, setDetails] = useState(editData?.details || {});
   const [selCurrencies, setSelCurrencies] = useState(editData?.currencies || []);
+  // User-editable nickname ("label"). Optional; falls back to the method name
+  // at save time so the serialized blob always has a non-empty label.
+  const [pmLabel, setPmLabel] = useState(editData?.label || "");
   const [payRefType, setPayRefType] = useState(editData?.details?._payRefType || "custom");
   const [payRefCustom, setPayRefCustom] = useState(editData?.details?._payRefCustom || "");
   const [showPayRefPicker, setShowPayRefPicker] = useState(false);
@@ -275,10 +278,12 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
       cleanDetails._variants = variants;
     }
 
+    const methodName = selMethod?.name || selMethodId;
     const pm = {
       id:         editData?.id || `${selMethodId}-${Date.now()}`,
       methodId:   selMethodId,
-      name:       selMethod?.name || selMethodId,
+      name:       methodName,
+      label:      (pmLabel || "").trim() || methodName,
       currencies: selCurrencies,
       details:    cleanDetails,
     };
@@ -417,7 +422,9 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
               <>
                 <div className="pm-detail-header">
                   <span className="pm-detail-tag">{selMethod.name}</span>
-                  <span className="pm-detail-curr">{selCurrency}</span>
+                  {selCurrencies.length <= 1 && (
+                    <span className="pm-detail-curr">{selCurrencies[0] || selCurrency}</span>
+                  )}
                 </div>
 
                 {methodCurrencies.length > 1 && (
@@ -436,6 +443,19 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
                     </div>
                   </div>
                 )}
+
+                <div style={{ marginBottom:14 }}>
+                  <label className="field-label">
+                    Label
+                    <span style={{ fontWeight:500, textTransform:"none",
+                      letterSpacing:0, color:"var(--black-25)", marginLeft:4 }}>(optional)</span>
+                  </label>
+                  <input className="modal-input"
+                    placeholder={selMethod?.name || "e.g. My main account"}
+                    value={pmLabel}
+                    onChange={(e) => setPmLabel(e.target.value)}
+                  />
+                </div>
 
                 {(() => {
                   const renderField = (fid, isOptional) => {

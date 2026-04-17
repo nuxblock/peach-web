@@ -159,6 +159,7 @@ export default function PeachPaymentMethods() {
               id:         pm.id        || `api-pm-${i}`,
               methodId:   shortMethodId(rawId),
               name:       pm.name      || pm.label || pm.type || "Payment Method",
+              label:      pm.label     || pm.name  || "",
               currencies: pm.currencies || [],
               details:    sweepDetails(pm),
             };
@@ -170,6 +171,7 @@ export default function PeachPaymentMethods() {
               id:         val?.id || key,
               methodId:   shortMethodId(key),
               name:       val?.name || val?.label || key,
+              label:      val?.label || val?.name || "",
               currencies: val?.currencies || [],
               details:    sweepDetails(val),
             };
@@ -315,10 +317,18 @@ export default function PeachPaymentMethods() {
                     <span className="pm-group-label">{catMeta.label}</span>
                     <span className="pm-group-count">{pms.length}</span>
                   </div>
-                  {pms.map(pm => (
+                  {pms.map(pm => {
+                    const typeName = methodsCatalogue[pm.methodId]?.name || pm.methodId || pm.name;
+                    // Show the user's label as a secondary line when it differs
+                    // from the catalogue method name (a custom nickname).
+                    const customName = pm.label && pm.label !== typeName ? pm.label : null;
+                    return (
                     <div key={pm.id} className="pm-card">
                       <div className="pm-card-left">
-                        <div className="pm-card-name">{pm.name}</div>
+                        <div className="pm-card-name">{typeName}</div>
+                        {customName && (
+                          <div className="pm-card-custom-name">Label: {customName}</div>
+                        )}
                         <div className="pm-card-detail">{methodLabel(pm)}</div>
                         <div className="pm-card-currencies">
                           {pm.currencies.map(c => (
@@ -337,7 +347,8 @@ export default function PeachPaymentMethods() {
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             })}

@@ -43,6 +43,7 @@ export const CSS = `
   .pm-card+.pm-card{margin-top:8px}
   .pm-card-left{flex:1;min-width:0}
   .pm-card-name{font-size:.92rem;font-weight:700;color:var(--black);margin-bottom:2px}
+  .pm-card-custom-name{font-size:.76rem;font-weight:600;color:var(--black-65);margin-bottom:4px}
   .pm-card-detail{font-size:.78rem;color:var(--black-65);font-family:monospace;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px}
   .pm-card-currencies{display:flex;gap:4px;flex-wrap:wrap}
