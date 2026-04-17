@@ -9,8 +9,11 @@ import { encryptPGPMessage, signPGPMessage } from "./pgp.js";
 import { fetchWithSessionCheck } from "./sessionGuard.js";
 
 // Convert internal PM array → API object-map format.
-// Internal shape: { id, methodId, name, currencies, details:{..., _payRefType, _payRefCustom} }
-// API shape:      { [id]: { id, label, currencies, ...flatDetails } }
+// Internal shape: { id, methodId, name, label, currencies, details:{..., _payRefType, _payRefCustom} }
+// API shape:      { [id]: { id, type, label, currencies, ...flatDetails } }
+// The `type` field is REQUIRED — the mobile app keys off it to recognise the
+// payment method (e.g. "sepa", "wise"). Without it, mobile silently drops the PM.
+// `label` is the user's nickname for this PM (defaults to the method name).
 // Strips keys starting with `_` — those are UI-only state and must not be
 // serialised into the encrypted blob.
 export function serializePMs(pms) {
@@ -21,9 +24,16 @@ export function serializePMs(pms) {
     for (const [k, v] of Object.entries(details)) {
       if (!k.startsWith("_")) apiDetails[k] = v;
     }
+    // methodId may carry a "-<n>" suffix when the user adds multiple PMs of the
+    // same type; the wire-format `type` field should be the bare type id.
+    const type = String(pm.methodId || "").replace(/-\d+$/, "");
+    // Prefer the user-editable label; fall back to the method name so the
+    // serialised entry is never missing a human-readable label.
+    const label = (pm.label && String(pm.label).trim()) || pm.name || type;
     map[pm.id] = {
       id: pm.id,
-      label: pm.name,
+      type,
+      label,
       currencies: pm.currencies || [],
       ...apiDetails,
     };
