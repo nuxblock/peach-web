@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { QRCodeSVG } from "qrcode.react";
 import { createTask } from "../../hooks/useApi.js";
-import { SAT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur } from "../../utils/format.js";
+import { SAT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur, formatTradeId } from "../../utils/format.js";
 
 // ─── CONSTANTS (shared with index.jsx) ──────────────────────────────────────
 
@@ -278,11 +278,22 @@ export function MultiEscrowFunding({
   post, navigate, reset, allFunded,
 }) {
   const [copiedKey, setCopiedKey] = useState(null); // "addr-0", "uri-2", etc.
-  const [sentToMobile, setSentToMobile] = useState(false);
+  const [taskState, setTaskState] = useState({}); // offerId → 'sending' | 'sent' | 'failed'
   const [qrWithAmount, setQrWithAmount] = useState(true);
 
   const validResults = results.filter(r => r.status !== "failed" && r.escrowAddress);
   const selected = validResults[selectedIdx] || validResults[0];
+
+  function isDispatchable(r) {
+    return r.offerId
+      && r.fundingStatus !== "FUNDED"
+      && r.fundingStatus !== "MEMPOOL"
+      && taskState[r.offerId] !== "sending"
+      && taskState[r.offerId] !== "sent";
+  }
+  const pendingTargets = validResults.filter(isDispatchable);
+  const anySending = Object.values(taskState).includes("sending");
+  const anyFailed = Object.values(taskState).includes("failed");
 
   function copyAddr(addr, idx) {
     navigator.clipboard.writeText(addr).catch(() => {});
@@ -298,14 +309,26 @@ export function MultiEscrowFunding({
   }
 
   async function handleSendToMobile() {
-    try {
-      const offerIds = validResults.map(r => r.offerId).filter(Boolean);
-      await createTask(post, "escrow", { offerIds });
-      setSentToMobile(true);
-      setTimeout(() => setSentToMobile(false), 4000);
-    } catch (e) {
-      console.error("[MultiEscrow] Send to mobile failed:", e);
-    }
+    const targets = validResults.filter(isDispatchable);
+    if (!targets.length) return;
+
+    setTaskState(prev => {
+      const next = { ...prev };
+      targets.forEach(r => { next[r.offerId] = "sending"; });
+      return next;
+    });
+
+    await Promise.allSettled(
+      targets.map(async r => {
+        try {
+          await createTask(post, "escrow", { offerId: r.offerId });
+          setTaskState(prev => ({ ...prev, [r.offerId]: "sent" }));
+        } catch (e) {
+          console.error(`[MultiEscrow] Send task failed for offer ${r.offerId}:`, e);
+          setTaskState(prev => ({ ...prev, [r.offerId]: "failed" }));
+        }
+      })
+    );
   }
 
   function statusClass(r) {
@@ -366,13 +389,25 @@ export function MultiEscrowFunding({
         <div className="multi-escrow-qr">
           <div style={{padding:12,background:"white",borderRadius:12,
             border:"1px solid var(--black-10)",display:"inline-block"}}>
-            <QRCodeSVG
-              value={qrWithAmount
-                ? `bitcoin:${selected.escrowAddress}?amount=${(amtFixed / 1e8).toFixed(8)}`
-                : selected.escrowAddress}
-              size={140} level="L" bgColor="#ffffff" fgColor="#2B1911"
-            />
+            {(selected.fundingStatus === "MEMPOOL" || selected.fundingStatus === "FUNDED") ? (
+              <div style={{width:140,height:140,display:"flex",
+                alignItems:"center",justifyContent:"center"}}>
+                <div style={{width:76,height:76,borderRadius:"50%",
+                  background:"var(--success)",display:"flex",
+                  alignItems:"center",justifyContent:"center",
+                  color:"white",fontSize:"2.4rem",fontWeight:800,
+                  boxShadow:"0 8px 32px rgba(101,165,25,.3)"}}>✓</div>
+              </div>
+            ) : (
+              <QRCodeSVG
+                value={qrWithAmount
+                  ? `bitcoin:${selected.escrowAddress}?amount=${(amtFixed / 1e8).toFixed(8)}`
+                  : selected.escrowAddress}
+                size={140} level="L" bgColor="#ffffff" fgColor="#2B1911"
+              />
+            )}
           </div>
+          {selected.fundingStatus !== "MEMPOOL" && selected.fundingStatus !== "FUNDED" && (<>
           {/* Address only / Address + amount toggle */}
           <div style={{display:"flex",justifyContent:"center",marginTop:10}}>
             <div style={{
@@ -414,6 +449,7 @@ export function MultiEscrowFunding({
               ? "QR includes amount — most wallets will fill it in automatically"
               : "QR contains address only — enter the amount manually in your wallet"}
           </div>
+          </>)}
           <div className="multi-escrow-qr-label">
             Address {selectedIdx + 1} of {validResults.length}
           </div>
@@ -430,7 +466,7 @@ export function MultiEscrowFunding({
               className={`multi-escrow-row${isSel ? " selected" : ""}${isFunded ? " funded" : ""}`}
               onClick={() => onSelectIdx(i)}>
               <div className="multi-escrow-radio" />
-              <span className="multi-escrow-id">P-{r.offerId}</span>
+              <span className="multi-escrow-id">{formatTradeId(r.offerId, "offer")}</span>
               <div className="multi-escrow-addr">
                 {r.escrowAddress || "—"}
               </div>
@@ -444,6 +480,18 @@ export function MultiEscrowFunding({
                   {copiedKey === `uri-${i}` ? "✓" : "Copy address + amount"}
                 </button>
               </div>
+              {taskState[r.offerId] && (
+                <span style={{
+                  fontSize:".68rem",fontWeight:700,whiteSpace:"nowrap",marginRight:4,
+                  color: taskState[r.offerId]==="sent" ? "var(--success)"
+                       : taskState[r.offerId]==="failed" ? "var(--error)"
+                       : "var(--black-65)",
+                }}>
+                  {taskState[r.offerId]==="sending" ? "📱…"
+                   : taskState[r.offerId]==="sent" ? "📱 sent"
+                   : "📱 failed"}
+                </span>
+              )}
               <span className={`multi-escrow-status ${statusClass(r)}`}>
                 {statusLabel(r)}
               </span>
@@ -453,10 +501,28 @@ export function MultiEscrowFunding({
       </div>
 
       {/* ── SEND TO MOBILE ── */}
+      <div style={{display:"flex",justifyContent:"center",marginTop:16}}>
+        <div style={{
+          fontSize:".7rem", fontWeight:800, letterSpacing:".5px",
+          color:"var(--warning)", background:"var(--warning-soft)",
+          border:"1px solid var(--warning)", borderRadius:999,
+          padding:"4px 12px",
+        }}>
+          ⚠ MULTI-FUNDING NEEDS NEW ENDPOINT
+        </div>
+      </div>
       <div style={{display:"flex",justifyContent:"center",marginTop:8}}>
-        <button className={`btn-send-mobile${sentToMobile ? " sent" : ""}`}
-          onClick={handleSendToMobile} disabled={sentToMobile}>
-          {sentToMobile ? "✓ Sent to mobile" : "Send to mobile and fund all"}
+        <button
+          className={`btn-send-mobile${!pendingTargets.length && !anySending ? " sent" : ""}`}
+          onClick={handleSendToMobile}
+          disabled={anySending || !pendingTargets.length}>
+          {anySending
+            ? "Sending…"
+            : !pendingTargets.length
+              ? "✓ Sent to mobile"
+              : anyFailed
+                ? "Retry failed"
+                : "Send to mobile and fund all"}
         </button>
       </div>
     </>

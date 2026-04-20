@@ -1544,8 +1544,8 @@ export default function OfferCreation({ initialType="buy" }) {
                   {publishing
                     ? (multiPublishProgress ? `Publishing ${multiPublishProgress.done}/${multiPublishProgress.total}…` : "Publishing…")
                     : multiEnabled
-                      ? (isSell?`Publish ${multiCount} offers & get escrows →`:`Publish ${multiCount} offers →`)
-                      : (isSell?"Publish & get escrow →":"Publish offer →")}
+                      ? (isSell?`Fund escrows`:`Publish ${multiCount} offers →`)
+                      : (isSell?"Fund escrow":"Publish offer →")}
                 </button>
               </>)}
               {step===2&&!escrowFunded&&<div/>}
