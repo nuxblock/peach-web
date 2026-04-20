@@ -2422,6 +2422,69 @@ function SellerPaymentCountdown({ deadline, onExtend }) {
   );
 }
 
+// ─── FUNDING DEADLINE PILL (waitingForFunding status) ────────────────────────
+export function FundingDeadlinePill({ deadline, role }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!deadline) return null;
+  const ms = deadline - now;
+  if (ms <= 0) return null;
+
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
+
+  const isBuyer = role === "buyer";
+  const label = isBuyer ? "Seller must fund the escrow in" : "Funding deadline";
+  const valueStr = isBuyer ? timeStr : `${timeStr} remaining`;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        background: "var(--primary-mild)",
+        border: "1.5px solid rgba(196,81,4,.2)",
+        borderRadius: 12,
+        padding: "12px 16px",
+        marginBottom: 12,
+      }}
+    >
+      <span style={{ fontSize: "1.5rem", flexShrink: 0 }}>⏳</span>
+      <div>
+        <div
+          style={{
+            fontSize: ".72rem",
+            fontWeight: 700,
+            color: "var(--primary-dark)",
+            textTransform: "uppercase",
+            letterSpacing: ".05em",
+            marginBottom: 1,
+          }}
+        >
+          {label}
+        </div>
+        <div
+          style={{
+            fontSize: "1.05rem",
+            fontWeight: 800,
+            color: "var(--primary-dark)",
+          }}
+        >
+          {valueStr}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── ACTION BUTTONS ───────────────────────────────────────────────────────────
 export function ActionPanel({
   scenario,
@@ -3126,53 +3189,30 @@ export function ActionPanel({
 }
 
 // ─── RATING PANEL ────────────────────────────────────────────────────────────
-export function RatingPanel({ counterparty, onRate, pending, onPendingClick }) {
+export function RatingPanel({ counterparty, onRate }) {
   const [rating, setRating] = useState(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  if (submitted || pending) {
+  if (submitted) {
     return (
       <div
         style={{
           textAlign: "center",
           padding: "20px 0",
           fontSize: ".9rem",
-          color: pending ? "var(--primary)" : "var(--success)",
+          color: "var(--success)",
           fontWeight: 700,
         }}
       >
-        {pending ? (
-          <>
-            <div style={{ fontSize: "1.5rem", marginBottom: 8 }}>📱</div>
-            Rating pending in mobile app
-            <div style={{ marginTop: 12 }}>
-              <button
-                onClick={onPendingClick}
-                style={{
-                  border: "1.5px dashed var(--primary)",
-                  background: "var(--bg)",
-                  borderRadius: 999,
-                  fontFamily: "'Baloo 2',cursive",
-                  fontWeight: 700,
-                  fontSize: ".82rem",
-                  color: "var(--primary)",
-                  padding: "8px 20px",
-                  cursor: "pointer",
-                }}
-              >
-                📱 Open signing request
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ fontSize: "1.5rem", marginBottom: 8 }}>✓</div>
-            Rating submitted. Thanks!
-          </>
-        )}
+        <div style={{ fontSize: "1.5rem", marginBottom: 8 }}>✓</div>
+        Rating submitted. Thanks!
       </div>
     );
   }
+
+  const disabled = !rating || submitting;
 
   return (
     <div
@@ -3200,6 +3240,7 @@ export function RatingPanel({ counterparty, onRate, pending, onPendingClick }) {
         <button
           className={`rating-btn${rating === 5 ? " rating-selected-good" : ""}`}
           onClick={() => setRating(5)}
+          disabled={submitting}
         >
           <IconThumbUp />
           <span>Positive</span>
@@ -3207,6 +3248,7 @@ export function RatingPanel({ counterparty, onRate, pending, onPendingClick }) {
         <button
           className={`rating-btn${rating === 1 ? " rating-selected-bad" : ""}`}
           onClick={() => setRating(1)}
+          disabled={submitting}
         >
           <IconThumbDown />
           <span>Negative</span>
@@ -3214,20 +3256,39 @@ export function RatingPanel({ counterparty, onRate, pending, onPendingClick }) {
       </div>
       <button
         className="action-btn-grad"
-        disabled={!rating}
+        disabled={disabled}
         style={{
-          opacity: rating ? 1 : 0.5,
-          cursor: rating ? "pointer" : "not-allowed",
+          opacity: disabled ? 0.5 : 1,
+          cursor: disabled ? "not-allowed" : "pointer",
         }}
-        onClick={() => {
-          if (rating) {
-            onRate(rating);
+        onClick={async () => {
+          if (disabled) return;
+          setSubmitting(true);
+          setError(null);
+          try {
+            await onRate(rating);
             setSubmitted(true);
+          } catch (e) {
+            setError(e.message || "Failed to submit rating");
+          } finally {
+            setSubmitting(false);
           }
         }}
       >
-        Submit Rating
+        {submitting ? "Submitting…" : "Submit Rating"}
       </button>
+      {error && (
+        <div
+          style={{
+            marginTop: 12,
+            fontSize: ".8rem",
+            color: "var(--error)",
+            textAlign: "center",
+          }}
+        >
+          {error}
+        </div>
+      )}
     </div>
   );
 }

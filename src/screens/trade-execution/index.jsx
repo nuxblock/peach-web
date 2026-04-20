@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { SideNav, Topbar } from "../../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi, createTask } from "../../hooks/useApi.js";
+import { useApi } from "../../hooks/useApi.js";
 import MobileSigningModal, {
   hasPendingTask,
   savePendingTask,
@@ -34,6 +34,7 @@ import {
   PaymentDetailsCard,
   EscrowAddressCard,
   EscrowFundingCard,
+  FundingDeadlinePill,
   WrongAmountFundedCard,
   ActionPanel,
   RatingPanel,
@@ -324,7 +325,6 @@ export default function TradeExecution() {
     for (const type of [
       "release",
       "refund",
-      "rate",
       "fundEscrow",
       "confirmPayment",
     ]) {
@@ -525,6 +525,9 @@ export default function TradeExecution() {
                   paymentExpectedBy: c.paymentExpectedBy
                     ? new Date(c.paymentExpectedBy).getTime()
                     : prev.contract.paymentExpectedBy,
+                  fundingExpectedBy: c.fundingExpectedBy
+                    ? new Date(c.fundingExpectedBy).getTime()
+                    : prev.contract.fundingExpectedBy,
                   escrow: c.escrow ?? prev.contract.escrow,
                 },
                 cancelationRequested:
@@ -648,6 +651,9 @@ export default function TradeExecution() {
             paymentExpectedBy: c.paymentExpectedBy
               ? new Date(c.paymentExpectedBy).getTime()
               : null,
+            fundingExpectedBy: c.fundingExpectedBy
+              ? new Date(c.fundingExpectedBy).getTime()
+              : null,
             escrow: c.escrow ?? null,
           },
           counterparty: (() => {
@@ -659,6 +665,7 @@ export default function TradeExecution() {
                 : cpId.toUpperCase();
             const short = "Peach" + shortHex;
             return {
+              id: cpId,
               initials: shortHex.slice(0, 2),
               color: "var(--black-65)",
               name: short,
@@ -1275,6 +1282,14 @@ export default function TradeExecution() {
                 {/* ── Actions (always first, includes deadline + escrow funding) ── */}
                 <div className="panel-section">
                   <div className="panel-section-title">Actions</div>
+
+                  {/* Funding deadline pill — only while waiting for seller to fund escrow */}
+                  {status === "waitingForFunding" && (
+                    <FundingDeadlinePill
+                      deadline={contract.fundingExpectedBy}
+                      role={role}
+                    />
+                  )}
 
                   {/* Payment deadline — inside actions */}
                   {/* Payment deadline pill — hidden for seller when paymentRequired (has its own merged bar), and hidden in stalled states (cancellation, payment-too-late, escrow-funding-timeout) */}
@@ -2055,33 +2070,37 @@ export default function TradeExecution() {
                   <div className="panel-section">
                     <RatingPanel
                       counterparty={counterparty}
-                      pending={pendingTaskType === "rate"}
-                      onPendingClick={() =>
-                        setSigningModal({
-                          title: "Sign Rating",
-                          description:
-                            "Approve the rating on your Peach mobile app. A push notification has been sent to your phone.",
-                          taskType: "rate",
-                        })
-                      }
                       onRate={async (r) => {
                         const rating = r === 5 ? 1 : -1;
-                        try {
-                          await createTask(post, "rate", {
-                            contractId: contract.id,
-                            rating,
-                          });
-                          savePendingTask(routeId, "rate");
-                          setPendingTaskType("rate");
-                          setSigningModal({
-                            title: "Sign Rating",
-                            description:
-                              "Approve the rating on your Peach mobile app. A push notification has been sent to your phone.",
-                            taskType: "rate",
-                          });
-                        } catch (e) {
-                          setActionError(
-                            "Failed to request signing: " + e.message,
+                        const ratedUserId = counterparty.id;
+                        if (!ratedUserId || ratedUserId === "unknown") {
+                          throw new Error("Counterparty id is missing");
+                        }
+                        if (!auth?.pgpPrivKey) {
+                          throw new Error("PGP private key unavailable");
+                        }
+                        // Key order is load-bearing: backend reconstructs the
+                        // signed payload as contractId → rating → ratedUserId.
+                        const payload = {
+                          contractId: contract.id,
+                          rating,
+                          ratedUserId,
+                        };
+                        const pgpSignature = await signPGPMessage(
+                          JSON.stringify(payload),
+                          auth.pgpPrivKey,
+                        );
+                        if (!pgpSignature) {
+                          throw new Error("Failed to sign rating");
+                        }
+                        const res = await post(
+                          `/contract/${contract.id}/user/rate`,
+                          { rating, pgpSignature },
+                        );
+                        if (!res.ok) {
+                          const text = await res.text().catch(() => "");
+                          throw new Error(
+                            `Rating failed (${res.status})${text ? ": " + text : ""}`,
                           );
                         }
                       }}
