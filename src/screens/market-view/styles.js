@@ -42,7 +42,8 @@ export const CSS = `
   .ms-panel{
     position:absolute;top:calc(100% + 4px);left:0;z-index:300;
     background:var(--surface);border:1.5px solid var(--black-10);border-radius:10px;
-    box-shadow:0 4px 20px rgba(43,25,17,.12);min-width:160px;overflow:hidden;
+    box-shadow:0 4px 20px rgba(43,25,17,.12);min-width:160px;
+    max-height:min(60vh,360px);overflow-y:auto;overscroll-behavior:contain;
     animation:dropIn .12s ease
   }
   @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}

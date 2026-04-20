@@ -16,6 +16,7 @@ import { CATEGORY_META } from "../../components/AddPMFlow.jsx";
 import {
   PM_NAMES, PM_CATEGORIES,
   METHOD_ID_BY_DISPLAY, methodDisplayName,
+  normalizeApiPaymentMethods,
 } from "../../data/paymentMethodMeta.js";
 
 // ── Derived from static metadata (computed once at module load) ──
@@ -54,6 +55,7 @@ export default function PeachMarket() {
   const [liveUserPMs,  setLiveUserPMs]  = useState(null); // null = not yet loaded
   const [pmError,      setPmError]      = useState(false);
   const [offersLoading, setOffersLoading] = useState(() => !!auth && !getCached("market-offers"));
+  const [pmCatalogue,  setPmCatalogue]  = useState(() => getCached("pm-catalogue")?.data ?? null);
 
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
   useEffect(() => {
@@ -494,6 +496,25 @@ export default function PeachMarket() {
     return () => clearInterval(iv);
   }, []);
 
+  // Fetch Peach's full payment-method catalogue (used so filter dropdowns can
+  // show every supported currency/method when no filters are active, not just
+  // those present in current offers).
+  useEffect(() => {
+    if (pmCatalogue) return;
+    (async () => {
+      try {
+        const res = await get('/info/paymentMethods');
+        const data = await res.json();
+        if (Array.isArray(data) && data.length) {
+          const norm = normalizeApiPaymentMethods(data);
+          setPmCatalogue(norm);
+          setCache("pm-catalogue", norm);
+        }
+      } catch { /* catalogue is optional; fall back to offer-derived options */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Offer normalizers (stable references, used by fetchMarket + refresh) ──
   const peachId = auth?.peachId ?? null;
 
@@ -542,6 +563,7 @@ export default function PeachMarket() {
       experienceLevel: o.experienceLevelCriteria ?? null,
       online: true,
       isOwn: true,
+      _raw: o,
     };
   }
 
@@ -731,8 +753,93 @@ export default function PeachMarket() {
 
   const offerType = isSellTab ? "bid" : "ask";
 
-  // Dynamic currency list derived from actual offers
-  const ALL_CURRENCIES = [...new Set(marketOffers.flatMap(o => o.currencies))].sort();
+  // ── Faceted filter options ───────────────────────────────────────────
+  // Build the set of (currency, method, category) pairs actually available
+  // in the offers currently in scope (tab + own-offer toggle). Each filter's
+  // dropdown is then derived from the pairs that match every *other* active
+  // filter — so selecting USDT narrows payment methods to those actually
+  // paired with USDT, and vice-versa.
+  const marketPairs = (() => {
+    const pairs = [];
+    for (const o of marketOffers) {
+      if (o.type !== offerType) continue;
+      if (!showMyOffers && o.isOwn) continue;
+      const mop = o._raw?.meansOfPayment;
+      if (!mop) continue;
+      for (const [currency, methods] of Object.entries(mop)) {
+        for (const method of (methods || [])) {
+          pairs.push({ currency, method, category: PM_CATEGORIES[method] || "onlineWallet" });
+        }
+      }
+    }
+    return pairs;
+  })();
+
+  const selMethodIds = selMethods.map(dn => METHOD_ID_BY_DISPLAY[dn] || dn);
+  const selCatIds = selPaymentTypes.map(l => CATEGORY_ID_BY_LABEL[l]).filter(Boolean);
+  function pairMatches(p, skip) {
+    if (skip !== "currency" && selCurrencies.length > 0 && !selCurrencies.includes(p.currency)) return false;
+    if (skip !== "method" && selMethodIds.length > 0 && !selMethodIds.includes(p.method)) return false;
+    if (skip !== "category" && selCatIds.length > 0 && !selCatIds.includes(p.category)) return false;
+    return true;
+  }
+
+  // Filter options are derived ONLY from the Peach catalogue and the user's
+  // other active filters — never from what's currently offered. A filter's
+  // dropdown just answers: "given the other filters, which values are even
+  // possible in Peach?". Offer availability is reflected in the results list
+  // itself (which may be empty), not in the dropdowns.
+  function catalogueEntryMatches(methodId, entry, skip) {
+    if (skip !== "currency" && selCurrencies.length > 0) {
+      if (!(entry.currencies || []).some(c => selCurrencies.includes(c))) return false;
+    }
+    if (skip !== "method" && selMethodIds.length > 0) {
+      if (!selMethodIds.includes(methodId)) return false;
+    }
+    if (skip !== "category" && selCatIds.length > 0) {
+      if (!selCatIds.includes(entry.category)) return false;
+    }
+    return true;
+  }
+
+  let currencyOptions, methodOptions, paymentTypeOptions;
+  if (pmCatalogue) {
+    const currencyHits = Object.entries(pmCatalogue).filter(([id, e]) => catalogueEntryMatches(id, e, "currency"));
+    currencyOptions = [...new Set(currencyHits.flatMap(([, e]) => e.currencies || []))].sort();
+
+    const methodHits = Object.entries(pmCatalogue).filter(([id, e]) => catalogueEntryMatches(id, e, "method"));
+    methodOptions = [...new Set(methodHits.map(([, e]) => e.name))].sort();
+
+    const categoryHits = Object.entries(pmCatalogue).filter(([id, e]) => catalogueEntryMatches(id, e, "category"));
+    const cats = new Set(categoryHits.map(([, e]) => e.category));
+    paymentTypeOptions = Object.entries(CATEGORY_META)
+      .filter(([id]) => cats.has(id))
+      .map(([, m]) => m.label);
+  } else {
+    // Catalogue not loaded yet — fall back to what's present in current offers
+    // so the dropdowns aren't empty during the initial fetch.
+    currencyOptions = [...new Set(
+      marketPairs.filter(p => pairMatches(p, "currency")).map(p => p.currency)
+    )].sort();
+    methodOptions = [...new Set(
+      marketPairs.filter(p => pairMatches(p, "method")).map(p => methodDisplayName(p.method))
+    )].sort();
+    const paymentTypeCatsInScope = new Set(
+      marketPairs.filter(p => pairMatches(p, "category")).map(p => p.category)
+    );
+    paymentTypeOptions = Object.entries(CATEGORY_META)
+      .filter(([id]) => paymentTypeCatsInScope.has(id))
+      .map(([, m]) => m.label);
+  }
+
+  // Always surface currently-selected values — even if the current market has
+  // no offers matching them — so the user can still see the chip and uncheck
+  // it. Without this the selection would vanish from the dropdown the moment
+  // it produced zero results, which feels like the filters resetting.
+  currencyOptions = [...new Set([...currencyOptions, ...selCurrencies])].sort();
+  methodOptions   = [...new Set([...methodOptions, ...selMethods])].sort();
+  const ptAllowed = new Set([...paymentTypeOptions, ...selPaymentTypes]);
+  paymentTypeOptions = Object.values(CATEGORY_META).map(m => m.label).filter(l => ptAllowed.has(l));
 
   const filtered = marketOffers
     .filter(o => o.type === offerType)
@@ -1243,19 +1350,19 @@ export default function PeachMarket() {
             {/* Filters */}
             <MultiSelect
               label="Payment type"
-              options={Object.values(CATEGORY_META).map(m => m.label)}
+              options={paymentTypeOptions}
               value={selPaymentTypes}
               onChange={setSelPaymentTypes}
             />
             <MultiSelect
               label="Currency"
-              options={ALL_CURRENCIES}
+              options={currencyOptions}
               value={selCurrencies}
               onChange={setSelCurrencies}
             />
             <MultiSelect
               label="Payment method"
-              options={[...new Set(marketOffers.flatMap(o => (o.methods || []).map(methodDisplayName)))].sort()}
+              options={methodOptions}
               value={selMethods}
               onChange={setSelMethods}
             />
@@ -1325,7 +1432,7 @@ export default function PeachMarket() {
             ) : displayOffers.length === 0 ? (
               <div className="empty">
                 <div className="empty-icon">🍑</div>
-                <div className="empty-title">No offers match your filters</div>
+                <div className="empty-title">No offers available at the moment</div>
                 <div className="empty-sub">Try adjusting the currency, payment method, or reputation filter</div>
               </div>
             ) : (
@@ -1400,7 +1507,7 @@ export default function PeachMarket() {
             ) : displayOffers.length === 0 ? (
               <div className="empty">
                 <div className="empty-icon">🍑</div>
-                <div className="empty-title">No offers found</div>
+                <div className="empty-title">No offers available at the moment</div>
                 <div className="empty-sub">Adjust your filters</div>
               </div>
             ) : displayOffers.map(offer => (
