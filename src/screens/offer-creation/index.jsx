@@ -306,7 +306,16 @@ export default function OfferCreation({ initialType="buy" }) {
 
   function toggleMethod(id) {
     const sel = form.selectedMethodIds;
-    setF("selectedMethodIds", sel.includes(id) ? sel.filter(x=>x!==id) : [...sel,id]);
+    if (sel.includes(id)) {
+      setF("selectedMethodIds", sel.filter(x=>x!==id));
+      return;
+    }
+    const target = savedMethods.find(m=>m.id===id);
+    if (target?.methodId &&
+        savedMethods.some(m=>m.methodId===target.methodId&&sel.includes(m.id))) {
+      return;
+    }
+    setF("selectedMethodIds", [...sel, id]);
   }
 
   // Validation for Configure step
@@ -934,9 +943,15 @@ export default function OfferCreation({ initialType="buy" }) {
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     {savedMethods.map(pm=>{
                       const sel = form.selectedMethodIds.includes(pm.id);
+                      const blocked = !sel && !!pm.methodId && savedMethods.some(m=>
+                        m.id!==pm.id&&m.methodId===pm.methodId&&
+                        form.selectedMethodIds.includes(m.id));
                       return (
                         <div key={pm.id} style={{display:"flex",alignItems:"center",gap:6}}>
                           <button className={`pm-chip${sel?" sel":""}`}
+                            disabled={blocked}
+                            title={blocked?`You already selected a ${pm.methodId} payment method`:undefined}
+                            style={blocked?{opacity:.5,cursor:"not-allowed"}:undefined}
                             onClick={()=>toggleMethod(pm.id)}>
                             <span className="pm-chip-type">{pm.name || pm.methodId}</span>
                             <span style={{overflow:"hidden",textOverflow:"ellipsis",

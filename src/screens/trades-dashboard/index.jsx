@@ -2396,20 +2396,23 @@ export default function TradesDashboard() {
               />
             )}
 
-            {/* ── SENT TRADE REQUESTS — always visible across all tabs ── */}
-            <h2 className="section-heading" style={{ marginTop: 28 }}>
-              Sent trade requests
-            </h2>
-            <HistoryTable
-              rows={sentPendingItems}
-              onTradeSelect={handleTradeSelect}
-              selectedCurrency={selectedCurrency}
-              tab="pending"
-              onRefresh={handleRefreshTrades}
-              isLoading={tradesLoading}
-              emptyMessage="No sent trade requests."
-              hideStatus
-            />
+            {mainTab === "pending" && (
+              <>
+                <h2 className="section-heading" style={{ marginTop: 28 }}>
+                  Sent trade requests
+                </h2>
+                <HistoryTable
+                  rows={sentPendingItems}
+                  onTradeSelect={handleTradeSelect}
+                  selectedCurrency={selectedCurrency}
+                  tab="pending"
+                  onRefresh={handleRefreshTrades}
+                  isLoading={tradesLoading}
+                  emptyMessage="No sent trade requests."
+                  hideStatus
+                />
+              </>
+            )}
           </>
         )}
       </main>

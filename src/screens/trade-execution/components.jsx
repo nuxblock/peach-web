@@ -2411,12 +2411,21 @@ function SellerPaymentCountdown({ deadline, onExtend }) {
         </span>
       </div>
       {expired && (
-        <Btn
-          label="⏱  Extend Deadline (+12h)"
-          bg="#D7F2FE"
-          color="#037DB5"
+        <button
+          className="action-btn"
+          style={{ background: "#D7F2FE", color: "#037DB5" }}
           onClick={onExtend}
-        />
+          onMouseEnter={(e) => {
+            e.currentTarget.style.filter = "brightness(0.92)";
+            e.currentTarget.style.transform = "translateY(-1px)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.filter = "";
+            e.currentTarget.style.transform = "";
+          }}
+        >
+          ⏱  Extend Deadline (+12h)
+        </button>
       )}
     </>
   );
@@ -2939,6 +2948,7 @@ export function ActionPanel({
             <SlideToConfirm
               label="Re-publish Offer"
               onConfirm={() => onAction("republish_offer")}
+              disabled={pendingTask === "refund"}
             />
             {pendingTask === "refund" ? (
               <PendingBtn label="Refund pending in mobile app" />
@@ -2980,6 +2990,7 @@ export function ActionPanel({
               <SlideToConfirm
                 label="Re-publish Offer"
                 onConfirm={() => onAction("republish_offer")}
+                disabled={pendingTask === "refund"}
               />
               {pendingTask === "refund" ? (
                 <PendingBtn label="Refund pending in mobile app" />
