@@ -35,6 +35,7 @@ import {
   FINISHED_STATUSES,
   PENDING_STATUSES,
 } from "../../data/statusConfig.js";
+import { isReturnAddressFromXpub } from "../../utils/escrow.js";
 import { QRCodeSVG } from "qrcode.react";
 
 // Local sub-components
@@ -1477,6 +1478,18 @@ export default function TradesDashboard() {
     offerDetailPopup?.tradeStatus,
   ]);
 
+  // Determine whether a sell offer's refund address was derived from the user's
+  // own Peach Wallet xpub (first 100 indexes of the /1/ branch) or from an
+  // externally-provided "custom wallet" address.
+  const refundWalletLabel = useMemo(() => {
+    if (offerDetailPopup?.direction !== "sell") return null;
+    const addr = offerDetails?.returnAddress;
+    if (!addr || !auth?.xpub) return null;
+    return isReturnAddressFromXpub(auth.xpub, addr)
+      ? "Peach Wallet"
+      : "Custom Wallet";
+  }, [offerDetailPopup?.direction, offerDetails?.returnAddress, auth?.xpub]);
+
   // Secondary fetch: ensure the escrow address is available for fundEscrow sell offers
   // even if GET /offer/:id/details does not expose it. Mirrors offer-creation polling.
   useEffect(() => {
@@ -2556,6 +2569,14 @@ export default function TradesDashboard() {
                           </span>
                         ))}
                       </div>
+                    </div>
+                  )}
+                  {!isBuy && refundWalletLabel && (
+                    <div className="offer-detail-row">
+                      <span className="offer-detail-label">Refund wallet</span>
+                      <span className="offer-detail-value">
+                        {refundWalletLabel}
+                      </span>
                     </div>
                   )}
                   {!isBuy && odEscrowAddress && (

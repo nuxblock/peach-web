@@ -529,6 +529,8 @@ export default function TradeExecution() {
                     ? new Date(c.fundingExpectedBy).getTime()
                     : prev.contract.fundingExpectedBy,
                   escrow: c.escrow ?? prev.contract.escrow,
+                  ratingBuyer: c.ratingBuyer ?? prev.contract.ratingBuyer ?? null,
+                  ratingSeller: c.ratingSeller ?? prev.contract.ratingSeller ?? null,
                 },
                 cancelationRequested:
                   c.cancelationRequested ?? prev.cancelationRequested,
@@ -655,6 +657,8 @@ export default function TradeExecution() {
               ? new Date(c.fundingExpectedBy).getTime()
               : null,
             escrow: c.escrow ?? null,
+            ratingBuyer: c.ratingBuyer ?? null,
+            ratingSeller: c.ratingSeller ?? null,
           },
           counterparty: (() => {
             const cp = isBuyer ? (c.seller ?? {}) : (c.buyer ?? {});
@@ -1423,6 +1427,63 @@ export default function TradeExecution() {
                       </div>
                     </div>
                   )}
+
+                  {/* Ratings exchanged on this contract */}
+                  {(() => {
+                    const ratingGiven =
+                      role === "seller"
+                        ? contract.ratingBuyer
+                        : contract.ratingSeller;
+                    const ratingReceived =
+                      role === "seller"
+                        ? contract.ratingSeller
+                        : contract.ratingBuyer;
+                    const toLabel = role === "seller" ? "buyer" : "seller";
+                    const isRated = (r) => r === 1 || r === -1;
+                    const emoji = (r) => (r === 1 ? "👍" : "👎");
+                    if (!isRated(ratingGiven) && !isRated(ratingReceived))
+                      return null;
+                    return (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 4,
+                          background: "var(--black-3)",
+                          border: "1px solid var(--black-10)",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          marginBottom: 12,
+                          fontSize: ".85rem",
+                          fontWeight: 600,
+                          color: "var(--black-65)",
+                        }}
+                      >
+                        {isRated(ratingGiven) && (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <span>Rating given to the {toLabel}</span>
+                            <span>{emoji(ratingGiven)}</span>
+                          </div>
+                        )}
+                        {isRated(ratingReceived) && (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <span>Rating given to you</span>
+                            <span>{emoji(ratingReceived)}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Escrow funding card — inside actions for seller */}
                   {role === "seller" &&

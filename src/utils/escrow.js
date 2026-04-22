@@ -103,3 +103,21 @@ export function deriveReturnAddress(xpub, index) {
   });
   return address;
 }
+
+// Returns true iff `address` matches any deriveReturnAddress(xpub, i) for i in [0, maxIndex).
+// Used to tell whether a sell offer's refund address belongs to the Peach Wallet.
+export function isReturnAddressFromXpub(xpub, address, maxIndex = 100) {
+  if (!xpub || !address) return false;
+  try {
+    const network = getNetwork(xpub);
+    const node = HDKey.fromExtendedKey(xpub, getVersions(xpub));
+    const branch = node.deriveChild(1);
+    for (let i = 0; i < maxIndex; i++) {
+      const child = branch.deriveChild(i);
+      if (p2wpkh(child.publicKey, network).address === address) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}

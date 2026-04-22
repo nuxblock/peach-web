@@ -1410,16 +1410,16 @@ export default function PeachMarket() {
 
             {/* Filters */}
             <MultiSelect
-              label="Payment type"
-              options={paymentTypeOptions}
-              value={selPaymentTypes}
-              onChange={setSelPaymentTypes}
-            />
-            <MultiSelect
               label="Currency"
               options={currencyOptions}
               value={selCurrencies}
               onChange={setSelCurrencies}
+            />
+            <MultiSelect
+              label="Payment type"
+              options={paymentTypeOptions}
+              value={selPaymentTypes}
+              onChange={setSelPaymentTypes}
             />
             <MultiSelect
               label="Payment method"
