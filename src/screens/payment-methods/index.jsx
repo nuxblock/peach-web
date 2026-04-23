@@ -18,6 +18,7 @@ import { IconPlus, IconEdit, IconTrash, DeleteModal } from "./components.jsx";
 import {
   AddPMFlow, CATEGORY_META, methodLabel, normalizeApiPaymentMethods,
 } from "../../components/AddPMFlow.jsx";
+import { getPaymentLogo } from "../../assets/logos/index.ts";
 
 export default function PeachPaymentMethods() {
   const navigate = useNavigate();
@@ -324,6 +325,7 @@ export default function PeachPaymentMethods() {
                     const customName = pm.label && pm.label !== typeName ? pm.label : null;
                     return (
                     <div key={pm.id} className="pm-card">
+                      <img className="pm-card-logo" src={getPaymentLogo(pm.methodId)} alt=""/>
                       <div className="pm-card-left">
                         <div className="pm-card-name">{typeName}</div>
                         {customName && (

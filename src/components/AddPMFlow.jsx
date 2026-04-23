@@ -13,6 +13,7 @@ import {
   PHONE_PREFIX_MAP, getFieldMeta, getTabLabel, fieldsForTab, parseSections,
   normalizeApiPaymentMethods,
 } from "../data/paymentMethodMeta.js";
+import { getPaymentLogo } from "../assets/logos/index.ts";
 
 // Re-export the API normalizer so screens can `import { normalizeApiPaymentMethods } from AddPMFlow`.
 export { normalizeApiPaymentMethods };
@@ -419,6 +420,7 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
                   <button key={id}
                     className={`pm-cat-card${selMethodId === id ? " selected" : ""}`}
                     onClick={() => handleSelectMethod(id)}>
+                    <img className="pm-method-logo" src={getPaymentLogo(id)} alt=""/>
                     <div className="pm-cat-text" style={{ flex:1 }}>
                       <span className="pm-cat-label">{m.name}</span>
                       <span className="pm-cat-desc">{m.currencies.join(", ")}</span>
@@ -712,6 +714,8 @@ const ADD_PM_CSS = `
   .pm-cat-card.selected{border-color:var(--primary);background:var(--primary-mild)}
   .pm-cat-icon{width:40px;height:40px;border-radius:10px;background:var(--primary-mild);
     display:flex;align-items:center;justify-content:center;color:var(--primary-dark);flex-shrink:0}
+  .pm-method-logo{width:40px;height:40px;border-radius:10px;background:var(--black-5);
+    padding:5px;object-fit:contain;flex-shrink:0}
   .pm-cat-text{flex:1;min-width:0}
   .pm-cat-label{display:block;font-size:.88rem;font-weight:700;color:var(--black)}
   .pm-cat-desc{display:block;font-size:.72rem;font-weight:500;color:var(--black-65);margin-top:1px}

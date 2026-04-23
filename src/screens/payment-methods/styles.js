@@ -41,6 +41,8 @@ export const CSS = `
     color:var(--error);font-weight:700;font-size:.88rem;text-align:center;
     justify-content:center;padding:18px 16px}
   .pm-card+.pm-card{margin-top:8px}
+  .pm-card-logo{width:36px;height:36px;object-fit:contain;flex-shrink:0;border-radius:8px;
+    background:var(--black-5);padding:4px}
   .pm-card-left{flex:1;min-width:0}
   .pm-card-name{font-size:.92rem;font-weight:700;color:var(--black);margin-bottom:2px}
   .pm-card-custom-name{font-size:.76rem;font-weight:600;color:var(--black-65);margin-bottom:4px}
