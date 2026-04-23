@@ -1414,6 +1414,8 @@ export default function PeachMarket() {
               options={currencyOptions}
               value={selCurrencies}
               onChange={setSelCurrencies}
+              searchable
+              searchPlaceholder="Search currencies…"
             />
             <MultiSelect
               label="Payment type"
@@ -1426,6 +1428,8 @@ export default function PeachMarket() {
               options={methodOptions}
               value={selMethods}
               onChange={setSelMethods}
+              searchable
+              searchPlaceholder="Search payment methods…"
             />
             <input
               className="search-inp"

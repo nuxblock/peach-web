@@ -70,6 +70,23 @@ export const CSS = `
     transition:color .1s
   }
   .ms-clear:hover{color:var(--error)}
+  .ms-search-wrap{
+    position:sticky;top:0;z-index:1;background:var(--surface);
+    padding:8px 8px 6px;border-bottom:1px solid var(--black-5)
+  }
+  .ms-search{
+    width:100%;box-sizing:border-box;
+    border:1.5px solid var(--black-10);border-radius:7px;
+    padding:5px 10px;font-family:var(--font);font-size:.78rem;font-weight:600;
+    color:var(--black);background:var(--surface);outline:none;
+    transition:border-color .14s
+  }
+  .ms-search:focus{border-color:var(--primary)}
+  .ms-search::placeholder{color:var(--black-25);font-weight:500}
+  .ms-empty{
+    padding:10px 12px;font-size:.78rem;font-weight:600;
+    color:var(--black-25);text-align:center
+  }
 
   /* ── CTA ── */
   .cta-btn{margin-left:auto;padding:7px 20px;border-radius:999px;background:var(--grad);

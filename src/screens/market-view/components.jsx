@@ -31,9 +31,11 @@ export function currSym(c) { return CURRENCY_SYMBOL[c] || c; }
 
 // ── MultiSelect ──────────────────────────────────────────────────────────────
 
-export function MultiSelect({ label, options, value, onChange }) {
+export function MultiSelect({ label, options, value, onChange, searchable = false, searchPlaceholder = "Search…" }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const ref = useRef(null);
+  const searchRef = useRef(null);
 
   // Close on outside click
   useEffect(() => {
@@ -43,6 +45,16 @@ export function MultiSelect({ label, options, value, onChange }) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Reset query whenever the panel closes; focus the search when it opens
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+    } else if (searchable) {
+      const id = requestAnimationFrame(() => searchRef.current?.focus());
+      return () => cancelAnimationFrame(id);
+    }
+  }, [open, searchable]);
 
   function toggle(opt) {
     if (value.includes(opt)) onChange(value.filter(v => v !== opt));
@@ -56,6 +68,11 @@ export function MultiSelect({ label, options, value, onChange }) {
       ? value[0]
       : `${value[0]} +${value.length - 1}`;
 
+  const q = query.trim().toLowerCase();
+  const visibleOptions = searchable && q
+    ? options.filter(opt => opt.toLowerCase().includes(q))
+    : options;
+
   return (
     <div className="ms-wrap" ref={ref}>
       <div
@@ -68,21 +85,37 @@ export function MultiSelect({ label, options, value, onChange }) {
       </div>
       {open && (
         <div className="ms-panel">
-          {options.map(opt => {
-            const checked = value.includes(opt);
-            return (
-              <div
-                key={opt}
-                className={`ms-option${checked ? " selected" : ""}`}
-                onClick={() => toggle(opt)}
-              >
-                <div className={`ms-checkbox${checked ? " checked" : ""}`}>
-                  {checked && "✓"}
+          {searchable && (
+            <div className="ms-search-wrap">
+              <input
+                ref={searchRef}
+                className="ms-search"
+                placeholder={searchPlaceholder}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onClick={e => e.stopPropagation()}
+              />
+            </div>
+          )}
+          {visibleOptions.length === 0 ? (
+            <div className="ms-empty">No matches</div>
+          ) : (
+            visibleOptions.map(opt => {
+              const checked = value.includes(opt);
+              return (
+                <div
+                  key={opt}
+                  className={`ms-option${checked ? " selected" : ""}`}
+                  onClick={() => toggle(opt)}
+                >
+                  <div className={`ms-checkbox${checked ? " checked" : ""}`}>
+                    {checked && "✓"}
+                  </div>
+                  {opt}
                 </div>
-                {opt}
-              </div>
-            );
-          })}
+              );
+            })
+          )}
           {value.length > 0 && (
             <div className="ms-clear" onClick={() => { onChange([]); setOpen(false); }}>
               Clear selection
