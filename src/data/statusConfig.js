@@ -51,9 +51,12 @@ export const STATUS_CONFIG = {
 };
 
 // Statuses that represent a finished state → Trade History tab
+// Note: wrongAmountFundedOnContractRefundWaiting is Active (seller still needs
+// to trigger the refund pending action); wrongAmountFundedOnContract is the
+// terminal "refund completed" state, so it belongs in History.
 export const FINISHED_STATUSES = new Set([
   "tradeCompleted", "offerCanceled", "tradeCanceled", "fundingExpired",
-  "wrongAmountFundedOnContract", "wrongAmountFundedOnContractRefundWaiting",
+  "wrongAmountFundedOnContract",
 ]);
 
 // Statuses that represent a pending/open offer → Pending Offers tab

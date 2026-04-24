@@ -1767,7 +1767,6 @@ export function WrongAmountFundedCard({
   onPendingClick,
 }) {
   const isFundingDifferent = status === "fundingAmountDifferent";
-  const isRefundWaiting = status === "wrongAmountFundedOnContractRefundWaiting";
 
   return (
     <div
@@ -1899,22 +1898,10 @@ export function WrongAmountFundedCard({
         </div>
       )}
 
-      {/* Buttons */}
-      {isRefundWaiting ? (
-        <div
-          style={{
-            background: "rgba(125,103,94,.08)",
-            borderRadius: 8,
-            padding: "12px 14px",
-            fontSize: ".84rem",
-            color: "var(--black-65)",
-            fontWeight: 600,
-            textAlign: "center",
-          }}
-        >
-          Refund is being processed. You will receive your Bitcoin back shortly.
-        </div>
-      ) : pendingRefund ? (
+      {/* Buttons — for wrongAmountFundedOnContractRefundWaiting the seller
+        still needs to press Refund Escrow to trigger the mobile action, so
+        we don't short-circuit that status here. */}
+      {pendingRefund ? (
         <button
           onClick={onPendingClick}
           style={{
@@ -1988,54 +1975,29 @@ export function WrongAmountFundedCard({
               </button>
             </>
           ) : (
-            <>
-              <button
-                onClick={onClose}
-                style={{
-                  flex: 1,
-                  border: "1.5px solid var(--black-10)",
-                  background: "white",
-                  borderRadius: 999,
-                  fontFamily: "Baloo 2, cursive",
-                  fontWeight: 700,
-                  fontSize: ".85rem",
-                  color: "var(--black)",
-                  padding: "11px",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.borderColor = "var(--primary)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.borderColor = "var(--black-10)")
-                }
-              >
-                Close
-              </button>
-              <button
-                onClick={onRefundEscrow}
-                style={{
-                  flex: 1,
-                  border: "1.5px solid var(--black-10)",
-                  background: "white",
-                  borderRadius: 999,
-                  fontFamily: "Baloo 2, cursive",
-                  fontWeight: 700,
-                  fontSize: ".85rem",
-                  color: "var(--black)",
-                  padding: "11px",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.borderColor = "var(--primary)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.borderColor = "var(--black-10)")
-                }
-              >
-                Refund Escrow
-              </button>
-            </>
+            <button
+              onClick={onRefundEscrow}
+              style={{
+                flex: 1,
+                border: "1.5px solid var(--black-10)",
+                background: "white",
+                borderRadius: 999,
+                fontFamily: "Baloo 2, cursive",
+                fontWeight: 700,
+                fontSize: ".85rem",
+                color: "var(--black)",
+                padding: "11px",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.borderColor = "var(--primary)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.borderColor = "var(--black-10)")
+              }
+            >
+              Refund Escrow
+            </button>
           )}
         </div>
       )}

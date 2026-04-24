@@ -1529,10 +1529,10 @@ export default function TradeExecution() {
                       />
                     )}
 
-                  {/* Wrong amount funded — seller */}
+                  {/* Wrong amount funded — seller (excludes wrongAmountFundedOnContract,
+                    which is the terminal "refund completed" state — no actions to show). */}
                   {role === "seller" &&
                     (status === "fundingAmountDifferent" ||
-                      status === "wrongAmountFundedOnContract" ||
                       status ===
                         "wrongAmountFundedOnContractRefundWaiting") && (
                       <WrongAmountFundedCard
@@ -1662,52 +1662,54 @@ export default function TradeExecution() {
                       </>
                     )}
 
-                  {/* Wrong amount funded — buyer info */}
-                  {(status === "wrongAmountFundedOnContract" ||
-                    status === "wrongAmountFundedOnContractRefundWaiting") &&
-                    role === "buyer" && (
+                  {/* Wrong amount funded — info block.
+                    Refund-waiting: buyer only (seller sees the action card above).
+                    Refund done: both roles — contract is closed, no actions. */}
+                  {((status === "wrongAmountFundedOnContractRefundWaiting" &&
+                    role === "buyer") ||
+                    status === "wrongAmountFundedOnContract") && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "20px 0",
+                        textAlign: "center",
+                      }}
+                    >
                       <div
                         style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: "50%",
+                          background: "var(--warning-soft)",
+                          border: "2px solid var(--warning)",
                           display: "flex",
-                          flexDirection: "column",
                           alignItems: "center",
-                          gap: 12,
-                          padding: "20px 0",
-                          textAlign: "center",
+                          justifyContent: "center",
+                          fontSize: "1.4rem",
                         }}
                       >
-                        <div
-                          style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: "50%",
-                            background: "var(--warning-soft)",
-                            border: "2px solid var(--warning)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "1.4rem",
-                          }}
-                        >
-                          ⚠
-                        </div>
-                        <div style={{ fontWeight: 700, fontSize: ".95rem" }}>
-                          Wrong Amount Funded
-                        </div>
-                        <div
-                          style={{
-                            fontSize: ".83rem",
-                            color: "var(--black-65)",
-                            lineHeight: 1.6,
-                            maxWidth: 280,
-                          }}
-                        >
-                          The seller funded the escrow with an incorrect amount.
-                          The trade has been cancelled and the seller will be
-                          refunded.
-                        </div>
+                        ⚠
                       </div>
-                    )}
+                      <div style={{ fontWeight: 700, fontSize: ".95rem" }}>
+                        Wrong Amount Funded
+                      </div>
+                      <div
+                        style={{
+                          fontSize: ".83rem",
+                          color: "var(--black-65)",
+                          lineHeight: 1.6,
+                          maxWidth: 280,
+                        }}
+                      >
+                        {status === "wrongAmountFundedOnContract"
+                          ? "The escrow was funded with an incorrect amount. The trade has been cancelled and the escrow has been refunded."
+                          : "The seller funded the escrow with an incorrect amount. The trade has been cancelled and the seller will be refunded."}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Action error banner */}
                   {actionError && (
