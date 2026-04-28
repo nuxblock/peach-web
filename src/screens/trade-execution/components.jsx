@@ -2456,6 +2456,67 @@ export function FundingDeadlinePill({ deadline, role }) {
   );
 }
 
+// Orange-mild card with a green check, bold title, and subtext.
+// Used for "completed step" hints in the seller and buyer flows.
+function SuccessBanner({ title, subtitle }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        background: "var(--primary-mild)",
+        border: "1.5px solid rgba(196,81,4,.2)",
+        borderRadius: 12,
+        padding: "12px 16px",
+        marginBottom: 12,
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          flexShrink: 0,
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          background: "#1FB86B",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "1rem",
+          fontWeight: 800,
+          lineHeight: 1,
+        }}
+      >
+        ✓
+      </span>
+      <div>
+        <div
+          style={{
+            fontSize: "1rem",
+            fontWeight: 800,
+            color: "var(--primary-dark)",
+            marginBottom: 2,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontSize: ".8rem",
+            fontWeight: 500,
+            color: "var(--black-65)",
+            lineHeight: 1.5,
+          }}
+        >
+          {subtitle}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── ACTION BUTTONS ───────────────────────────────────────────────────────────
 export function ActionPanel({
   scenario,
@@ -2751,61 +2812,10 @@ export function ActionPanel({
         {(status === "confirmPaymentRequired" || status === "releaseEscrow") &&
           role === "seller" && (
             <>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  background: "var(--primary-mild)",
-                  border: "1.5px solid rgba(196,81,4,.2)",
-                  borderRadius: 12,
-                  padding: "12px 16px",
-                  marginBottom: 12,
-                }}
-              >
-                <span
-                  style={{
-                    flexShrink: 0,
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    background: "#1FB86B",
-                    color: "#fff",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "1rem",
-                    fontWeight: 800,
-                    lineHeight: 1,
-                  }}
-                  aria-hidden="true"
-                >
-                  ✓
-                </span>
-                <div>
-                  <div
-                    style={{
-                      fontSize: "1rem",
-                      fontWeight: 800,
-                      color: "var(--primary-dark)",
-                      marginBottom: 2,
-                    }}
-                  >
-                    Payment made. Confirm you received it.
-                  </div>
-                  <div
-                    style={{
-                      fontSize: ".8rem",
-                      fontWeight: 500,
-                      color: "var(--black-65)",
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    The buyer has marked the payment as sent. Check your account
-                    and confirm once the funds have arrived.
-                  </div>
-                </div>
-              </div>
+              <SuccessBanner
+                title="Payment made. Confirm you received it."
+                subtitle="The buyer has marked the payment as sent. Check your account and confirm once the funds have arrived."
+              />
               {pendingTask === "release" ? (
                 <PendingBtn label="Release pending in mobile app" />
               ) : (
@@ -2841,120 +2851,18 @@ export function ActionPanel({
 
         {/* Payout pending — buyer: sats arriving */}
         {status === "payoutPending" && role === "buyer" && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              background: "var(--primary-mild)",
-              border: "1.5px solid rgba(196,81,4,.2)",
-              borderRadius: 12,
-              padding: "12px 16px",
-              marginBottom: 12,
-            }}
-          >
-            <span
-              style={{
-                flexShrink: 0,
-                width: 28,
-                height: 28,
-                borderRadius: "50%",
-                background: "#1FB86B",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "1rem",
-                fontWeight: 800,
-                lineHeight: 1,
-              }}
-              aria-hidden="true"
-            >
-              ✓
-            </span>
-            <div>
-              <div
-                style={{
-                  fontSize: "1rem",
-                  fontWeight: 800,
-                  color: "var(--primary-dark)",
-                  marginBottom: 2,
-                }}
-              >
-                Congrats! The seller released the escrow.
-              </div>
-              <div
-                style={{
-                  fontSize: ".8rem",
-                  fontWeight: 500,
-                  color: "var(--black-65)",
-                  lineHeight: 1.5,
-                }}
-              >
-                Your sats are on their way to your wallet. This may take a few
-                minutes.
-              </div>
-            </div>
-          </div>
+          <SuccessBanner
+            title="Congrats! The seller released the escrow."
+            subtitle="Your sats are on their way to your wallet. This may take a few minutes."
+          />
         )}
 
         {/* Payout pending — seller: trade done, release broadcasting */}
         {status === "payoutPending" && role === "seller" && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              background: "var(--primary-mild)",
-              border: "1.5px solid rgba(196,81,4,.2)",
-              borderRadius: 12,
-              padding: "12px 16px",
-              marginBottom: 12,
-            }}
-          >
-            <span
-              style={{
-                flexShrink: 0,
-                width: 28,
-                height: 28,
-                borderRadius: "50%",
-                background: "#1FB86B",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "1rem",
-                fontWeight: 800,
-                lineHeight: 1,
-              }}
-              aria-hidden="true"
-            >
-              ✓
-            </span>
-            <div>
-              <div
-                style={{
-                  fontSize: "1rem",
-                  fontWeight: 800,
-                  color: "var(--primary-dark)",
-                  marginBottom: 2,
-                }}
-              >
-                You're done! Bitcoin released to the buyer.
-              </div>
-              <div
-                style={{
-                  fontSize: ".8rem",
-                  fontWeight: 500,
-                  color: "var(--black-65)",
-                  lineHeight: 1.5,
-                }}
-              >
-                The transaction is broadcasting. This may take a few minutes to
-                confirm.
-              </div>
-            </div>
-          </div>
+          <SuccessBanner
+            title="You're done! Bitcoin released to the buyer."
+            subtitle="The transaction is broadcasting. This may take a few minutes to confirm."
+          />
         )}
 
         {/* Payment too late — seller POV */}
