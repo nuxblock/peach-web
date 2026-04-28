@@ -873,21 +873,9 @@ export function ComingSoonPlaceholder({ title, icon, description, onBack }) {
   );
 }
 
-export function AccountSessionsSubScreen({ onBack }) {
-  return <ComingSoonPlaceholder title="Account & Sessions" icon="🔐"
-    description="View your active web sessions, revoke access, and check your mobile app link status."
-    onBack={onBack}/>;
-}
-
 export function NotificationsSubScreen({ onBack }) {
   return <ComingSoonPlaceholder title="Notifications" icon="🔔"
     description="Configure which notifications you receive: trade matches, escrow funded, payment sent, disputes, and price alerts."
-    onBack={onBack}/>;
-}
-
-export function PinCodeSubScreen({ onBack }) {
-  return <ComingSoonPlaceholder title="Pin Code" icon="🔑"
-    description="Set, change, or remove a numeric PIN to protect access to the web app."
     onBack={onBack}/>;
 }
 

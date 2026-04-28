@@ -156,6 +156,11 @@ export function Topbar({
     <header className="topbar">
       <div className="topbar-left">
         <button className="burger-btn" onClick={onBurgerClick}><IconBurger/></button>
+        <img src={peachLogo} alt="Peach" className="topbar-logo-desktop" />
+      </div>
+
+      <div className="topbar-center">
+        <img src={peachLogo} alt="Peach" className="topbar-logo-mobile" />
         {showPrice && (
           <div className="topbar-price">
             <IcoBtc size={18}/>
@@ -170,10 +175,6 @@ export function Topbar({
             </div>
           </div>
         )}
-      </div>
-
-      <div className="topbar-center">
-        <img src={peachLogo} alt="Peach" style={{ height: 55 }} />
       </div>
 
       <div className="topbar-right">

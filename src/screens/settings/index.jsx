@@ -10,12 +10,12 @@ import { IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
 import { CSS } from "./styles.js";
-import { Toggle, SettingsRow, SettingsSection } from "./components.jsx";
+import { SettingsRow, SettingsSection } from "./components.jsx";
 import {
   ProfileSubScreen, ReferralsSubScreen, BackupsSubScreen,
   NetworkFeesSubScreen, TxBatchingSubScreen, RefundAddressSubScreen,
   PayoutWalletSubScreen, BlockUsersSubScreen,
-  AccountSessionsSubScreen, NotificationsSubScreen, PinCodeSubScreen,
+  NotificationsSubScreen,
   LanguageSubScreen, NodeSubScreen, ContactSubScreen, AboutSubScreen,
 } from "./screens.jsx";
 
@@ -43,8 +43,6 @@ export default function SettingsScreen() {
   const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
   const pricesLoaded = allPrices !== null;
   const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? 87432);
-  const [diagnostics, setDiagnostics] = useState(true);
-  const [darkMode,     setDarkMode]    = useState(false);
 
   useEffect(() => {
     async function fetchPrices() {
@@ -74,9 +72,7 @@ export default function SettingsScreen() {
     if (currentView === "refund")       return <RefundAddressSubScreen onBack={() => setCurrentView("main")}/>;
     if (currentView === "payout")       return <PayoutWalletSubScreen  onBack={() => setCurrentView("main")}/>;
     if (currentView === "block-users")  return <BlockUsersSubScreen  onBack={() => setCurrentView("main")}/>;
-    if (currentView === "account-sessions") return <AccountSessionsSubScreen onBack={() => setCurrentView("main")}/>;
     if (currentView === "notifications")    return <NotificationsSubScreen    onBack={() => setCurrentView("main")}/>;
-    if (currentView === "pin")              return <PinCodeSubScreen          onBack={() => setCurrentView("main")}/>;
     if (currentView === "language")         return <LanguageSubScreen         onBack={() => setCurrentView("main")}/>;
     if (currentView === "node")             return <NodeSubScreen             onBack={() => setCurrentView("main")}/>;
     if (currentView === "contact")          return <ContactSubScreen          onBack={() => setCurrentView("main")}/>;
@@ -90,9 +86,6 @@ export default function SettingsScreen() {
           <SettingsRow icon="👤" label="My Profile"
             description="Reputation, badges, and trading history"
             onClick={() => setCurrentView("profile")}/>
-          <SettingsRow icon="🔐" label="Account & Sessions"
-            description="Active sessions and security"
-            onClick={() => setCurrentView("account-sessions")}/>
           <SettingsRow icon="🎁" label="Referrals"
             description="Invite friends and earn rewards"
             onClick={() => setCurrentView("referrals")}/>
@@ -129,17 +122,9 @@ export default function SettingsScreen() {
           <SettingsRow icon="🔔" label="Notifications"
             description="Trade updates, matches, and alerts"
             onClick={() => setCurrentView("notifications")}/>
-          <SettingsRow icon="🔑" label="Pin Code"
-            description="Protect the app with a PIN"
-            onClick={() => setCurrentView("pin")}/>
           <SettingsRow icon="🌐" label="Language"
             description="English"
-            onClick={() => setCurrentView("language")}/>
-          <SettingsRow icon="🌙" label="Dark Mode"
-            right={<Toggle checked={darkMode} onChange={setDarkMode}/>}/>
-          <SettingsRow icon="🔧" label="Diagnostics"
-            description="Share anonymous usage data to help improve the app"
-            right={<Toggle checked={diagnostics} onChange={setDiagnostics}/>}
+            onClick={() => setCurrentView("language")}
             noBorder/>
         </SettingsSection>
 
