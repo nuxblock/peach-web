@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { IcoBtc } from "./BitcoinAmount.jsx";
 import { useUnread } from "../hooks/useUnread.js";
@@ -96,6 +96,76 @@ export function SideNav({ active, mobileOpen, onClose, onNavigate, mobilePriceSl
   );
 }
 
+// ─── CURRENCY DROPDOWN ────────────────────────────────────────────────────────
+export function CurrencyDropdown({ value, options, onChange, className = "" }) {
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const wrapRef = useRef(null);
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const idx = Math.max(0, options.indexOf(value));
+    setHighlight(idx);
+    requestAnimationFrame(() => {
+      const li = listRef.current?.querySelector(`[data-idx="${idx}"]`);
+      li?.scrollIntoView({ block: "nearest" });
+    });
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
+    const onKey = (e) => {
+      if (e.key === "Escape") { setOpen(false); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); setHighlight(h => Math.min(options.length - 1, h + 1)); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); setHighlight(h => Math.max(0, h - 1)); }
+      else if (e.key === "Enter") { e.preventDefault(); const next = options[highlight]; if (next != null) { onChange(next); setOpen(false); } }
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
+  }, [open, highlight, options, onChange]);
+
+  useEffect(() => {
+    if (!open || !listRef.current) return;
+    const li = listRef.current.querySelector(`[data-idx="${highlight}"]`);
+    li?.scrollIntoView({ block: "nearest" });
+  }, [highlight, open]);
+
+  return (
+    <div ref={wrapRef} className={`cur-select-wrap ${className}`.trim()}>
+      <button
+        type="button"
+        className="topbar-cur-select"
+        onClick={() => setOpen(o => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="cur-select-label">{value}</span>
+        <svg className="cur-select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="1,1 5,5 9,1"/></svg>
+      </button>
+      {open && (
+        <ul ref={listRef} className="cur-select-menu" role="listbox" tabIndex={-1}>
+          {options.map((c, i) => (
+            <li
+              key={c}
+              data-idx={i}
+              role="option"
+              aria-selected={c === value}
+              className={i === highlight ? "is-hl" : ""}
+              onMouseEnter={() => setHighlight(i)}
+              onClick={() => { onChange(c); setOpen(false); }}
+            >
+              {c}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ─── TOPBAR ───────────────────────────────────────────────────────────────────
 export function Topbar({
   onBurgerClick,
@@ -166,13 +236,11 @@ export function Topbar({
             <IcoBtc size={18}/>
             <span className="topbar-price-main">{pricesLoaded ? btcPrice.toLocaleString("fr-FR") : "?"} {selectedCurrency}</span>
             <span className="topbar-price-sats">{pricesLoaded ? satsPerCur.toLocaleString() : "?"} sats / {selectedCurrency.toLowerCase()}</span>
-            <div className="topbar-cur-select">
-              <span className="cur-select-label">{selectedCurrency}</span>
-              <svg className="cur-select-arrow" width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{pointerEvents:"none",flexShrink:0}}><polyline points="1,1 5,5 9,1"/></svg>
-              <select value={selectedCurrency} onChange={e => onCurrencyChange(e.target.value)} className="cur-select-inner">
-                {availableCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
+            <CurrencyDropdown
+              value={selectedCurrency}
+              options={availableCurrencies}
+              onChange={onCurrencyChange}
+            />
           </div>
         )}
       </div>

@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { SideNav, Topbar } from "../../components/Navbars.jsx";
+import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi, getCached, setCache, clearCache } from "../../hooks/useApi.js";
@@ -2184,34 +2184,12 @@ export default function TradesDashboard() {
                 {selectedCurrency.toLowerCase()}
               </span>
             </div>
-            <div className="topbar-cur-select mobile-cur-select">
-              <span className="cur-select-label">{selectedCurrency}</span>
-              <svg
-                className="cur-select-arrow"
-                width="10"
-                height="6"
-                viewBox="0 0 10 6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ pointerEvents: "none", flexShrink: 0 }}
-              >
-                <polyline points="1,1 5,5 9,1" />
-              </svg>
-              <select
-                value={selectedCurrency}
-                onChange={(e) => setSelectedCurrency(e.target.value)}
-                className="cur-select-inner"
-              >
-                {availableCurrencies.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CurrencyDropdown
+              className="mobile-cur-select"
+              value={selectedCurrency}
+              options={availableCurrencies}
+              onChange={setSelectedCurrency}
+            />
           </div>
         }
       />
