@@ -1319,23 +1319,31 @@ export default function OfferCreation({ initialType="buy" }) {
                                   Offer {i + 1}
                                 </div>
                               )}
-                              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                                {[["peach","Peach Wallet"],["external","Add external address"]].map(([val,label])=>(
-                                  <div key={val} className="check-row" style={{cursor:"pointer"}}
-                                    onClick={()=>{
-                                      updateRefund(i, { mode: val });
-                                      if (val === "peach") setRefundErrors(p => { const n={...p}; delete n[i]; return n; });
-                                    }}>
-                                    <div style={{
-                                      width:16,height:16,borderRadius:"50%",
-                                      border:`2px solid ${choice.mode===val?"var(--primary)":"var(--black-10)"}`,
-                                      background:choice.mode===val?"var(--primary)":"var(--surface)",
-                                      display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                                      {choice.mode===val&&<div style={{width:6,height:6,borderRadius:"50%",background:"var(--surface)"}}/>}
-                                    </div>
-                                    <span style={{fontSize:".78rem",fontWeight:600}}>{label}</span>
-                                  </div>
-                                ))}
+                              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                                {[["peach","Peach Wallet"],["external","Add external address"]].map(([val,label])=>{
+                                  const selected = choice.mode === val;
+                                  return (
+                                    <button key={val} type="button"
+                                      onClick={()=>{
+                                        updateRefund(i, { mode: val });
+                                        if (val === "peach") setRefundErrors(p => { const n={...p}; delete n[i]; return n; });
+                                      }}
+                                      style={{
+                                        border:"1.5px solid var(--primary)",
+                                        background: selected ? "var(--primary)" : "transparent",
+                                        color: selected ? "var(--surface)" : "var(--primary)",
+                                        padding:"8px 16px",
+                                        borderRadius:999,
+                                        fontWeight:700,
+                                        fontSize:".78rem",
+                                        fontFamily:"'Baloo 2', cursive",
+                                        cursor:"pointer",
+                                        transition:"background .15s, color .15s",
+                                      }}>
+                                      {label}
+                                    </button>
+                                  );
+                                })}
                               </div>
                               {choice.mode === "external" && (
                                 <div style={{marginTop:10,marginLeft:32}}>
