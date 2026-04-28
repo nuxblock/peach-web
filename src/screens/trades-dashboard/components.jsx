@@ -243,7 +243,7 @@ export function TradeCard({ trade, onSelect, layout = "grid" }) {
         <div style={{ display:"flex", alignItems:"flex-start", gap:9, flex:1, minWidth:0 }}>
           {trade.counterparty ? (
             <>
-              <Avatar initials={trade.counterparty.initials} color={trade.counterparty.color} size={32} online/>
+              <Avatar peachId={trade.counterparty.peachId} size={32} online/>
               <div style={{ display:"flex", flexDirection:"column", gap:3, minWidth:0 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
                   <span style={{ fontSize:".85rem", fontWeight:700 }}>{trade.counterparty.name}</span>

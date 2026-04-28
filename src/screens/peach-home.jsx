@@ -7,15 +7,13 @@ import { useApi, getCached, setCache } from "../hooks/useApi.js";
 import { STATUS_CONFIG, FINISHED_STATUSES } from "../data/statusConfig.js";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmt as formatSats, fmtPct, relTime, toPeaches } from "../utils/format.js";
 import PeachRating from "../components/PeachRating.jsx";
+import Avatar from "../components/Avatar.jsx";
 import { RefreshIndicator } from "../components/RefreshIndicator.jsx";
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const css = `
   /* ── WELCOME HEADER ── */
   .welcome-row{display:flex;align-items:center;gap:14px}
-  .welcome-avatar{width:44px;height:44px;border-radius:50%;background:var(--grad);
-    display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:800;
-    color:white;flex-shrink:0}
   .welcome-text h1{font-size:1.35rem;font-weight:800;color:var(--black);line-height:1.2}
   .welcome-text p{font-size:.82rem;font-weight:500;color:var(--black-65);margin-top:2px}
   .welcome-actions{margin-left:auto;display:flex;gap:10px}
@@ -63,11 +61,6 @@ const css = `
     border-radius:6px;padding:7px 8px;margin:0 -8px}
   .ob-row:hover{background:var(--black-5)}
   .ob-row:last-child{border-bottom:none}
-  .ob-avatar{width:28px;height:28px;border-radius:50%;background:var(--grad);
-    display:flex;align-items:center;justify-content:center;font-size:.58rem;
-    font-weight:800;color:white;flex-shrink:0;position:relative}
-  .ob-avatar .online-dot{position:absolute;bottom:0;right:0;width:7px;height:7px;
-    border-radius:50%;background:var(--success);border:1.5px solid var(--surface)}
   .ob-info{flex:1;min-width:0}
   .ob-amount{font-size:.85rem;font-weight:800;color:var(--black);line-height:1.2}
   .ob-fiat{font-size:.68rem;font-weight:500;color:var(--black-65)}
@@ -103,9 +96,6 @@ const css = `
 
   /* ── PROFILE CARD ── */
   .profile-top{display:flex;align-items:center;gap:14px}
-  .profile-avatar{width:52px;height:52px;border-radius:50%;background:var(--grad);
-    display:flex;align-items:center;justify-content:center;font-size:.95rem;
-    font-weight:800;color:white;flex-shrink:0}
   .profile-name{font-size:1rem;font-weight:800;color:var(--black);letter-spacing:.04em}
   .profile-since{font-size:.72rem;font-weight:500;color:var(--black-65);margin-top:2px}
   .profile-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -366,11 +356,9 @@ export default function PeachHome() {
     const athBase = import.meta.env.VITE_API_BASE;
     async function fetchAth() {
       try {
-        console.log('[ATH] fetching from', `${athBase}/market/tradePricePeaks`);
         const res = await fetch(`${athBase}/market/tradePricePeaks`);
         if (res.ok) {
           const data = await res.json();
-          console.log('[ATH] response:', data);
           if (data?.tradePeaks) setAthData(data);
         } else {
           console.warn('[ATH] non-ok response:', res.status);
@@ -502,7 +490,7 @@ export default function PeachHome() {
             <div className="welcome-row">
               {isLoggedIn ? (
                 <>
-                  <div className="welcome-avatar">PW</div>
+                  <Avatar peachId={auth?.peachId} size={44} />
                   <div className="welcome-text">
                     <h1>
                       Welcome back 👋
@@ -517,9 +505,7 @@ export default function PeachHome() {
                 </>
               ) : (
                 <>
-                  <div className="welcome-avatar" style={{background:"var(--black-10)",color:"var(--black-25)"}}>
-                    <svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
-                  </div>
+                  <Avatar size={44} />
                   <div className="welcome-text">
                     <h1>Welcome to Peach 🍑</h1>
                     <p>Peer-to-Peer Bitcoin Marketplace, self-custodial, KYC-free</p>
@@ -625,7 +611,7 @@ export default function PeachHome() {
                     <span className="card-link" onClick={() => navigate("/settings")}>Edit →</span>
                   </div>
                   <div className="profile-top">
-                    <div className="profile-avatar">PW</div>
+                    <Avatar peachId={auth?.peachId} size={52} />
                     <div>
                       <div className="profile-name">{user.peachId}</div>
                       <div className="profile-since">Member since {user.memberSince}</div>
@@ -698,7 +684,7 @@ export default function PeachHome() {
                       <span className="card-link">Edit →</span>
                     </div>
                     <div className="profile-top">
-                      <div className="profile-avatar">PW</div>
+                      <Avatar peachId="08476d23" size={52} />
                       <div>
                         <div className="profile-name">PEACH08476D23</div>
                         <div className="profile-since">Member since March 2023</div>

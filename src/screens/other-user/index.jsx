@@ -6,6 +6,7 @@ import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import PeachRating from "../../components/PeachRating.jsx";
+import Avatar from "../../components/Avatar.jsx";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtFiat, formatTradeId, toPeaches } from "../../utils/format.js";
 import { methodDisplayName } from "../../data/paymentMethodMeta.js";
 
@@ -15,9 +16,6 @@ const CSS = `
 
   .ou-header{display:flex;align-items:center;gap:16px;background:var(--surface);
     border:1px solid var(--black-10);border-radius:16px;padding:20px}
-  .ou-avatar{width:64px;height:64px;border-radius:50%;background:var(--grad);
-    display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;
-    color:white;flex-shrink:0;position:relative}
   .ou-id-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .ou-id{font-size:.82rem;font-weight:800;letter-spacing:.06em;background:var(--black-5);
     border:1.5px solid var(--black-10);border-radius:999px;padding:5px 12px;color:var(--black);
@@ -257,7 +255,6 @@ export default function OtherUserPage() {
     }
   }
 
-  const initials = userId ? userId.slice(0, 2).toUpperCase() : "??";
   const peachIdLabel = userId ? formatPeachId(userId) : "—";
   const rating = toPeaches(user?.rating ?? 0);
   const badges = user?.medals ?? [];
@@ -307,7 +304,7 @@ export default function OtherUserPage() {
               <>
                 {/* Header */}
                 <div className="ou-header">
-                  <div className="ou-avatar">{initials}</div>
+                  <Avatar peachId={userId} size={64} />
                   <div style={{flex:1,minWidth:0}}>
                     <div className="ou-id-row">
                       <span className="ou-id">{peachIdLabel}</span>

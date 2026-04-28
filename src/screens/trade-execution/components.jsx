@@ -2517,6 +2517,67 @@ function SuccessBanner({ title, subtitle }) {
   );
 }
 
+// Same shape as SuccessBanner but with an orange "!" — used when the user
+// still has an action to take, not when a step is already complete.
+function ActionBanner({ title, subtitle }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        background: "var(--primary-mild)",
+        border: "1.5px solid rgba(196,81,4,.2)",
+        borderRadius: 12,
+        padding: "12px 16px",
+        marginBottom: 12,
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          flexShrink: 0,
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          background: "var(--primary)",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "1rem",
+          fontWeight: 800,
+          lineHeight: 1,
+        }}
+      >
+        !
+      </span>
+      <div>
+        <div
+          style={{
+            fontSize: "1rem",
+            fontWeight: 800,
+            color: "var(--primary-dark)",
+            marginBottom: 2,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontSize: ".8rem",
+            fontWeight: 500,
+            color: "var(--black-65)",
+            lineHeight: 1.5,
+          }}
+        >
+          {subtitle}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── ACTION BUTTONS ───────────────────────────────────────────────────────────
 export function ActionPanel({
   scenario,
@@ -2812,8 +2873,8 @@ export function ActionPanel({
         {(status === "confirmPaymentRequired" || status === "releaseEscrow") &&
           role === "seller" && (
             <>
-              <SuccessBanner
-                title="Payment made. Confirm you received it."
+              <ActionBanner
+                title="Payment made. Confirm if you received it."
                 subtitle="The buyer has marked the payment as sent. Check your account and confirm once the funds have arrived."
               />
               {pendingTask === "release" ? (

@@ -670,8 +670,6 @@ export default function TradeExecution() {
             const short = "Peach" + shortHex;
             return {
               id: cpId,
-              initials: shortHex.slice(0, 2),
-              color: "var(--black-65)",
               name: short,
               rep: toPeaches(cp.rating ?? cp.peachRating ?? 0),
               trades: cp.trades ?? 0,
@@ -1158,8 +1156,7 @@ export default function TradeExecution() {
                   title={counterparty.id && counterparty.id !== "unknown" ? "View user profile" : undefined}
                 >
                   <Avatar
-                    initials={counterparty.initials}
-                    color={counterparty.color}
+                    peachId={counterparty.id}
                     size={44}
                     online={counterparty.online}
                   />

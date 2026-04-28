@@ -90,8 +90,6 @@
   background:var(--primary);
   box-shadow:0 2px 12px rgba(0,0,0,.4);
 }
-[data-theme="dark"] .avatar{background:var(--primary)}
-[data-theme="dark"] .avatar-badge,
 [data-theme="dark"] .notif-bell-badge,
 [data-theme="dark"] .sidenav-badge{border-color:var(--surface)}
 [data-theme="dark"] .auth-screen-overlay{background:rgba(26,21,18,.7)}
@@ -164,9 +162,6 @@ body{font-family:var(--font);background:var(--primary-bg);color:var(--black)}
 .mobile-price-main{font-size:.82rem;font-weight:800;color:var(--black);white-space:nowrap}
 .mobile-price-sats{font-size:.68rem;font-weight:500;color:var(--black-65);white-space:nowrap}
 .mobile-cur-select{flex-shrink:0}
-.avatar{width:34px;height:34px;border-radius:50%;background:var(--grad);display:flex;
-  align-items:center;justify-content:center;font-size:.72rem;font-weight:800;color:white;
-  cursor:pointer;position:relative;flex-shrink:0}
 .avatar-ring-wrap{position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .avatar-ring{position:absolute;inset:0;transform:scaleX(-1) rotate(-90deg);pointer-events:none}
 .avatar-ring-track{fill:none;stroke:var(--black-10);stroke-width:2}
@@ -174,9 +169,6 @@ body{font-family:var(--font);background:var(--primary-bg);color:var(--black)}
 .avatar-ring-ok{stroke:var(--success)}
 .avatar-ring-warn{stroke:var(--session-ring-warn)}
 .avatar-ring-danger{stroke:var(--error)}
-.avatar-badge{position:absolute;top:-3px;right:-3px;background:var(--error);color:white;
-  font-size:.55rem;font-weight:800;width:14px;height:14px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;border:2px solid var(--surface)}
 .peach-id{font-size:.72rem;font-weight:800;letter-spacing:.06em;color:var(--black-75);font-family:var(--font);white-space:nowrap}
 .session-timer{font-size:.68rem;font-weight:700;color:var(--black-65);font-variant-numeric:tabular-nums;letter-spacing:.04em;font-family:var(--font);white-space:nowrap;padding:2px 8px;border-radius:999px;background:var(--black-5)}
 .session-timer-warn{color:var(--error);background:var(--error-bg);animation:pulse 1.5s ease-in-out infinite}

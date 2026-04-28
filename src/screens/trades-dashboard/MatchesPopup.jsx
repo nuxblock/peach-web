@@ -7,7 +7,6 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { relTime as relativeTime, formatTradeId } from "../../utils/format.js";
-import { AVATAR_COLORS } from "../../data/constants.js";
 import Avatar from "../../components/Avatar.jsx";
 import { Badge, satsToFiat } from "./components.jsx";
 import PeachRating from "../../components/PeachRating.jsx";
@@ -80,12 +79,6 @@ export function transformMatch(apiMatch) {
   const u = apiMatch.user ?? {};
   const peachId = u.id ?? "unknown";
   const displayName = formatPeachName(peachId);
-  const initials = displayName.slice(-2).toUpperCase();
-  const color =
-    AVATAR_COLORS[
-      peachId.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) %
-        AVATAR_COLORS.length
-    ];
   const badges = (u.medals ?? []).map((m) => {
     if (m === "fastTrader") return "fast";
     if (m === "superTrader") return "supertrader";
@@ -110,8 +103,6 @@ export function transformMatch(apiMatch) {
     user: {
       peachId,
       name: displayName,
-      initials,
-      color,
       rep: u.peachRating ?? (u.rating != null ? toPeaches(u.rating) : 0),
       trades: u.trades ?? 0,
       badges,
@@ -137,12 +128,6 @@ export function transformMatch(apiMatch) {
 export function transformTradeRequest(tr, offer, userProfile) {
   const peachId = tr.userId ?? "unknown";
   const displayName = formatPeachName(peachId);
-  const initials = displayName.slice(-2).toUpperCase();
-  const color =
-    AVATAR_COLORS[
-      peachId.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) %
-        AVATAR_COLORS.length
-    ];
   const u = userProfile ?? {};
   const badges = (u.medals ?? []).map((m) => {
     if (m === "fastTrader") return "fast";
@@ -165,8 +150,6 @@ export function transformTradeRequest(tr, offer, userProfile) {
     user: {
       peachId,
       name: displayName,
-      initials,
-      color,
       rep: u.peachRating ?? (u.rating != null ? toPeaches(u.rating) : 0),
       trades: u.trades ?? 0,
       badges,
@@ -470,7 +453,7 @@ export default function MatchesPopup({
             </button>
           </div>
           <div style={{ padding: "20px 24px", textAlign: "center" }}>
-            <Avatar initials={m.user.initials} color={m.user.color} size={56} />
+            <Avatar peachId={m.user.peachId} size={56} />
             <div style={{ fontWeight: 800, fontSize: "1rem", marginTop: 12 }}>
               Accept trade with {m.user.name}?
             </div>
@@ -540,7 +523,7 @@ export default function MatchesPopup({
                 <polyline points="10,2 4,8 10,14" />
               </svg>
             </button>
-            <Avatar initials={m.user.initials} color={m.user.color} size={28} />
+            <Avatar peachId={m.user.peachId} size={28} />
             <span
               style={{
                 fontWeight: 800,
@@ -698,11 +681,7 @@ export default function MatchesPopup({
                 marginBottom: 20,
               }}
             >
-              <Avatar
-                initials={m.user.initials}
-                color={m.user.color}
-                size={56}
-              />
+              <Avatar peachId={m.user.peachId} size={56} />
               <button
                 type="button"
                 onClick={() => goToUser(m.user.peachId)}
@@ -957,11 +936,7 @@ export default function MatchesPopup({
               <div key={m.offerId} className="match-row match-row-expanded">
                 {/* Identity + stats */}
                 <div className="match-row-top">
-                  <Avatar
-                    initials={m.user.initials}
-                    color={m.user.color}
-                    size={36}
-                  />
+                  <Avatar peachId={m.user.peachId} size={36} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{

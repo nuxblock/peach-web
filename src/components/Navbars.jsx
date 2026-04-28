@@ -6,6 +6,7 @@ import { useSessionTimer } from "../hooks/useSessionTimer.js";
 import { useNotifications } from "../hooks/useNotifications.js";
 import { useTheme } from "../hooks/useTheme.js";
 import NotificationPanel from "./NotificationPanel.jsx";
+import Avatar from "./Avatar.jsx";
 import peachLogo from "../assets/PEACH WEB-LOGO.svg";
 
 // ─── PEACH ID FORMATTING ─────────────────────────────────────────────────────
@@ -291,7 +292,7 @@ export function Topbar({
                     />
                   </svg>
                 )}
-                <div className="avatar">PW{unreadTotal > 0 && <div className="avatar-badge">{unreadTotal > 99 ? "99+" : unreadTotal}</div>}</div>
+                <Avatar peachId={window.__PEACH_AUTH__?.peachId} size={34} badge={unreadTotal} />
               </div>
             </div>
             {showAvatarMenu && (
@@ -306,9 +307,7 @@ export function Topbar({
           </div>
         ) : (
           <div className="avatar-login-btn" onClick={handleLogin}>
-            <div className="avatar" style={{background:"var(--black-10)",color:"var(--black-25)"}}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
-            </div>
+            <Avatar size={34} />
             <span className="avatar-login-label">Log in</span>
           </div>
         )}

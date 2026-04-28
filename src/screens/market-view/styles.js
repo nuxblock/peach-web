@@ -119,11 +119,6 @@ export const CSS = `
 
   /* ── REP ── */
   .rep-cell{display:flex;flex-direction:column;gap:2px}
-  .rep-avatar{width:27px;height:27px;border-radius:50%;flex-shrink:0;background:var(--grad);
-    display:flex;align-items:center;justify-content:center;font-size:.56rem;font-weight:800;color:white;
-    position:relative}
-  .rep-avatar .online-dot{position:absolute;bottom:0px;right:0px;width:7px;height:7px;
-    border-radius:50%;background:var(--success);border:2px solid var(--surface)}
   .rep-info{display:flex;flex-direction:column;gap:2px}
   .rep-row{display:flex;align-items:center;gap:4px}
   .rep-stars{font-size:.78rem;font-weight:700;color:var(--black);display:flex;align-items:center;gap:2px}

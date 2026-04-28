@@ -5,10 +5,11 @@ import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
-import { extractPMsFromProfile, isApiError, generateSymmetricKey, encryptForRecipients, encryptSymmetric, encryptForPublicKey, signPGPMessage, hashPaymentFields, decryptPGPMessage } from "../../utils/pgp.js";
+import { extractPMsFromProfile, isApiError, generateSymmetricKey, encryptForRecipients, encryptSymmetric, encryptForPublicKey, signPGPMessage, hashPaymentFields } from "../../utils/pgp.js";
 import { getCached, setCache, clearCache } from "../../hooks/useApi.js";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat, formatTradeId, toPeaches } from "../../utils/format.js";
 import PeachRating from "../../components/PeachRating.jsx";
+import Avatar from "../../components/Avatar.jsx";
 import RequestedOfferPopup from "../../components/RequestedOfferPopup.jsx";
 import { RefreshIndicator } from "../../components/RefreshIndicator.jsx";
 import { CSS } from "./styles.js";
@@ -597,21 +598,6 @@ export default function PeachMarket() {
         const ownBidsArr = ownOffersJson?.buyOffers ?? [];
         const ownAsksArr = ownOffersJson?.sellOffers ?? [];
 
-        // Debug: decrypt selfEncrypted PM data on own offers
-        if (auth?.pgpPrivKey) {
-          for (const o of [...ownBidsArr, ...ownAsksArr]) {
-            const pd = o.paymentData;
-            if (!pd) continue;
-            for (const [method, data] of Object.entries(pd)) {
-              if (data?.selfEncrypted) {
-                decryptPGPMessage(data.selfEncrypted, auth.pgpPrivKey).then(decrypted => {
-                  console.log(`[MarketView] Offer ${o.id} → ${method} selfEncrypted:`, decrypted);
-                }).catch(() => {});
-              }
-            }
-          }
-        }
-
         // Merge market + own offers, deduplicating by ID
         const seen = new Set();
         const merged = [];
@@ -777,7 +763,6 @@ export default function PeachMarket() {
     if (direction === "sell") setTab("buy");
     setShowMyOffers(true);
     setHighlightedIds(new Set(ids.map(String)));
-    console.log("[MarketView] highlight requested for offer IDs:", ids, "direction:", direction);
     navigate(location.pathname, { replace: true, state: null });
   }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -788,17 +773,12 @@ export default function PeachMarket() {
     if (highlightedIds.size === 0) return;
     if (!marketOffers || marketOffers.length === 0) return;
     const found = marketOffers.some(o => highlightedIds.has(String(o.id)));
-    if (!found) {
-      console.log("[MarketView] waiting for offers to appear; have", marketOffers.length, "offers, none match yet");
-      return;
-    }
+    if (!found) return;
     highlightCommittedRef.current = true;
-    console.log("[MarketView] highlight committed — scrolling and starting 4s fade timer");
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const el = document.querySelector(".new-offer-card, .new-offer-row");
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-        else console.warn("[MarketView] no .new-offer-card / .new-offer-row found in DOM");
+        document.querySelector(".new-offer-card, .new-offer-row")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
     });
     const t = setTimeout(() => setHighlightedIds(new Set()), 4000);
@@ -1075,13 +1055,11 @@ export default function PeachMarket() {
             {/* Peer row */}
             <div className="popup-peer-row">
               <div
-                className="rep-avatar"
-                style={{width:30,height:30,fontSize:".6rem", cursor: offer.userId && !isOwn ? "pointer" : "default"}}
+                style={{cursor: offer.userId && !isOwn ? "pointer" : "default"}}
                 onClick={(e) => { if (offer.userId && !isOwn) { e.stopPropagation(); closePopup(); navigate(`/user/${offer.userId}`); } }}
                 title={offer.userId && !isOwn ? "View user profile" : undefined}
               >
-                {offer.id.toUpperCase().slice(0,2)}
-                {offer.online && <span className="online-dot"/>}
+                <Avatar peachId={offer.userId} size={30} online={offer.online} />
               </div>
               <div style={{flex:1}}>
                 {offer.userId && (
@@ -1629,10 +1607,7 @@ export default function PeachMarket() {
                 {/* Row 1: tradeID + avatar · rep/badges (left) | action buttons (right) */}
                 <span className="offer-id-label">{offer.tradeId}</span>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <div className="rep-avatar" style={{flexShrink:0}}>
-                    {offer.id.toUpperCase().slice(0,2)}
-                    {offer.online && <span className="online-dot"/>}
-                  </div>
+                  <Avatar peachId={offer.userId} size={27} online={offer.online} />
                   <div style={{flex:1,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
                     <PeachRating rep={offer.rep} size={14}/>
                     <span className="rep-trades">({offer.trades})</span>

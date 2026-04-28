@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef } from "react";
 import { SatsAmount } from "../../components/BitcoinAmount.jsx";
 import PeachRating from "../../components/PeachRating.jsx";
+import Avatar from "../../components/Avatar.jsx";
 import { fmtPct, fmtFiat, toPeaches } from "../../utils/format.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -143,15 +144,11 @@ export function Chips({ items, className }) {
 // ── RepCell ───────────────────────────────────────────────────────────────────
 
 export function RepCell({ offer }) {
-  const initials = offer.id.toUpperCase().slice(0, 2);
   return (
     <div className="rep-cell">
       <span className="offer-id-label">{offer.tradeId}</span>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <div className="rep-avatar">
-          {initials}
-          {offer.online && <span className="online-dot"/>}
-        </div>
+        <Avatar peachId={offer.userId} size={27} online={offer.online} />
         <div className="rep-info">
           <div className="rep-row">
             <PeachRating rep={offer.rep} size={14}/>
