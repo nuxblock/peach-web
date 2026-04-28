@@ -10,7 +10,8 @@ import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import { extractPMsFromProfile, isApiError, hashPaymentFields, encryptForPublicKey, encryptPGPMessage, signPGPMessage } from "../../utils/pgp.js";
-import { deriveEscrowPubKey, deriveReturnAddress } from "../../utils/escrow.js";
+import { deriveEscrowPubKey, deriveReturnAddress, isReturnAddressFromXpub } from "../../utils/escrow.js";
+import { validateBtcAddress } from "../../peach-validators.js";
 import { QRCodeSVG } from "qrcode.react";
 import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE_INIT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur, formatTradeId } from "../../utils/format.js";
 import { CSS } from "./styles.js";
@@ -141,8 +142,10 @@ export default function OfferCreation({ initialType="buy" }) {
 
   const initForm = ()=>({amtFixed:MIN_SATS,
     selectedMethodIds:[],premium:"0",instantMatch:false,noNewUsers:false,
-    minReputation:false,instantMatchBadges:[],experienceLevel:""});
+    minReputation:false,instantMatchBadges:[],experienceLevel:"",
+    refundChoices:[{ mode:"peach", address:"" }]});
   const [form, setForm] = useState(initForm());
+  const [refundErrors, setRefundErrors] = useState({});
 
   const isSell = type==="sell";
   const STEPS  = getSteps(type);
@@ -290,9 +293,32 @@ export default function OfferCreation({ initialType="buy" }) {
   }, [step, multiResults, auth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function setF(k,v){ setForm(f=>({...f,[k]:v})); }
+
+  // Keep form.refundChoices length in sync with active offer count (1 when multi off, multiCount when on)
+  useEffect(() => {
+    const target = multiEnabled ? multiCount : 1;
+    setForm(f => {
+      const cur = f.refundChoices ?? [];
+      if (cur.length === target) return f;
+      if (cur.length < target) {
+        const extra = Array.from({ length: target - cur.length }, () => ({ mode:"peach", address:"" }));
+        return { ...f, refundChoices: [...cur, ...extra] };
+      }
+      return { ...f, refundChoices: cur.slice(0, target) };
+    });
+    setRefundErrors(prev => {
+      const next = {};
+      for (const [k, v] of Object.entries(prev)) if (Number(k) < target) next[k] = v;
+      return next;
+    });
+  }, [multiEnabled, multiCount]);
+
+  const updateRefund = (i, patch) =>
+    setForm(f => ({ ...f, refundChoices: f.refundChoices.map((c, j) => j === i ? { ...c, ...patch } : c) }));
   function reset(){
     setStep(0);setDone(false);setEscrowFunded(false);setFundingStatus(null);setFundingAmounts(null);setPublishError(null);setEscrowAddress(null);setSellOfferId(null);setForm(initForm());
     setMultiEnabled(false);setMultiCount(2);setMultiResults(null);setSelectedEscrowIdx(0);setMultiPublishProgress(null);
+    setRefundErrors({});
   }
   function switchType(t){ setType(t); reset(); }
 
@@ -356,7 +382,10 @@ export default function OfferCreation({ initialType="buy" }) {
     : form.amtFixed>=MIN_SATS&&form.amtFixed<=maxS;
   const payOk  = form.selectedMethodIds.length > 0;
   const premOk = form.premium!=="";
-  const configOk = amtOk&&payOk&&premOk;
+  const refundOk = !isSell || form.refundChoices.every(c =>
+    c.mode === "peach" || validateBtcAddress((c.address ?? "").trim()).valid
+  );
+  const configOk = amtOk&&payOk&&premOk&&refundOk;
 
   // Fields that are structural (not actual payment details to encrypt)
   const PM_STRUCTURAL = new Set(["id", "methodId", "type", "name", "label", "currencies", "hashes", "details", "data", "country", "anonymous"]);
@@ -457,7 +486,8 @@ export default function OfferCreation({ initialType="buy" }) {
           }
           const { meansOfPayment, paymentData } = await buildPaymentPayload(serverPGPKey);
 
-          // 1. Derive base return address index
+          // 1. Derive base return address index — count only past offers whose returnAddress was derived from this xpub.
+          // External-address offers don't consume an `m/84'/.../1/N` slot, so they shouldn't bump the counter.
           const v069Base = auth.baseUrl.replace(/\/v1$/, '/v069');
           const hdrs = { Authorization: `Bearer ${auth.token}` };
           const [ownOffersRes, historySellRes] = await Promise.all([
@@ -467,11 +497,35 @@ export default function OfferCreation({ initialType="buy" }) {
           const ownOffersData = await ownOffersRes.json().catch(() => ({}));
           const historySell = await historySellRes.json().catch(()=>[]);
           const activeSell = ownOffersData?.sellOffers ?? [];
-          const activeCount = activeSell.length;
-          const historyCount = Array.isArray(historySell) ? historySell.filter(o => o.type === "ask").length : 0;
-          const baseAddrIdx = activeCount + historyCount;
+          const allPastSellOffers = [
+            ...activeSell,
+            ...(Array.isArray(historySell) ? historySell.filter(o => o.type === "ask") : []),
+          ];
+          let baseAddrIdx;
+          if (allPastSellOffers.some(o => o?.returnAddress)) {
+            baseAddrIdx = allPastSellOffers.reduce((n, o) => {
+              const addr = o?.returnAddress;
+              return addr && isReturnAddressFromXpub(auth.xpub, addr, 1000) ? n + 1 : n;
+            }, 0);
+          } else {
+            console.warn("[OfferCreation] No returnAddress on past offers — falling back to total count");
+            baseAddrIdx = allPastSellOffers.length;
+          }
 
           const count = multiEnabled ? multiCount : 1;
+
+          // resolveReturnAddress: per offer, returns either the user's typed external address
+          // or the next derived xpub address — counter advances only for Peach rows.
+          let peachIdxOffset = 0;
+          const resolveReturnAddress = (i) => {
+            const choice = form.refundChoices[i] ?? { mode:"peach", address:"" };
+            if (choice.mode === "external" && (choice.address ?? "").trim()) {
+              return choice.address.trim();
+            }
+            const addr = deriveReturnAddress(auth.xpub, baseAddrIdx + peachIdxOffset);
+            peachIdxOffset += 1;
+            return addr;
+          };
 
           if(count > 1) {
             // ── MULTI SELL — sequential loop ──
@@ -479,7 +533,7 @@ export default function OfferCreation({ initialType="buy" }) {
             const results = [];
             for(let i = 0; i < count; i++){
               try {
-                const returnAddress = deriveReturnAddress(auth.xpub, baseAddrIdx + i);
+                const returnAddress = resolveReturnAddress(i);
                 const sellPayload = {
                   type: "ask", amount: form.amtFixed,
                   premium: parseFloat(form.premium) || 0,
@@ -516,7 +570,7 @@ export default function OfferCreation({ initialType="buy" }) {
             }
           } else {
             // ── SINGLE SELL ──
-            const returnAddress = deriveReturnAddress(auth.xpub, baseAddrIdx);
+            const returnAddress = resolveReturnAddress(0);
             const sellPayload = {
               type: "ask", amount: form.amtFixed,
               premium: parseFloat(form.premium) || 0,
@@ -713,14 +767,29 @@ export default function OfferCreation({ initialType="buy" }) {
     ]);
     const ownOffersData = await ownOffersRes.json().catch(()=>({}));
     const historySell = await historySellRes.json().catch(()=>[]);
-    const activeCount = (ownOffersData?.sellOffers??[]).length;
-    const historyCount = Array.isArray(historySell)?historySell.filter(o=>o.type==="ask").length:0;
-    let nextIdx = activeCount + historyCount;
+    const activeSellRetry = ownOffersData?.sellOffers ?? [];
+    const allPastSellOffersRetry = [
+      ...activeSellRetry,
+      ...(Array.isArray(historySell) ? historySell.filter(o => o.type === "ask") : []),
+    ];
+    let nextIdx;
+    if (allPastSellOffersRetry.some(o => o?.returnAddress)) {
+      nextIdx = allPastSellOffersRetry.reduce((n, o) => {
+        const addr = o?.returnAddress;
+        return addr && isReturnAddressFromXpub(auth.xpub, addr, 1000) ? n + 1 : n;
+      }, 0);
+    } else {
+      console.warn("[OfferCreation] No returnAddress on past offers (retry path) — falling back to total count");
+      nextIdx = allPastSellOffersRetry.length;
+    }
 
     const updated = [...multiResults];
     for(const idx of failedIdxs){
       try {
-        const returnAddress = deriveReturnAddress(auth.xpub, nextIdx++);
+        const choice = form.refundChoices[idx] ?? { mode:"peach", address:"" };
+        const returnAddress = (choice.mode === "external" && (choice.address ?? "").trim())
+          ? choice.address.trim()
+          : deriveReturnAddress(auth.xpub, nextIdx++);
         const payload = {
           type:"ask", amount:form.amtFixed, premium:parseFloat(form.premium)||0,
           meansOfPayment, paymentData, returnAddress,
@@ -1214,6 +1283,101 @@ export default function OfferCreation({ initialType="buy" }) {
                   onToggle={() => { setMultiEnabled(e => !e); setMultiResults(null); }}
                   onCountChange={setMultiCount}
                 />
+
+                {/* ── REFUND WALLET SELECTOR (sell only) ── */}
+                {isSell && (() => {
+                  const externalDupes = new Map();
+                  form.refundChoices.forEach((c, i) => {
+                    if (c.mode !== "external") return;
+                    const a = (c.address ?? "").trim().toLowerCase();
+                    if (!a) return;
+                    if (!externalDupes.has(a)) externalDupes.set(a, []);
+                    externalDupes.get(a).push(i);
+                  });
+                  const dupeOf = (i) => {
+                    const c = form.refundChoices[i];
+                    if (c?.mode !== "external" || !c.address.trim()) return null;
+                    const list = externalDupes.get(c.address.trim().toLowerCase()) ?? [];
+                    if (list.length < 2) return null;
+                    return list.find(j => j !== i);
+                  };
+                  return (
+                    <div style={{marginTop:14}}>
+                      <div style={{fontSize:".78rem",fontWeight:700,marginBottom:8}}>Refund to:</div>
+                      <div style={{display:"flex",flexDirection:"column",gap: multiEnabled ? 10 : 8}}>
+                        {form.refundChoices.map((choice, i) => {
+                          const dup = dupeOf(i);
+                          const err = refundErrors[i];
+                          return (
+                            <div key={i} style={{
+                              padding: multiEnabled ? "10px 12px" : 0,
+                              background: multiEnabled ? "var(--black-3)" : "transparent",
+                              borderRadius: multiEnabled ? 8 : 0,
+                            }}>
+                              {multiEnabled && (
+                                <div style={{fontSize:".72rem",fontWeight:700,color:"var(--black-65)",marginBottom:8}}>
+                                  Offer {i + 1}
+                                </div>
+                              )}
+                              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                                {[["peach","Peach Wallet"],["external","Add external address"]].map(([val,label])=>(
+                                  <div key={val} className="check-row" style={{cursor:"pointer"}}
+                                    onClick={()=>{
+                                      updateRefund(i, { mode: val });
+                                      if (val === "peach") setRefundErrors(p => { const n={...p}; delete n[i]; return n; });
+                                    }}>
+                                    <div style={{
+                                      width:16,height:16,borderRadius:"50%",
+                                      border:`2px solid ${choice.mode===val?"var(--primary)":"var(--black-10)"}`,
+                                      background:choice.mode===val?"var(--primary)":"var(--surface)",
+                                      display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                                      {choice.mode===val&&<div style={{width:6,height:6,borderRadius:"50%",background:"var(--surface)"}}/>}
+                                    </div>
+                                    <span style={{fontSize:".78rem",fontWeight:600}}>{label}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {choice.mode === "external" && (
+                                <div style={{marginTop:10,marginLeft:32}}>
+                                  <input
+                                    value={choice.address}
+                                    onChange={e => {
+                                      updateRefund(i, { address: e.target.value });
+                                      setRefundErrors(p => { const n={...p}; delete n[i]; return n; });
+                                    }}
+                                    onBlur={() => {
+                                      const v = (choice.address ?? "").trim();
+                                      if (!v) { setRefundErrors(p => { const n={...p}; delete n[i]; return n; }); return; }
+                                      const r = validateBtcAddress(v);
+                                      setRefundErrors(p => ({ ...p, [i]: r.valid ? null : r.error }));
+                                    }}
+                                    placeholder="bc1q… / 3… / 1…"
+                                    style={{
+                                      width:"100%",padding:"10px 14px",borderRadius:10,
+                                      border: err ? "1.5px solid var(--error)" : "1.5px solid var(--black-25)",
+                                      background:"var(--surface)",fontFamily:"'Baloo 2',cursive",
+                                      fontSize:".85rem",color:"var(--black)",outline:"none"
+                                    }}/>
+                                  {err && (
+                                    <div style={{fontSize:".72rem",color:"var(--error)",marginTop:6}}>{err}</div>
+                                  )}
+                                  {!err && (choice.address ?? "").trim() && validateBtcAddress(choice.address.trim()).valid && (
+                                    <div style={{fontSize:".72rem",color:"var(--success)",fontWeight:700,marginTop:6}}>✓ Valid address</div>
+                                  )}
+                                  {!err && dup != null && (
+                                    <div style={{fontSize:".72rem",color:"#C77700",marginTop:6}}>
+                                      This address is also used by Offer {dup + 1}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -1439,7 +1603,7 @@ export default function OfferCreation({ initialType="buy" }) {
                       <div style={{fontSize:".68rem",fontWeight:700,color:"var(--black-65)",textTransform:"uppercase",letterSpacing:".05em",marginBottom:6,textAlign:"center"}}>
                         Or fund from your Peach mobile app
                       </div>
-                      <div style={{display:"flex",justifyContent:"center"}}>
+                      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
                         <button
                           disabled={fundMobileLoading || fundMobileRequested}
                           onClick={async () => {
@@ -1468,6 +1632,12 @@ export default function OfferCreation({ initialType="buy" }) {
                           }}
                         >
                           {fundMobileLoading ? "Sending request…" : fundMobileRequested ? "Request sent — check your phone" : "Fund via mobile app"}
+                        </button>
+                        <button
+                          onClick={() => navigate("/trades", { state: { tab: "pending", refresh: true } })}
+                          className="btn-save-fund-later"
+                        >
+                          save and fund later
                         </button>
                       </div>
                       {fundMobileError && (

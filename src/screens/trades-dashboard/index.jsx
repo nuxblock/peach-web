@@ -49,6 +49,7 @@ import MatchesPopup, {
   transformTradeRequest,
 } from "./MatchesPopup.jsx";
 import RequestedOfferPopup from "../../components/RequestedOfferPopup.jsx";
+import { RefreshIndicator } from "../../components/RefreshIndicator.jsx";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -583,6 +584,7 @@ export default function TradesDashboard() {
   const [tradesLoading, setTradesLoading] = useState(
     () => !!auth && !getCached("trades-items"),
   );
+  const [isRefetching, setIsRefetching] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [userPMs, setUserPMs] = useState(null); // Decrypted user payment methods for match acceptance
@@ -733,6 +735,7 @@ export default function TradesDashboard() {
       instantTrade: isBuy
         ? hasInstantTradeEnabled(o.paymentData)
         : !!o.instantTradeEnabled,
+      instantTradeCriteria: o.instantTradeCriteria ?? null,
     };
   }
 
@@ -796,6 +799,7 @@ export default function TradesDashboard() {
     async function fetchCore() {
       const v069Base = auth.baseUrl.replace(/\/v1$/, "/v069");
       const hdrs = { Authorization: `Bearer ${auth.token}` };
+      setIsRefetching(true);
       try {
         const [offersRes, contractsRes, v069BuyRes, ownOffersRes] =
           await Promise.all([
@@ -929,6 +933,7 @@ export default function TradesDashboard() {
       } catch {
       } finally {
         setTradesLoading(false);
+        setIsRefetching(false);
       }
     }
 
@@ -1216,14 +1221,23 @@ export default function TradesDashboard() {
       }),
     [rawItems, liveUnread, allPrices],
   );
+  // Buyer-side exception: when the seller funded with the wrong amount, the
+  // trade is canceled and the buyer has nothing left to do. The seller still
+  // has an in-flight refund, so this only moves to History on the buyer side.
+  const isBuyerSideRefundWaiting = (i) =>
+    i.tradeStatus === "wrongAmountFundedOnContractRefundWaiting" &&
+    i.direction === "buy";
+
   const activeItems = allItems.filter(
     (i) =>
-      i.disputeActive ||
-      (!FINISHED_STATUSES.has(i.tradeStatus) &&
-        !PENDING_STATUSES.has(i.tradeStatus)),
+      !isBuyerSideRefundWaiting(i) &&
+      (i.disputeActive ||
+        (!FINISHED_STATUSES.has(i.tradeStatus) &&
+          !PENDING_STATUSES.has(i.tradeStatus))),
   );
-  const historyItems = allItems.filter((i) =>
-    FINISHED_STATUSES.has(i.tradeStatus),
+  const historyItems = allItems.filter(
+    (i) =>
+      FINISHED_STATUSES.has(i.tradeStatus) || isBuyerSideRefundWaiting(i),
   );
 
   const pendingItems = livePending ?? [];
@@ -1288,6 +1302,17 @@ export default function TradesDashboard() {
       setAutoTabDone(true);
     }
   }, [activeItems.length, pendingItems.length, autoTabDone, tradesLoading]);
+
+  // Force a fresh fetch when arriving with state.refresh — used by "save and fund later"
+  // so the just-created offer appears in Pending. Cached pendingItems stay visible
+  // during the refetch (no loading flicker).
+  useEffect(() => {
+    if (location.state?.refresh) {
+      setRefreshKey((k) => k + 1);
+      const { refresh: _drop, ...rest } = location.state;
+      navigate(location.pathname, { replace: true, state: rest });
+    }
+  }, [location.state?.refresh]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const satsPerCur = Math.round(SAT / btcPrice);
 
@@ -2196,7 +2221,10 @@ export default function TradesDashboard() {
         {/* Page header */}
         {/* Title row */}
         <div style={{ marginBottom: 16 }}>
-          <div className="page-title">Your Trades</div>
+          <div className="page-title">
+            Your Trades
+            <RefreshIndicator active={isRefetching && !tradesLoading} />
+          </div>
           <div className="page-subtitle">
             Manage your active trades and review history
           </div>
@@ -2491,6 +2519,62 @@ export default function TradesDashboard() {
           const o = offerDetailPopup;
           const statusCfg = STATUS_CONFIG[o.tradeStatus] || {};
           const isBuy = o.direction === "buy";
+
+          const fundingConfs =
+            typeof offerDetails?.funding?.confirmations === "number"
+              ? offerDetails.funding.confirmations
+              : 0;
+          const fundingApiStatus = offerDetails?.funding?.status ?? null;
+
+          let fundingStage; // "needs" | "mempool" | "funded" | "fallback"
+          let derivedStatus;
+          if (isBuy) {
+            fundingStage = "fallback";
+            derivedStatus = String(
+              statusCfg.label ?? o.tradeStatus ?? "",
+            ).toUpperCase();
+          } else if (fundingApiStatus === "CONFIRMED" || fundingConfs > 0) {
+            fundingStage = "funded";
+            derivedStatus = `FUNDED · ${fundingConfs} CONF`;
+          } else if (fundingApiStatus === "MEMPOOL") {
+            fundingStage = "mempool";
+            derivedStatus = "TRANSACTION IN MEMPOOL";
+          } else if (o.tradeStatus === "fundEscrow") {
+            fundingStage = "needs";
+            derivedStatus = "NEEDS FUNDING";
+          } else {
+            fundingStage = "fallback";
+            derivedStatus = String(
+              statusCfg.label ?? o.tradeStatus ?? "",
+            ).toUpperCase();
+          }
+
+          const criteria =
+            offerDetails?.instantTradeCriteria ??
+            o.instantTradeCriteria ??
+            null;
+          const instantTradeOn = offerDetails
+            ? hasInstantTradeEnabled(offerDetails.paymentData)
+            : !!o.instantTrade;
+          const BADGE_LABELS = {
+            fastTrader: "Fast trader",
+            superTrader: "Super trader",
+          };
+          const attrChips = [];
+          if (instantTradeOn) attrChips.push("⚡ Instant match");
+          if (criteria) {
+            if ((criteria.minTrades ?? 0) > 0) attrChips.push("No new users");
+            if ((criteria.minReputation ?? -1) > 0.5)
+              attrChips.push("Min reputation 4.5");
+            for (const b of criteria.badges ?? []) {
+              attrChips.push(BADGE_LABELS[b] ?? b);
+            }
+          }
+          if (o.experienceLevel === "experiencedUsersOnly")
+            attrChips.push("Experienced users only");
+          if (o.experienceLevel === "newUsersOnly")
+            attrChips.push("New users only");
+
           return (
             <div
               className="matches-overlay"
@@ -2584,83 +2668,28 @@ export default function TradesDashboard() {
                   )}
                   {!isBuy && refundWalletLabel && (
                     <div className="offer-detail-row">
-                      <span className="offer-detail-label">Refund wallet</span>
+                      <span className="offer-detail-label">Refund to</span>
                       <span className="offer-detail-value">
                         {refundWalletLabel}
-                      </span>
-                    </div>
-                  )}
-                  {!isBuy && odEscrowAddress && (
-                    <div className="offer-detail-row">
-                      <span className="offer-detail-label">Onchain escrow</span>
-                      <span className="offer-detail-value">
-                        <a
-                          href={`https://mempool.space/address/${odEscrowAddress}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            fontSize: ".78rem",
-                            fontWeight: 600,
-                            color: "var(--primary)",
-                            textDecoration: "none",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                          }}
-                        >
-                          See on mempool.space
-                          <svg
-                            width="11"
-                            height="11"
-                            viewBox="0 0 11 11"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.7"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M2 9L9 2M9 2H5M9 2v4" />
-                          </svg>
-                        </a>
                       </span>
                     </div>
                   )}
                   <div className="offer-detail-row">
                     <span className="offer-detail-label">Status</span>
                     <span className="offer-detail-value">
-                      {statusCfg.label ?? o.tradeStatus}
+                      {derivedStatus}
                     </span>
                   </div>
-                  {/* Funding status — sell offers only, from /offer/:id/details */}
-                  {!isBuy && offerDetails?.funding && (
-                    <div className="offer-detail-row">
-                      <span className="offer-detail-label">Escrow funding</span>
-                      <span className="offer-detail-value">
-                        {offerDetails.funding.status}
-                        {typeof offerDetails.funding.confirmations ===
-                          "number" && (
-                          <span
-                            style={{
-                              color: "var(--black-50)",
-                              fontWeight: 600,
-                              marginLeft: 6,
-                            }}
-                          >
-                            · {offerDetails.funding.confirmations} conf
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  {/* Match count — from /offer/:id/details */}
-                  {Array.isArray(offerDetails?.matches) && (
-                    <div className="offer-detail-row">
-                      <span className="offer-detail-label">Matches</span>
-                      <span className="offer-detail-value">
-                        {offerDetails.matches.length}
-                      </span>
-                    </div>
-                  )}
+                  {/* Match count — from /offer/:id/details (only after funding confirmed) */}
+                  {fundingStage === "funded" &&
+                    Array.isArray(offerDetails?.matches) && (
+                      <div className="offer-detail-row">
+                        <span className="offer-detail-label">Matches</span>
+                        <span className="offer-detail-value">
+                          {offerDetails.matches.length}
+                        </span>
+                      </div>
+                    )}
                   {/* Live fiat price — from /offer/:id/details */}
                   {offerDetails?.prices &&
                     Object.keys(offerDetails.prices).length > 0 && (
@@ -2696,36 +2725,37 @@ export default function TradesDashboard() {
                     <span className="offer-detail-label">Created</span>
                     <span className="offer-detail-value">
                       {o.createdAt
-                        ? new Date(o.createdAt).toLocaleDateString()
+                        ? (() => {
+                            const d = new Date(o.createdAt);
+                            return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+                          })()
                         : "—"}
                     </span>
                   </div>
                   <div className="offer-detail-row">
-                    <span className="offer-detail-label">Instant trade</span>
-                    <span className="offer-detail-value">
-                      {(offerDetails
-                        ? hasInstantTradeEnabled(offerDetails.paymentData)
-                        : o.instantTrade)
-                        ? "⚡ Enabled"
-                        : "Disabled"}
-                    </span>
-                  </div>
-                  <div className="offer-detail-row">
-                    <span className="offer-detail-label">
-                      Experience filter
-                    </span>
-                    <span className="offer-detail-value">
-                      {o.experienceLevel === "experiencedUsersOnly"
-                        ? "👤 Experienced users only"
-                        : o.experienceLevel === "newUsersOnly"
-                          ? "🆕 New users only"
-                          : "None"}
-                    </span>
+                    <span className="offer-detail-label">Attributes</span>
+                    {attrChips.length === 0 ? (
+                      <span
+                        className="offer-detail-value"
+                        style={{ color: "var(--black-50)" }}
+                      >
+                        None
+                      </span>
+                    ) : (
+                      <div className="offer-detail-chips">
+                        {attrChips.map((c, i) => (
+                          <span key={`${c}-${i}`} className="method-chip">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Escrow address + QR — sell offers in fundEscrow status */}
-                {!isBuy && o.tradeStatus === "fundEscrow" && (
+                {/* Escrow address + QR — sell offers awaiting funding (needs / mempool) */}
+                {!isBuy &&
+                  (fundingStage === "needs" || fundingStage === "mempool") && (
                   <div
                     style={{
                       padding: "12px 20px 16px",
@@ -2745,7 +2775,18 @@ export default function TradesDashboard() {
                       Escrow address
                     </div>
                     {odEscrowAddress ? (
-                      <>
+                      <div style={{ position: "relative" }}>
+                        <div
+                          style={
+                            fundingStage === "mempool"
+                              ? {
+                                  filter: "blur(6px)",
+                                  pointerEvents: "none",
+                                  userSelect: "none",
+                                }
+                              : undefined
+                          }
+                        >
                         <div
                           onClick={() => {
                             navigator.clipboard
@@ -2779,6 +2820,39 @@ export default function TradesDashboard() {
                           {odCopiedAddr
                             ? "✓ Copied to clipboard"
                             : "Click to copy"}
+                        </div>
+
+                        <div
+                          style={{ textAlign: "right", marginTop: 6 }}
+                        >
+                          <a
+                            href={`https://mempool.space/address/${odEscrowAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              fontSize: ".72rem",
+                              fontWeight: 600,
+                              color: "var(--primary)",
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            See on mempool.space
+                            <svg
+                              width="11"
+                              height="11"
+                              viewBox="0 0 11 11"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.7"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M2 9L9 2M9 2H5M9 2v4" />
+                            </svg>
+                          </a>
                         </div>
 
                         <div
@@ -3006,6 +3080,24 @@ export default function TradesDashboard() {
                             </>
                           )}
                         </div>
+                        </div>
+                        {fundingStage === "mempool" && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "var(--error)",
+                              fontWeight: 800,
+                              fontSize: ".95rem",
+                              pointerEvents: "none",
+                            }}
+                          >
+                            funding in progress
+                          </div>
+                        )}
 
                         {/* Wrong-amount call to action — parity with offer-creation step 2 */}
                         {offerDetails?.funding?.status ===
@@ -3084,7 +3176,7 @@ export default function TradesDashboard() {
                             </button>
                           </div>
                         )}
-                      </>
+                      </div>
                     ) : (
                       <div
                         style={{
@@ -3100,6 +3192,44 @@ export default function TradesDashboard() {
                   </div>
                 )}
 
+                {/* Funded sell offer: Edit + Cancel buttons replace the address section */}
+                {!isBuy &&
+                  fundingStage === "funded" &&
+                  !odEditingPremium &&
+                  !odWithdrawConfirm &&
+                  !odRefundRequested && (
+                    <div
+                      style={{
+                        padding: "12px 20px 16px",
+                        borderTop: "1px solid var(--black-10)",
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {!FINISHED_STATUSES.has(o.tradeStatus) && (
+                          <button
+                            className="offer-detail-btn offer-detail-btn-edit"
+                            onClick={() => {
+                              setOdEditPremiumVal(String(o.premium ?? 0));
+                              setOdEditingPremium(true);
+                              setOdEditError(null);
+                            }}
+                          >
+                            Edit premium
+                          </button>
+                        )}
+                        <button
+                          className="offer-detail-btn offer-detail-btn-withdraw"
+                          onClick={() => {
+                            setOdWithdrawConfirm(true);
+                            setOdWithdrawError(null);
+                          }}
+                        >
+                          Cancel offer
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                 {/* Footer — actions */}
                 <div className="offer-detail-footer">
                   {/* Unfunded sell offer: single "Cancel offer" button, no confirmation
@@ -3107,7 +3237,8 @@ export default function TradesDashboard() {
                   {!odEditingPremium &&
                     !odWithdrawConfirm &&
                     o.direction === "sell" &&
-                    o.tradeStatus === "fundEscrow" && (
+                    o.tradeStatus === "fundEscrow" &&
+                    fundingStage !== "funded" && (
                       <button
                         className="offer-detail-btn offer-detail-btn-withdraw"
                         disabled={odWithdrawing}
@@ -3210,14 +3341,16 @@ export default function TradesDashboard() {
                     })()}
 
                   {/* Default: Edit + Cancel offer buttons (or refund-in-flight message).
-                    Hidden for unfunded sell offers (handled above) and for sell offers
-                    with wrong-amount funded (handled by the choice panel above). */}
+                    Hidden for unfunded sell offers (handled above), for sell offers
+                    with wrong-amount funded (handled by the choice panel above), and
+                    for funded sell offers (handled by the inline buttons above). */}
                   {!odEditingPremium &&
                     !odWithdrawConfirm &&
                     !(
                       o.direction === "sell" &&
                       (o.tradeStatus === "fundEscrow" ||
-                        o.tradeStatus === "fundingAmountDifferent")
+                        o.tradeStatus === "fundingAmountDifferent" ||
+                        fundingStage === "funded")
                     ) &&
                     (odRefundRequested ? (
                       <div

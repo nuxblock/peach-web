@@ -285,6 +285,10 @@ export const CSS = `
     background:transparent;color:var(--black-65);font-family:var(--font);
     font-size:.88rem;font-weight:700;cursor:pointer;transition:all .12s}
   .btn-back-nav:hover{border-color:var(--black-25);color:var(--black)}
+  .btn-save-fund-later{padding:10px 24px;border-radius:999px;border:1.5px solid var(--black-10);
+    background:transparent;color:var(--black-65);font-family:var(--font);
+    font-size:.82rem;font-weight:700;cursor:pointer;transition:all .12s}
+  .btn-save-fund-later:hover{border-color:var(--black-25);color:var(--black)}
   .btn-next{padding:10px 28px;border-radius:999px;background:var(--grad);color:white;
     font-family:var(--font);font-size:.88rem;font-weight:800;border:none;
     cursor:pointer;box-shadow:0 2px 12px rgba(245,101,34,.3);

@@ -417,86 +417,55 @@ export function TxBatchingSubScreen({ onBack }) {
 
 export function RefundAddressSubScreen({ onBack }) {
   const { patch, auth } = useApi();
-  const [step, setStep] = useState(1);
   const [label, setLabel] = useState("");
   const [address, setAddress] = useState("");
   const [addressSet, setAddressSet] = useState(false);
-  const [signature, setSignature] = useState("");
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const handleBlur = makeBlurHandler(setErrors);
-  const peachId = auth?.peachId ?? "peach03cf9e9a";
-  const signMessage = `I confirm that only I, ${peachId}, control the address ${address}`;
 
+  function handleLabelBlur() {
+    if (!label.trim()) setErrors(p => ({ ...p, label: "Label is required" }));
+    else setErrors(p => ({ ...p, label: null }));
+  }
   function handleAddressBlur() {
     if (!address.trim()) { setErrors(p => ({ ...p, address: null })); setAddressSet(false); return; }
     const valid = handleBlur("address", address, validateBtcAddress);
     setAddressSet(valid);
   }
-  function handleRemove() { setLabel(""); setAddress(""); setAddressSet(false); setErrors(p => ({ ...p, address: null })); }
+  function handleRemove() { setLabel(""); setAddress(""); setAddressSet(false); setErrors({}); }
 
-  if (step === 2) {
-    return (
-      <SubScreenWrapper title="Sign Your Address" onBack={() => setStep(1)}>
-        <p style={{ fontSize:".82rem", color:"var(--black-65)", marginBottom:20, lineHeight:1.6 }}>
-          Prove you control this address by signing the message below with its private key, then paste the signature. Use your wallet's "Sign Message" feature.
-        </p>
-
-        <div style={{ marginBottom:16 }}>
-          <div style={{ fontSize:".75rem", fontWeight:700, color:"var(--black)", marginBottom:6 }}>your address</div>
-          <div style={{ padding:"12px 14px", borderRadius:10, border:"1.5px solid var(--black-10)", background:"var(--black-5)", fontSize:".78rem", fontFamily:"monospace", wordBreak:"break-all", lineHeight:1.5, display:"flex", alignItems:"flex-start", gap:8 }}>
-            <span style={{ flex:1 }}>{address}</span>
-            <CopyBtn text={address}/>
-          </div>
-        </div>
-
-        <div style={{ marginBottom:16 }}>
-          <div style={{ fontSize:".75rem", fontWeight:700, color:"var(--black)", marginBottom:6 }}>message</div>
-          <div style={{ padding:"12px 14px", borderRadius:10, border:"1.5px solid var(--black-10)", background:"var(--black-5)", fontSize:".76rem", fontFamily:"monospace", wordBreak:"break-all", lineHeight:1.5, display:"flex", alignItems:"flex-start", gap:8 }}>
-            <span style={{ flex:1 }}>{signMessage}</span>
-            <CopyBtn text={signMessage}/>
-          </div>
-        </div>
-
-        <div style={{ marginBottom:28 }}>
-          <div style={{ fontSize:".75rem", fontWeight:700, color:"var(--black)", marginBottom:6 }}>signature</div>
-          <div style={{ position:"relative" }}>
-            <input value={signature} onChange={e => { setSignature(e.target.value); setErrors(p => ({ ...p, sig: null })); }} onBlur={() => { if (signature.trim()) handleBlur("sig", signature, validateBIP322Signature); }} placeholder="signature"
-              style={{ width:"100%", padding:"10px 40px 10px 14px", borderRadius:10, border: errors.sig ? "1.5px solid var(--error)" : "1.5px solid var(--black-25)", background:"var(--surface)", fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"var(--black)", outline:"none" }}/>
-            <div style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)" }}>
-              <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setSignature(t); setErrors(p => ({ ...p, sig: null })); } catch {} }}
-                style={{ border:"none", background:"transparent", cursor:"pointer", color:"var(--primary)", padding:4 }}>
-                <IconCopy size={16}/>
-              </button>
-            </div>
-          </div>
-          <FieldError error={errors.sig}/>
-        </div>
-
-        <PrimaryBtn label={submitting ? "SAVING…" : "CONFIRM"} disabled={!signature.trim() || !!errors.sig || !validateBIP322Signature(signature).valid || submitting} onClick={async () => {
-          setSubmitting(true);
-          try {
-            if (auth) {
-              const res = await patch('/user', { refundAddress: address, refundAddressLabel: label || undefined, refundAddressSignature: signature });
-              if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                setErrors(p => ({ ...p, sig: err.message || "Server error — try again" }));
-                setSubmitting(false);
-                return;
-              }
-            } else {
-              await new Promise(r => setTimeout(r, 600));
-            }
-          } catch {
-            setErrors(p => ({ ...p, sig: "Network error — check your connection" }));
-            setSubmitting(false);
-            return;
-          }
-          onBack();
-        }}/>
-      </SubScreenWrapper>
-    );
+  async function handleSave() {
+    setErrors(p => ({ ...p, form: null }));
+    setSubmitting(true);
+    try {
+      if (auth) {
+        const res = await patch('/user', { refundAddress: address, refundAddressLabel: label.trim() });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          setErrors(p => ({ ...p, form: err.message || "Server error — try again" }));
+          setSubmitting(false);
+          return;
+        }
+      } else {
+        await new Promise(r => setTimeout(r, 600));
+      }
+      setSubmitting(false);
+      setShowSuccess(true);
+    } catch {
+      setErrors(p => ({ ...p, form: "Network error — check your connection" }));
+      setSubmitting(false);
+    }
   }
+
+  useEffect(() => {
+    if (!showSuccess) return;
+    const t = setTimeout(() => setShowSuccess(false), 1500);
+    return () => clearTimeout(t);
+  }, [showSuccess]);
+
+  const canSave = !!label.trim() && addressSet && !errors.label && !errors.address && !submitting;
 
   return (
     <SubScreenWrapper title="Refund Address" onBack={onBack}>
@@ -506,20 +475,18 @@ export function RefundAddressSubScreen({ onBack }) {
 
       <div style={{ fontSize:".75rem", fontWeight:700, color:"var(--black)", marginBottom:8 }}>set custom refund address</div>
 
-      <input value={label} onChange={e => setLabel(e.target.value)} placeholder="address label"
-        style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom:10, border:"1.5px solid var(--black-25)", background:"var(--surface)", fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"var(--black)", outline:"none" }}/>
+      <input value={label} onChange={e => { setLabel(e.target.value); if (errors.label) setErrors(p => ({ ...p, label: null })); }} onBlur={handleLabelBlur} placeholder="address label"
+        style={{ width:"100%", padding:"10px 14px", borderRadius:10, marginBottom: errors.label ? 0 : 10, border: errors.label ? "2px solid var(--error)" : "1.5px solid var(--black-25)", background:"var(--surface)", fontFamily:"'Baloo 2',cursive", fontSize:".85rem", color:"var(--black)", outline:"none" }}/>
+      {errors.label && <div style={{ marginBottom:10 }}><FieldError error={errors.label}/></div>}
 
       <div style={{ position:"relative", marginBottom: addressSet ? 8 : (errors.address ? 0 : 24) }}>
         <input value={address} onChange={e => { setAddress(e.target.value); setAddressSet(false); setErrors(p => ({ ...p, address: null })); }} onBlur={handleAddressBlur}
           placeholder="bc1q …"
-          style={{ width:"100%", padding:"10px 72px 10px 14px", borderRadius:10, border: errors.address ? "2px solid var(--error)" : addressSet ? "2px solid var(--primary)" : "1.5px solid var(--black-25)", background:"var(--surface)", fontFamily:"monospace", fontSize:".85rem", color:"var(--black)", outline:"none" }}/>
+          style={{ width:"100%", padding:"10px 44px 10px 14px", borderRadius:10, border: errors.address ? "2px solid var(--error)" : addressSet ? "2px solid var(--primary)" : "1.5px solid var(--black-25)", background:"var(--surface)", fontFamily:"monospace", fontSize:".85rem", color:"var(--black)", outline:"none" }}/>
         <div style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", display:"flex", gap:4 }}>
           <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setAddress(t); setErrors(p => ({ ...p, address: null })); const r = validateBtcAddress(t); if(r.valid) setAddressSet(true); else { setAddressSet(false); setErrors(p => ({ ...p, address: r.error })); } } catch {} }}
             style={{ border:"none", background:"transparent", cursor:"pointer", color:"var(--primary)", padding:4 }}>
             <IconCopy size={16}/>
-          </button>
-          <button style={{ border:"none", background:"transparent", cursor:"pointer", color:"var(--primary)", padding:4 }}>
-            <IconCamera size={16}/>
           </button>
         </div>
       </div>
@@ -534,13 +501,22 @@ export function RefundAddressSubScreen({ onBack }) {
         </div>
       )}
 
-      <div style={{ textAlign:"center", marginBottom:28 }}>
-        <button style={{ border:"none", background:"transparent", cursor:"pointer", color:"var(--black-65)", fontFamily:"'Baloo 2',cursive", fontSize:".78rem", fontWeight:700, textDecoration:"underline", textTransform:"uppercase", letterSpacing:".04em", display:"inline-flex", alignItems:"center", gap:5 }}>
-          OPEN EXTERNAL WALLET APP <IconExternalLink size={12}/>
-        </button>
-      </div>
+      {errors.form && <div style={{ marginBottom:12 }}><FieldError error={errors.form}/></div>}
 
-      <PrimaryBtn label="NEXT" onClick={() => setStep(2)} disabled={!addressSet || !!errors.address}/>
+      <PrimaryBtn label={submitting ? "SAVING…" : "SAVE"} onClick={handleSave} disabled={!canSave}/>
+
+      {showSuccess && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.35)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, animation:"fadeIn .15s ease" }}>
+          <div style={{ background:"var(--surface)", borderRadius:16, padding:"28px 32px", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", boxShadow:"0 12px 36px rgba(43,25,17,.18)", animation:"authPopIn .2s cubic-bezier(.34,1.56,.64,1)", maxWidth:300 }}>
+            <div style={{ width:56, height:56, borderRadius:"50%", background:"var(--success-bg)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:14 }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div style={{ fontSize:"1rem", fontWeight:800, color:"var(--black)" }}>Refund address saved</div>
+          </div>
+        </div>
+      )}
     </SubScreenWrapper>
   );
 }

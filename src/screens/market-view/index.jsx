@@ -10,6 +10,7 @@ import { getCached, setCache, clearCache } from "../../hooks/useApi.js";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat, formatTradeId, toPeaches } from "../../utils/format.js";
 import PeachRating from "../../components/PeachRating.jsx";
 import RequestedOfferPopup from "../../components/RequestedOfferPopup.jsx";
+import { RefreshIndicator } from "../../components/RefreshIndicator.jsx";
 import { CSS } from "./styles.js";
 import { premiumStats, premiumCls, currSym, MultiSelect, Chips, RepCell, AmountCell, PriceCell } from "./components.jsx";
 import { CATEGORY_META } from "../../components/AddPMFlow.jsx";
@@ -55,6 +56,7 @@ export default function PeachMarket() {
   const [liveUserPMs,  setLiveUserPMs]  = useState(null); // null = not yet loaded
   const [pmError,      setPmError]      = useState(false);
   const [offersLoading, setOffersLoading] = useState(() => !!auth && !getCached("market-offers"));
+  const [isRefetching, setIsRefetching] = useState(false);
   const [pmCatalogue,  setPmCatalogue]  = useState(() => getCached("pm-catalogue")?.data ?? null);
 
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
@@ -571,6 +573,7 @@ export default function PeachMarket() {
   }
 
   async function fetchMarket() {
+    setIsRefetching(true);
     try {
       let all = [];
 
@@ -640,6 +643,7 @@ export default function PeachMarket() {
       console.error("[MarketView] fetchMarket failed:", err);
     } finally {
       setOffersLoading(false);
+      setIsRefetching(false);
     }
   }
 
@@ -1405,6 +1409,7 @@ export default function PeachMarket() {
                 ) : (
                   <span>Best <strong style={{color:"var(--success)"}}>{fmtPct(stats.min)}</strong></span>
                 )}
+                <RefreshIndicator active={isRefetching && !offersLoading} />
               </div>
             )}
 

@@ -525,6 +525,13 @@ export function MultiEscrowFunding({
                 : "Send to mobile and fund all"}
         </button>
       </div>
+      <div style={{display:"flex",justifyContent:"center",marginTop:10}}>
+        <button
+          className="btn-save-fund-later"
+          onClick={() => navigate("/trades", { state: { tab: "pending", refresh: true } })}>
+          save and fund later
+        </button>
+      </div>
     </>
   );
 }

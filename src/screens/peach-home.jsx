@@ -7,6 +7,7 @@ import { useApi, getCached, setCache } from "../hooks/useApi.js";
 import { STATUS_CONFIG, FINISHED_STATUSES } from "../data/statusConfig.js";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmt as formatSats, fmtPct, relTime, toPeaches } from "../utils/format.js";
 import PeachRating from "../components/PeachRating.jsx";
+import { RefreshIndicator } from "../components/RefreshIndicator.jsx";
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const css = `
@@ -405,12 +406,14 @@ export default function PeachHome() {
     const cached = getCached("trades-items")?.data;
     return cached ? countUrgent(cached) : 0;
   });
+  const [isRefetching, setIsRefetching] = useState(false);
   useEffect(() => {
     if (!auth) { setUrgentCount(0); return; }
     // Use cache immediately if available
     const cached = getCached("trades-items")?.data;
     if (cached) setUrgentCount(countUrgent(cached));
     async function fetchUrgent() {
+      setIsRefetching(true);
       try {
         const [offersRes, contractsRes] = await Promise.all([
           get('/offers/summary'),
@@ -426,7 +429,9 @@ export default function PeachHome() {
         setUrgentCount(countUrgent(all));
         setContractsData(contracts);
         setCache("home-urgent", all);
-      } catch {}
+      } catch {} finally {
+        setIsRefetching(false);
+      }
     }
     fetchUrgent();
     const iv = setInterval(fetchUrgent, 30000);
@@ -500,7 +505,10 @@ export default function PeachHome() {
                 <>
                   <div className="welcome-avatar">PW</div>
                   <div className="welcome-text">
-                    <h1>Welcome back 👋</h1>
+                    <h1>
+                      Welcome back 👋
+                      <RefreshIndicator active={isRefetching} />
+                    </h1>
                     <p>{user.peachId} · {user.trades} trades completed</p>
                   </div>
                   <div className="welcome-actions">

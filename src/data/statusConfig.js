@@ -51,9 +51,12 @@ export const STATUS_CONFIG = {
 };
 
 // Statuses that represent a finished state → Trade History tab
-// Note: wrongAmountFundedOnContractRefundWaiting is Active (seller still needs
-// to trigger the refund pending action); wrongAmountFundedOnContract is the
-// terminal "refund completed" state, so it belongs in History.
+// Note: wrongAmountFundedOnContractRefundWaiting is only finished from the
+// buyer's perspective (the seller still has an in-flight refund). The
+// buyer-side exception is applied in trades-dashboard's bucketing filter,
+// not here, so this Set stays seller-correct.
+// wrongAmountFundedOnContract is the terminal "refund completed" state for
+// both sides, so it lives in this Set.
 export const FINISHED_STATUSES = new Set([
   "tradeCompleted", "offerCanceled", "tradeCanceled", "fundingExpired",
   "wrongAmountFundedOnContract",
@@ -61,6 +64,7 @@ export const FINISHED_STATUSES = new Set([
 
 // Statuses that represent a pending/open offer → Pending Offers tab
 export const PENDING_STATUSES = new Set([
+  "fundEscrow",
   "searchingForPeer", "waitingForTradeRequest",
   "hasMatchesAvailable", "acceptTradeRequest",
   "offerHidden", "offerHiddenWithMatchesAvailable",
