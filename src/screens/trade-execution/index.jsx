@@ -2026,7 +2026,7 @@ export default function TradeExecution() {
                         >
                           {role === "buyer"
                             ? "Make sure to include the reference with your payment"
-                            : "make sure the payment you'll receive comes from the details announced below."}
+                            : "Please, ensure that the origin of the payment matches with the payment data provided by your counterparty."}
                         </p>
                       )}
                       <PaymentDetailsCard

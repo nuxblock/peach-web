@@ -2839,10 +2839,121 @@ export function ActionPanel({
           </>
         )}
 
-        {/* Payout pending — bitcoin being released */}
-        {status === "payoutPending" && (
-          <div className="action-hint">
-            Bitcoin is being released. This may take a few minutes.
+        {/* Payout pending — buyer: sats arriving */}
+        {status === "payoutPending" && role === "buyer" && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              background: "var(--primary-mild)",
+              border: "1.5px solid rgba(196,81,4,.2)",
+              borderRadius: 12,
+              padding: "12px 16px",
+              marginBottom: 12,
+            }}
+          >
+            <span
+              style={{
+                flexShrink: 0,
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: "#1FB86B",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "1rem",
+                fontWeight: 800,
+                lineHeight: 1,
+              }}
+              aria-hidden="true"
+            >
+              ✓
+            </span>
+            <div>
+              <div
+                style={{
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  color: "var(--primary-dark)",
+                  marginBottom: 2,
+                }}
+              >
+                Congrats! The seller released the escrow.
+              </div>
+              <div
+                style={{
+                  fontSize: ".8rem",
+                  fontWeight: 500,
+                  color: "var(--black-65)",
+                  lineHeight: 1.5,
+                }}
+              >
+                Your sats are on their way to your wallet. This may take a few
+                minutes.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Payout pending — seller: trade done, release broadcasting */}
+        {status === "payoutPending" && role === "seller" && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              background: "var(--primary-mild)",
+              border: "1.5px solid rgba(196,81,4,.2)",
+              borderRadius: 12,
+              padding: "12px 16px",
+              marginBottom: 12,
+            }}
+          >
+            <span
+              style={{
+                flexShrink: 0,
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: "#1FB86B",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "1rem",
+                fontWeight: 800,
+                lineHeight: 1,
+              }}
+              aria-hidden="true"
+            >
+              ✓
+            </span>
+            <div>
+              <div
+                style={{
+                  fontSize: "1rem",
+                  fontWeight: 800,
+                  color: "var(--primary-dark)",
+                  marginBottom: 2,
+                }}
+              >
+                You're done! Bitcoin released to the buyer.
+              </div>
+              <div
+                style={{
+                  fontSize: ".8rem",
+                  fontWeight: 500,
+                  color: "var(--black-65)",
+                  lineHeight: 1.5,
+                }}
+              >
+                The transaction is broadcasting. This may take a few minutes to
+                confirm.
+              </div>
+            </div>
           </div>
         )}
 
