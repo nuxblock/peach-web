@@ -36,23 +36,6 @@ export function clearCache(key) {
   else window.__PEACH_CACHE__ = {};
 }
 
-/**
- * createTask — request a mobile signing action via the server.
- *
- * STUB: the backend endpoint (POST /v1/task/create) does not exist yet.
- * Returns a placeholder taskId so the UI flows (escrow funding, rating)
- * can proceed. Replace with the real call when the endpoint is available.
- *
- * @param {Function} post - the post() function from useApi()
- * @param {string}   type - task type: "release" | "refund" | "rate" | "escrow"
- * @param {object}   payload - task-specific data (e.g. { contractId })
- * @returns {Promise<{taskId: string}>}
- */
-export async function createTask(post, type, payload) {
-  // TODO: replace with real endpoint when backend confirms shape
-  // return post('/task/create', { type, ...payload }).then(r => r.json());
-  return { taskId: 'stub-' + Date.now() };
-}
 export function useApi() {
   const auth = window.__PEACH_AUTH__ ?? null;
   const base = auth?.baseUrl ?? import.meta.env.VITE_API_BASE;
