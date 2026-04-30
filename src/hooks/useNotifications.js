@@ -8,8 +8,8 @@ const SELLER_OVERRIDE = {
   fundEscrow:             { title: "Fund escrow",              body: "Trade accepted — fund the escrow now." },
   waitingForFunding:      { title: "Fund escrow",              body: "Waiting for you to fund the escrow." },
   paymentRequired:        { title: "Trade initiated ! Awaiting payment",         body: "Waiting for the buyer to send payment." },
-  confirmPaymentRequired: { title: "Payment marked as sent",   body: "Check your account and confirm receipt." },
-  releaseEscrow:          { title: "Confirm payment receipt",  body: "Check your account and release escrow." },
+  confirmPaymentRequired: { title: "Payment marked as sent",   body: "Check yourbank  account and confirm receipt." },
+  releaseEscrow:          { title: "Confirm payment receipt",  body: "Check your account and release escrow from mobile." },
 };
 
 // ── Status → notification mapping ────────────────────────────────────────────
@@ -103,6 +103,7 @@ function loadBaseline(peachId) {
       sellRequests:     new Map((obj.sellRequests    ?? []).map(([id, ids]) => [id, new Set(ids)])),
       matchCounts:      new Map(obj.matchCounts      ?? []),
       preContractChats: new Map((obj.preContractChats ?? []).map(([key, ids]) => [key, new Set(ids)])),
+      sentRequests:     new Map(obj.sentRequests     ?? []),
     };
   } catch { return null; }
 }
@@ -116,6 +117,7 @@ function saveBaseline() {
       sellRequests:     [..._prevSellRequests.entries()].map(([id, set]) => [id, [...set]]),
       matchCounts:      [..._prevMatchCounts.entries()],
       preContractChats: [..._prevPreContractChats.entries()].map(([key, set]) => [key, [...set]]),
+      sentRequests:     [..._prevSentRequests.entries()],
     };
     localStorage.setItem(k, JSON.stringify(obj));
   } catch { /* quota or other — silently skip */ }
@@ -130,6 +132,7 @@ let _prevOffers    = new Map();   // id → tradeStatus
 let _prevSellRequests = new Map(); // sellOfferId → Set<tradeRequestId> (sell-offer trade-requests workaround for missing tradeStatus)
 let _prevMatchCounts = new Map();  // buyOfferId → totalMatches (track additional matches arriving on hasMatchesAvailable offers)
 let _prevPreContractChats = new Map(); // chatKey "offerType:offerId:userId" → Set<String(messageId)> (pre-contract chat diff)
+let _prevSentRequests = new Map(); // offerId → offerType ("buyOffer" | "sellOffer") — outbound trade requests, used to detect rejection by offer owner
 let _pollTick      = 0;            // incremented every poll; chat layer runs only on even ticks (~16s cadence)
 let _isFirstPoll   = true;
 let _hydratedPeachId = null;
@@ -155,6 +158,7 @@ function _hydrateForUser(peachId) {
     _prevSellRequests     = baseline.sellRequests;
     _prevMatchCounts      = baseline.matchCounts;
     _prevPreContractChats = baseline.preContractChats;
+    _prevSentRequests     = baseline.sentRequests;
     _isFirstPoll          = false;
   } else {
     _prevContracts        = new Map();
@@ -162,6 +166,7 @@ function _hydrateForUser(peachId) {
     _prevSellRequests     = new Map();
     _prevMatchCounts      = new Map();
     _prevPreContractChats = new Map();
+    _prevSentRequests     = new Map();
     _isFirstPoll          = true;
   }
   _updateTitle();
@@ -424,6 +429,56 @@ async function _poll(auth, base) {
       if (!currentMatchAvailIds.has(id)) _prevMatchCounts.delete(id);
     }
 
+    // ── Diff outbound trade requests for rejection (every 4th tick ≈ 32s) ──
+    // Detects when an offer owner rejects our sent trade request:
+    //   hasPerformedTradeRequest flips true → false on the offer in browse lists.
+    // Acceptance (contract created) and self-cancel ("Undo request") also flip
+    // the flag — we filter both out: contracts via the contracts list, self-cancel
+    // via markSentRequestSelfCancelled() which pre-empties the baseline entry.
+    if (_pollTick % 4 === 0) {
+      const [browseBuyRes, browseSellRes] = await Promise.all([
+        fetchWithSessionCheck(`${v069Base}/buyOffer?ownOffers=false`, { headers: hdrs })
+          .then(r => r.ok ? r.json() : null).catch(() => null),
+        fetchWithSessionCheck(`${v069Base}/sellOffer?ownOffers=false`, { headers: hdrs })
+          .then(r => r.ok ? r.json() : null).catch(() => null),
+      ]);
+
+      // Skip diff if either list failed — avoid mass-emitting rejections on a transient error
+      if (browseBuyRes && browseSellRes) {
+        const browseBuyArr  = Array.isArray(browseBuyRes)  ? browseBuyRes  : (browseBuyRes.offers  ?? []);
+        const browseSellArr = Array.isArray(browseSellRes) ? browseSellRes : (browseSellRes.offers ?? []);
+
+        const currentSent = new Map(); // offerId → offerType
+        for (const o of browseBuyArr)  if (o.hasPerformedTradeRequest) currentSent.set(String(o.id), "buyOffer");
+        for (const o of browseSellArr) if (o.hasPerformedTradeRequest) currentSent.set(String(o.id), "sellOffer");
+
+        // Build set of offer ids that became contracts (composite "buyOfferId-sellOfferId")
+        const offerIdsWithContract = new Set();
+        for (const c of contracts) {
+          for (const part of String(c.id).split("-")) offerIdsWithContract.add(part);
+        }
+
+        // Emit rejection events for offers that disappeared without becoming a contract.
+        // The offer is gone, so the notification is inert (noNavigate) — clicking it does nothing.
+        for (const [offerId] of _prevSentRequests) {
+          if (currentSent.has(offerId)) continue;
+          if (offerIdsWithContract.has(offerId)) continue;
+          const fmtId = formatTradeId(offerId, "offer");
+          events.push({
+            ..._makeNotif(
+              `o-${offerId}-tradeReqRejected-${now}`, "tradeRequest",
+              `Trade request declined: offer ${fmtId}`,
+              "The offer owner rejected your request.",
+              null, null
+            ),
+            noNavigate: true,
+          });
+        }
+
+        _prevSentRequests = currentSent;
+      }
+    }
+
     // ── Diff pre-contract chats (every 2nd tick ≈ 16s) ──
     if (_pollTick % 2 === 0) {
       // Build chat references from sell-offer trade requests (reuse Fix #3 data)
@@ -534,6 +589,14 @@ function _markRead(notifId) {
   saveReadIds(_state.readIds, _state.notifications);
   _updateTitle();
   _notify();
+}
+
+// Pre-empties the outbound trade-request from the diff baseline so a self-cancel
+// ("Undo request") doesn't get misread as a rejection on the next poll.
+export function markSentRequestSelfCancelled(offerId) {
+  if (offerId == null) return;
+  _prevSentRequests.delete(String(offerId));
+  saveBaseline();
 }
 
 // ── React hook ───────────────────────────────────────────────────────────────

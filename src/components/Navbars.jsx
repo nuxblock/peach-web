@@ -213,6 +213,7 @@ export function Topbar({
   const handleNotifNavigate = (n) => {
     markRead(n.id);
     setShowNotifPanel(false);
+    if (n.noNavigate) return;
     if (n.contractId) {
       navigate(`/trade/${n.contractId}`);
     } else if (n.offerId) {

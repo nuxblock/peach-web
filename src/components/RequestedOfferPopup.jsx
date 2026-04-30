@@ -17,6 +17,7 @@ import {
 } from "../utils/pgp.js";
 import { relTime as relativeTime, fmtFiat } from "../utils/format.js";
 import { methodDisplayName } from "../data/paymentMethodMeta.js";
+import { markSentRequestSelfCancelled } from "../hooks/useNotifications.js";
 
 // Currency symbol helper (mirrors the one in market-view/components.jsx)
 const CURRENCY_SYMS = { EUR: "€", USD: "$", GBP: "£", CHF: "CHF " };
@@ -188,6 +189,7 @@ export default function RequestedOfferPopup({
         setUndoLoading(false);
         return;
       }
+      markSentRequestSelfCancelled(offer.id);
       onClose();
       if (onUndoSuccess) onUndoSuccess(offer.id);
     } catch (e) {
