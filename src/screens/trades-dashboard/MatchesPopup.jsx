@@ -526,7 +526,7 @@ export default function MatchesPopup({
                 marginTop: 6,
               }}
             >
-              This will create a contract. Other requesters will be
+              This will create a contract. Other trade requests will be
               automatically declined.
             </div>
             <div
