@@ -651,6 +651,191 @@ export function EscrowAddressCard({ address }) {
   );
 }
 
+export function CollapsibleAddressSection({
+  title,
+  address,
+  loading = false,
+  error = null,
+  mempoolLinkLabel,
+  onFirstExpand,
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [hasExpandedOnce, setHasExpandedOnce] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function toggle() {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && !hasExpandedOnce) {
+      setHasExpandedOnce(true);
+      if (typeof onFirstExpand === "function") onFirstExpand();
+    }
+  }
+
+  function copy() {
+    if (!address) return;
+    navigator.clipboard?.writeText(address).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="panel-section">
+      <button
+        type="button"
+        className="panel-section-title"
+        onClick={toggle}
+        style={{
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          width: "100%",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          color: "inherit",
+        }}
+      >
+        {title}
+        <span
+          style={{
+            color: "var(--error)",
+            fontWeight: 600,
+            textTransform: "none",
+            letterSpacing: 0,
+            fontSize: ".68rem",
+          }}
+        >
+          do not fund
+        </span>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            marginLeft: "auto",
+            transition: "transform .15s",
+            transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+          }}
+        >
+          <path d="M3 1l4 4-4 4" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <>
+          <div
+            style={{
+              background: "var(--black-5)",
+              border: "1px solid var(--black-10)",
+              borderRadius: 12,
+              padding: "12px 14px",
+              marginBottom: 16,
+            }}
+          >
+            {loading && (
+              <div style={{ fontSize: ".72rem", color: "var(--black-65)" }}>
+                Loading…
+              </div>
+            )}
+            {!loading && error && (
+              <div style={{ fontSize: ".72rem", color: "var(--error)" }}>
+                {error}
+              </div>
+            )}
+            {!loading && !error && address && (
+              <>
+                <div
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: ".72rem",
+                    color: "var(--black)",
+                    wordBreak: "break-all",
+                    lineHeight: 1.5,
+                    marginBottom: 6,
+                  }}
+                >
+                  {address}
+                </div>
+                <button
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    border: "1px solid var(--black-10)",
+                    background: "var(--surface)",
+                    borderRadius: 999,
+                    fontFamily: "Baloo 2, cursive",
+                    fontSize: ".72rem",
+                    fontWeight: 700,
+                    color: copied ? "var(--success)" : "var(--black-65)",
+                    padding: "3px 10px",
+                    cursor: "pointer",
+                    transition: "color .2s",
+                  }}
+                  onClick={copy}
+                >
+                  {copied ? (
+                    <>
+                      <IconCheck /> Copied!
+                    </>
+                  ) : (
+                    <>
+                      <IconCopy /> Copy address
+                    </>
+                  )}
+                </button>
+              </>
+            )}
+          </div>
+          {!loading && !error && address && (
+            <div style={{ textAlign: "right", marginTop: -8 }}>
+              <a
+                href={`https://mempool.space/address/${address}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: ".72rem",
+                  fontWeight: 600,
+                  color: "var(--black-65)",
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = "var(--primary)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = "var(--black-65)")
+                }
+              >
+                {mempoolLinkLabel}
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 11 11"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M2 9L9 2M9 2H5M9 2v4" />
+                </svg>
+              </a>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── DISPUTE FLOW ────────────────────────────────────────────────────────────
 const DISPUTE_REASONS_BUYER = [
   { key: "noPayment.buyer", label: "I HAVEN'T RECEIVED BITCOIN" },

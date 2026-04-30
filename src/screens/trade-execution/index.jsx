@@ -33,6 +33,7 @@ import {
   HorizontalStepper,
   PaymentDetailsCard,
   EscrowAddressCard,
+  CollapsibleAddressSection,
   EscrowFundingCard,
   FundingDeadlinePill,
   WrongAmountFundedCard,
@@ -316,6 +317,9 @@ export default function TradeExecution() {
   const [showDispute, setShowDispute] = useState(false);
   const [escrowFundedAmount, setEscrowFundedAmount] = useState(null);
   const [escrowLoading, setEscrowLoading] = useState(false);
+  const [refundAddress, setRefundAddress] = useState(null);
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundError, setRefundError] = useState(null);
   const signingStatusRef = useRef(null); // track the tradeStatus when signing modal opened
   const sawRefundOrReviveRef = useRef(false); // once true, block regression to tradeCanceled
 
@@ -2078,28 +2082,48 @@ export default function TradeExecution() {
                     </div>
                   )}
 
-                {/* Escrow address (seller, non-escrow-funding states — funding states show full funding card above) */}
+                {/* Escrow + Refund Address (seller, non-escrow-funding states — funding states show full funding card above) */}
                 {role === "seller" &&
                   status !== "fundEscrow" &&
                   status !== "createEscrow" &&
                   status !== "waitingForFunding" && (
-                    <div className="panel-section">
-                      <div className="panel-section-title">
-                        Escrow
-                        <span
-                          style={{
-                            color: "var(--error)",
-                            fontWeight: 600,
-                            textTransform: "none",
-                            letterSpacing: 0,
-                            fontSize: ".68rem",
-                          }}
-                        >
-                          do not fund
-                        </span>
-                      </div>
-                      <EscrowAddressCard address={contract.escrow} />
-                    </div>
+                    <>
+                      <CollapsibleAddressSection
+                        title="Escrow"
+                        address={contract.escrow ?? null}
+                        mempoolLinkLabel="View escrow on mempool.space"
+                      />
+                      <CollapsibleAddressSection
+                        title="Refund Address"
+                        address={refundAddress}
+                        loading={refundLoading}
+                        error={refundError}
+                        mempoolLinkLabel="View address on mempool.space"
+                        onFirstExpand={async () => {
+                          if (
+                            refundAddress !== null ||
+                            refundLoading ||
+                            !contract?.id
+                          )
+                            return;
+                          const offerId = String(contract.id).split("-")[0];
+                          setRefundLoading(true);
+                          setRefundError(null);
+                          try {
+                            const res = await get(
+                              `/offer/${offerId}/details`,
+                            );
+                            setRefundAddress(res?.returnAddress ?? "");
+                          } catch (e) {
+                            setRefundError(
+                              "Could not load refund address.",
+                            );
+                          } finally {
+                            setRefundLoading(false);
+                          }
+                        }}
+                      />
+                    </>
                   )}
 
               </div>
