@@ -4,17 +4,30 @@
 //   status     — TradeStatus string (key into STATUS_CONFIG)
 //   large      — bigger padding/font (used in trade-execution topbar)
 //   showAction — show a small dot when the status requires action (used in dashboard)
+//   inline     — borderless variant (dot + label only, no pill background)
 // Used by: trade-execution, trades-dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 import { STATUS_CONFIG } from "../data/statusConfig.js";
 
 const FALLBACK = { label: "Unknown", bg: "var(--black-5)", color: "var(--black-65)", action: false };
 
-export default function StatusChip({ status, large, showAction, role }) {
+export default function StatusChip({ status, large, showAction, role, inline }) {
   const cfg = STATUS_CONFIG[status] || FALLBACK;
   const label = (status === "paymentRequired" && role === "seller") ? "Waiting for Payment"
     : (status === "confirmPaymentRequired" && role === "buyer") ? "Payment Sent"
     : cfg.label;
+  if (inline) {
+    return (
+      <span style={{
+        display:"inline-flex", alignItems:"center", gap:4,
+        color:cfg.color,
+        fontSize:".72rem", fontWeight:700,
+      }}>
+        {showAction && cfg.action && <span style={{ width:6, height:6, borderRadius:"50%", background:cfg.color, display:"inline-block", flexShrink:0 }}/>}
+        {label}
+      </span>
+    );
+  }
   return (
     <span style={{
       display:"inline-flex", alignItems:"center", gap:4,

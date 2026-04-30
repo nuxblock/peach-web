@@ -569,74 +569,84 @@ export function EscrowAddressCard({ address }) {
       >
         <IconQR /> Escrow Address
       </div>
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-        <div
-          style={{
-            width: 64,
-            height: 64,
-            background: "white",
-            border: "1px solid var(--black-10)",
-            borderRadius: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            padding: 4,
-          }}
-        >
-          {address && (
-            <QRCodeSVG
-              value={address}
-              size={56}
-              fgColor="#2B1911"
-              bgColor="#ffffff"
-              level="L"
-            />
-          )}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              fontFamily: "monospace",
-              fontSize: ".72rem",
-              color: "var(--black)",
-              wordBreak: "break-all",
-              lineHeight: 1.5,
-              marginBottom: 6,
-            }}
-          >
-            {address}
-          </div>
-          <button
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              border: "1px solid var(--black-10)",
-              background: "var(--surface)",
-              borderRadius: 999,
-              fontFamily: "Baloo 2, cursive",
-              fontSize: ".72rem",
-              fontWeight: 700,
-              color: copied ? "var(--success)" : "var(--black-65)",
-              padding: "3px 10px",
-              cursor: "pointer",
-              transition: "color .2s",
-            }}
-            onClick={copy}
-          >
-            {copied ? (
-              <>
-                <IconCheck /> Copied!
-              </>
-            ) : (
-              <>
-                <IconCopy /> Copy address
-              </>
-            )}
-          </button>
-        </div>
+      <div
+        style={{
+          fontFamily: "monospace",
+          fontSize: ".72rem",
+          color: "var(--black)",
+          wordBreak: "break-all",
+          lineHeight: 1.5,
+          marginBottom: 6,
+        }}
+      >
+        {address}
       </div>
+      <button
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          border: "1px solid var(--black-10)",
+          background: "var(--surface)",
+          borderRadius: 999,
+          fontFamily: "Baloo 2, cursive",
+          fontSize: ".72rem",
+          fontWeight: 700,
+          color: copied ? "var(--success)" : "var(--black-65)",
+          padding: "3px 10px",
+          cursor: "pointer",
+          transition: "color .2s",
+        }}
+        onClick={copy}
+      >
+        {copied ? (
+          <>
+            <IconCheck /> Copied!
+          </>
+        ) : (
+          <>
+            <IconCopy /> Copy address
+          </>
+        )}
+      </button>
+      {address && (
+        <div style={{ textAlign: "right", marginTop: 10 }}>
+          <a
+            href={`https://mempool.space/address/${address}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: ".72rem",
+              fontWeight: 600,
+              color: "var(--black-65)",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = "var(--primary)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = "var(--black-65)")
+            }
+          >
+            View escrow on mempool.space
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 11 11"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M2 9L9 2M9 2H5M9 2v4" />
+            </svg>
+          </a>
+        </div>
+      )}
     </div>
   );
 }

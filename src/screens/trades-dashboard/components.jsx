@@ -117,7 +117,7 @@ export const PILL_CONFIG = {
   wrongAmountFundedOnContractRefundWaiting: { bg:"var(--primary-bg)", color:"var(--primary-dark)", label:"Refund pending", passive:true },
   // Refund
   refundAddressRequired:     { bg:"var(--primary)", color:"white", label:"Refund address needed", passive:false },
-  refundOrReviveRequired:    { bg:"var(--primary)", color:"white", label:"Refund or revive",      passive:false },
+  refundOrReviveRequired:    { bg:"var(--primary)", color:"white", label:"Refund or re-publish",      passive:false },
   refundTxSignatureRequired: { bg:"var(--primary)", color:"white", label:"Sign refund",           passive:false },
 };
 
@@ -552,13 +552,23 @@ export function HistoryTable({ rows, onTradeSelect, selectedCurrency, tab, onRef
             <div className="hist-mob-left">
               <span className="hist-mob-id">{r.tradeId}</span>
               <span className="hist-mob-date">{formatDate(r.createdAt)}</span>
-              <span className="hist-mob-status" style={{
-                color: r.direction === "buy" ? "var(--success)" : "var(--error)"
-              }}>
-                {r.direction === "buy"
-                  ? (isHistory ? "↓ Bought" : "↓ Buy")
-                  : (isHistory ? "↑ Sold" : "↑ Sell")}
-              </span>
+              <div className="hist-mob-row3">
+                <span className="hist-mob-status" style={{
+                  color: r.direction === "buy" ? "var(--success)" : "var(--error)"
+                }}>
+                  {r.direction === "buy"
+                    ? (isHistory ? "↓ Bought" : "↓ Buy")
+                    : (isHistory ? "↑ Sold" : "↑ Sell")}
+                </span>
+                {!hideStatus && r.tradeStatus && (
+                  <StatusChip
+                    status={r.tradeStatus}
+                    showAction
+                    inline
+                    role={r.direction === "sell" ? "seller" : "buyer"}
+                  />
+                )}
+              </div>
             </div>
             <div className="hist-mob-right">
               <HistorySatsAmount sats={r.amount}/>

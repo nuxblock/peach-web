@@ -1225,44 +1225,6 @@ export default function TradeExecution() {
                   </div>
                 </div>
 
-                {/* Escrow link — just above Actions */}
-                <div style={{ padding: "0 0 4px", textAlign: "right" }}>
-                  <a
-                    href={`https://mempool.space/address/${contract.escrow}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      fontSize: ".72rem",
-                      fontWeight: 600,
-                      color: "var(--black-65)",
-                      textDecoration: "none",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.color = "var(--primary)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.color = "var(--black-65)")
-                    }
-                  >
-                    View escrow on mempool.space
-                    <svg
-                      width="11"
-                      height="11"
-                      viewBox="0 0 11 11"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M2 9L9 2M9 2H5M9 2v4" />
-                    </svg>
-                  </a>
-                </div>
-
                 {/* ── Actions (always first, includes deadline + escrow funding) ── */}
                 <div className="panel-section">
                   <div className="panel-section-title">Actions</div>
@@ -2122,7 +2084,20 @@ export default function TradeExecution() {
                   status !== "createEscrow" &&
                   status !== "waitingForFunding" && (
                     <div className="panel-section">
-                      <div className="panel-section-title">Escrow</div>
+                      <div className="panel-section-title">
+                        Escrow
+                        <span
+                          style={{
+                            color: "var(--error)",
+                            fontWeight: 600,
+                            textTransform: "none",
+                            letterSpacing: 0,
+                            fontSize: ".68rem",
+                          }}
+                        >
+                          do not fund
+                        </span>
+                      </div>
                       <EscrowAddressCard address={contract.escrow} />
                     </div>
                   )}

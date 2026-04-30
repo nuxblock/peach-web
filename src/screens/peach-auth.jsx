@@ -43,7 +43,7 @@ const QRDisplay = ({ qrPayload, size = 189 }) => {
     <QRCodeSVG
       value={qrPayload}
       size={size}
-      level="L"
+      level="M"
       bgColor="#ffffff"
       fgColor="#2B1911"
     />
@@ -297,8 +297,8 @@ export default function PeachAuth() {
   // Connection ID copy state
   const [connIdCopied, setConnIdCopied] = useState(false);
   function handleCopyConnId() {
-    if (!connectionId) return;
-    navigator.clipboard.writeText(connectionId).catch(() => {});
+    if (!qrPayload) return;
+    navigator.clipboard.writeText(qrPayload).catch(() => {});
     setConnIdCopied(true);
     setTimeout(() => setConnIdCopied(false), 2000);
   }
@@ -326,6 +326,19 @@ export default function PeachAuth() {
   const [mobileShowQR, setMobileShowQR] = useState(false);
   const [appNotInstalled, setAppNotInstalled] = useState(false);
   const [openingApp, setOpeningApp] = useState(false);
+
+  const [mobileQrSize, setMobileQrSize] = useState(() =>
+    typeof window !== "undefined"
+      ? Math.min(Math.max(window.innerWidth - 80, 240), 380)
+      : 280,
+  );
+  useEffect(() => {
+    function updateQrSize() {
+      setMobileQrSize(Math.min(Math.max(window.innerWidth - 80, 240), 380));
+    }
+    window.addEventListener("resize", updateQrSize);
+    return () => window.removeEventListener("resize", updateQrSize);
+  }, []);
 
   // Open the app via custom-scheme deep link, with visibility-based detection
   // for the "app not installed" fallback. iOS doesn't expose canOpenURL to the
@@ -649,8 +662,8 @@ export default function PeachAuth() {
                   </Step>
                 </div>
 
-                {/* Connection ID (if available) */}
-                {connectionId && (
+                {/* Connection payload (if available) */}
+                {qrPayload && (
                   <div
                     style={{ display: "flex", flexDirection: "column", gap: 8 }}
                   >
@@ -663,7 +676,7 @@ export default function PeachAuth() {
                         textTransform: "uppercase",
                       }}
                     >
-                      Connection ID
+                      Connection Payload
                     </label>
                     <div
                       style={{
@@ -687,7 +700,7 @@ export default function PeachAuth() {
                           wordBreak: "break-all",
                         }}
                       >
-                        {connectionId}
+                        {`{"desktopConnectionId":"...","ephemeralPgpPublicKey":"..."}`}
                       </span>
                       <button
                         onClick={handleCopyConnId}
@@ -780,7 +793,7 @@ export default function PeachAuth() {
                           animation: "fadeIn .2s ease both",
                         }}
                       >
-                        <QRDisplay qrPayload={qrPayload} size={280} />
+                        <QRDisplay qrPayload={qrPayload} size={mobileQrSize} />
                       </div>
                     )}
                   </div>
@@ -1943,7 +1956,9 @@ export default function PeachAuth() {
                           minWidth: 0,
                         }}
                       >
-                        {connectionId || "..."}
+                        {qrPayload
+                          ? `{"desktopConnectionId":"...","ephemeralPgpPublicKey":"..."}`
+                          : "..."}
                       </span>
                       <button
                         onClick={handleCopyConnId}

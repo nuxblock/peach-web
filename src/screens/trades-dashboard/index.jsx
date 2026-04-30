@@ -270,6 +270,7 @@ const CSS = `
   .hist-mob-left{display:flex;flex-direction:column;gap:2px;min-width:0}
   .hist-mob-id{font-family:monospace;font-size:.78rem;font-weight:700;color:var(--black);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .hist-mob-date{font-size:.68rem;color:var(--black-65)}
+  .hist-mob-row3{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
   .hist-mob-status{font-size:.68rem;font-weight:700;text-transform:capitalize}
   .hist-mob-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
   .hist-mob-fiat{font-size:.78rem;font-weight:600;color:var(--black-65)}
@@ -1920,7 +1921,7 @@ export default function TradesDashboard() {
           setMatchesPopup(trade);
           setMatchError("Could not reject this request. Please try again.");
         } else {
-          setToast("Trade request rejected");
+          setToast("Request rejected");
           setToastTone("error");
           setTimeout(() => { setToast(null); setToastTone("default"); }, 3000);
         }

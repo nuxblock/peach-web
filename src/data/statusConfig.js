@@ -46,7 +46,7 @@ export const STATUS_CONFIG = {
 
   // ── Refund-related ──
   refundAddressRequired:     { label: "Refund Address Needed", bg: "var(--primary-mild)", color: "var(--primary-dark)", action: true  },
-  refundOrReviveRequired:    { label: "Refund or Revive",      bg: "var(--warning-soft)", color: "var(--warning)", action: true  },
+  refundOrReviveRequired:    { label: "Refund or Re-publish",      bg: "var(--warning-soft)", color: "var(--warning)", action: true  },
   refundTxSignatureRequired: { label: "Sign Refund",           bg: "var(--primary-mild)", color: "var(--primary-dark)", action: true  },
 };
 
