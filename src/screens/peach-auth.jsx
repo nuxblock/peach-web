@@ -12,6 +12,7 @@ import { IcoBtc } from "../components/BitcoinAmount.jsx";
 
 // ─── QR CODE DISPLAY ─────────────────────────────────────────────────────────
 const QRDisplay = ({ qrPayload, size = 189 }) => {
+  console.log("QRDisplay DELETE ME", qrPayload);
   if (!qrPayload) {
     return (
       <div

@@ -12,6 +12,7 @@ import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import { extractPMsFromProfile, isApiError, hashPaymentFields, encryptForPublicKey, encryptPGPMessage, signPGPMessage } from "../../utils/pgp.js";
 import { deriveEscrowPubKey, deriveReturnAddress, isReturnAddressFromXpub } from "../../utils/escrow.js";
 import { validateBtcAddress } from "../../peach-validators.js";
+import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js";
 import { QRCodeSVG } from "qrcode.react";
 import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE_INIT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur, formatTradeId } from "../../utils/format.js";
 import { CSS } from "./styles.js";
@@ -53,7 +54,9 @@ export default function OfferCreation({ initialType="buy" }) {
   const [escrowAddress, setEscrowAddress] = useState(null);
   const [sellOfferId,   setSellOfferId]   = useState(null);
   const [fundMobileLoading, setFundMobileLoading] = useState(false);
-  const [fundMobileRequested, setFundMobileRequested] = useState(false);
+  // Pending-action id from server. null = not yet triggered. Truthy means
+  // POST succeeded; on phone we render an "Open Peach App" deep-link button.
+  const [fundMobileActionId, setFundMobileActionId] = useState(null);
   const [fundMobileError, setFundMobileError] = useState(null);
 
   // ── MULTI-OFFER STATE ──
@@ -224,6 +227,10 @@ export default function OfferCreation({ initialType="buy" }) {
         // Check details first — it's the authoritative source for wrong-amount.
         if (detailsRes.ok) {
           const details = await detailsRes.json();
+          // Pick up the pending-action id (server replaced the boolean
+          // `mobileActionFundEscrowWasTriggered` with the integer DB id).
+          const maId = details?.mobileActionFundEscrowWasTriggered;
+          if (typeof maId === "number") setFundMobileActionId(maId);
           if (
             details?.tradeStatus === "fundingAmountDifferent" ||
             details?.funding?.status === "WRONG_FUNDING_AMOUNT"
@@ -318,7 +325,7 @@ export default function OfferCreation({ initialType="buy" }) {
   function reset(){
     setStep(0);setDone(false);setEscrowFunded(false);setFundingStatus(null);setFundingAmounts(null);setPublishError(null);setEscrowAddress(null);setSellOfferId(null);setForm(initForm());
     setMultiEnabled(false);setMultiCount(2);setMultiResults(null);setSelectedEscrowIdx(0);setMultiPublishProgress(null);
-    setFundMobileLoading(false);setFundMobileRequested(false);setFundMobileError(null);
+    setFundMobileLoading(false);setFundMobileActionId(null);setFundMobileError(null);
     setRefundErrors({});
   }
   function switchType(t){ setType(t); reset(); }
@@ -1619,8 +1626,21 @@ export default function OfferCreation({ initialType="buy" }) {
                         Or fund from your Peach mobile app
                       </div>
                       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
+                        {IS_PHONE && typeof fundMobileActionId === "number" ? (
+                          <a
+                            href={buildMobileActionDeepLink("fundEscrow", fundMobileActionId)}
+                            style={{
+                              padding:"10px 24px",borderRadius:999,
+                              background:"var(--grad)",color:"white",textDecoration:"none",
+                              fontFamily:"var(--font)",fontSize:".82rem",fontWeight:800,
+                              boxShadow:"0 2px 12px rgba(245,101,34,.3)",
+                            }}
+                          >
+                            Open Peach App
+                          </a>
+                        ) : (
                         <button
-                          disabled={fundMobileLoading || fundMobileRequested}
+                          disabled={fundMobileLoading || !!fundMobileActionId}
                           onClick={async () => {
                             setFundMobileError(null);
                             setFundMobileLoading(true);
@@ -1630,7 +1650,16 @@ export default function OfferCreation({ initialType="buy" }) {
                                 const err = await res.json().catch(() => null);
                                 throw new Error(err?.error || err?.message || `HTTP ${res.status}`);
                               }
-                              setFundMobileRequested(true);
+                              // Fetch /details to pick up the new pending-action id
+                              // (server replaced the boolean field with an integer DB id).
+                              const detailsRes = await get(`/offer/${sellOfferId}/details`);
+                              if (detailsRes.ok) {
+                                const body = await detailsRes.json().catch(() => null);
+                                const id = body?.mobileActionFundEscrowWasTriggered;
+                                setFundMobileActionId(typeof id === "number" ? id : true);
+                              } else {
+                                setFundMobileActionId(true);
+                              }
                             } catch (e) {
                               setFundMobileError("Failed to request funding: " + e.message);
                             } finally {
@@ -1639,15 +1668,16 @@ export default function OfferCreation({ initialType="buy" }) {
                           }}
                           style={{
                             padding:"10px 24px",borderRadius:999,border:"none",
-                            background: fundMobileRequested ? "var(--black-5)" : "var(--grad)",
-                            color: fundMobileRequested ? "var(--black-65)" : "white",
+                            background: fundMobileActionId ? "var(--black-5)" : "var(--grad)",
+                            color: fundMobileActionId ? "var(--black-65)" : "white",
                             fontFamily:"var(--font)",fontSize:".82rem",fontWeight:800,
-                            cursor:(fundMobileLoading||fundMobileRequested)?"default":"pointer",
+                            cursor:(fundMobileLoading||fundMobileActionId)?"default":"pointer",
                             opacity: fundMobileLoading ? 0.6 : 1,
                           }}
                         >
-                          {fundMobileLoading ? "Sending request…" : fundMobileRequested ? "Request sent — check your phone" : "Fund via mobile app"}
+                          {fundMobileLoading ? "Sending request…" : fundMobileActionId ? "Request sent — check your phone" : "Fund via mobile app"}
                         </button>
+                        )}
                         <button
                           onClick={() => navigate("/trades", { state: { tab: "pending", refresh: true } })}
                           className="btn-save-fund-later"

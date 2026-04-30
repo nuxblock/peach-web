@@ -12,6 +12,7 @@ import {
   fmtFiat as fmtEur,
   formatTradeId,
 } from "../../utils/format.js";
+import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js";
 
 // ─── CONSTANTS (shared with index.jsx) ──────────────────────────────────────
 
@@ -871,19 +872,34 @@ export function MultiEscrowFunding({
       {/* ── SEND TO MOBILE ── */}
 
       <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
-        <button
-          className={`btn-send-mobile${!pendingTargets.length && !anySending ? " sent" : ""}`}
-          onClick={handleSendToMobile}
-          disabled={anySending || !pendingTargets.length}
-        >
-          {anySending
-            ? "Sending…"
-            : !pendingTargets.length
-              ? "✓ Sent to mobile"
-              : anyFailed
-                ? "Retry failed"
-                : "Send to mobile and fund all"}
-        </button>
+        {IS_PHONE && !pendingTargets.length && !anySending ? (
+          <a
+            className="btn-send-mobile sent"
+            href={buildMobileActionDeepLink("fundEscrowMultiple")}
+            style={{
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            Open Peach App
+          </a>
+        ) : (
+          <button
+            className={`btn-send-mobile${!pendingTargets.length && !anySending ? " sent" : ""}`}
+            onClick={handleSendToMobile}
+            disabled={anySending || !pendingTargets.length}
+          >
+            {anySending
+              ? "Sending…"
+              : !pendingTargets.length
+                ? "✓ Sent to mobile"
+                : anyFailed
+                  ? "Retry failed"
+                  : "Send to mobile and fund all"}
+          </button>
+        )}
       </div>
       <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
         <button

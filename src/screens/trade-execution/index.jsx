@@ -309,6 +309,39 @@ export default function TradeExecution() {
   const [pendingTaskType, setPendingTaskType] = useState(null); // "release" | "refund" | "rate" | "fundEscrow" | "confirmPayment" | null
   const [fundEscrowLoading, setFundEscrowLoading] = useState(false);
   const [fundEscrowError, setFundEscrowError] = useState(null);
+
+  // Re-fetch the contract and merge the mobileAction* pending-action ids into
+  // liveContract so the deep-link button picks up the new id immediately
+  // after a `create…PendingAction` POST (no waiting for the periodic poll).
+  async function refreshContractMobileActions() {
+    if (!routeId) return;
+    try {
+      const res = await get("/contract/" + routeId);
+      if (!res.ok) return;
+      const c = await res.json();
+      setLiveContract((prev) => {
+        if (!prev?.contract) return prev;
+        return {
+          ...prev,
+          contract: {
+            ...prev.contract,
+            mobileActionFundEscrowWasTriggered:
+              c.mobileActionFundEscrowWasTriggered ??
+              prev.contract.mobileActionFundEscrowWasTriggered,
+            mobileActionRefundWasTriggered:
+              c.mobileActionRefundWasTriggered ??
+              prev.contract.mobileActionRefundWasTriggered,
+            mobileActionPaymentMadeWasTriggered:
+              c.mobileActionPaymentMadeWasTriggered ??
+              prev.contract.mobileActionPaymentMadeWasTriggered,
+            mobileActionPaymentConfirmedWasTriggered:
+              c.mobileActionPaymentConfirmedWasTriggered ??
+              prev.contract.mobileActionPaymentConfirmedWasTriggered,
+          },
+        };
+      });
+    } catch {}
+  }
   const [chatPage, setChatPage] = useState(0);
   const [chatHasMore, setChatHasMore] = useState(false);
   const [chatLoadingMore, setChatLoadingMore] = useState(false);
@@ -532,6 +565,20 @@ export default function TradeExecution() {
                   escrow: c.escrow ?? prev.contract.escrow,
                   ratingBuyer: c.ratingBuyer ?? prev.contract.ratingBuyer ?? null,
                   ratingSeller: c.ratingSeller ?? prev.contract.ratingSeller ?? null,
+                  // Pending-action ids (formerly booleans) — keep in sync so the
+                  // "Open Peach App" deep-link button picks up server changes.
+                  mobileActionFundEscrowWasTriggered:
+                    c.mobileActionFundEscrowWasTriggered ??
+                    prev.contract.mobileActionFundEscrowWasTriggered,
+                  mobileActionRefundWasTriggered:
+                    c.mobileActionRefundWasTriggered ??
+                    prev.contract.mobileActionRefundWasTriggered,
+                  mobileActionPaymentMadeWasTriggered:
+                    c.mobileActionPaymentMadeWasTriggered ??
+                    prev.contract.mobileActionPaymentMadeWasTriggered,
+                  mobileActionPaymentConfirmedWasTriggered:
+                    c.mobileActionPaymentConfirmedWasTriggered ??
+                    prev.contract.mobileActionPaymentConfirmedWasTriggered,
                 },
                 cancelationRequested:
                   c.cancelationRequested ?? prev.cancelationRequested,
@@ -1408,10 +1455,14 @@ export default function TradeExecution() {
                         sats={contract.amount}
                         btcPrice={btcPrice}
                         fundLoading={fundEscrowLoading}
-                        fundRequested={
-                          !!contract.mobileActionFundEscrowWasTriggered ||
-                          pendingTaskType === "fundEscrow" ||
+                        fundActionId={
+                          // mobileActionFundEscrowWasTriggered is now an integer id.
+                          // Fall back to a truthy sentinel when only the local task flag is set.
+                          contract.mobileActionFundEscrowWasTriggered ??
+                          (pendingTaskType === "fundEscrow" ||
                           hasPendingTask(routeId, "fundEscrow")
+                            ? true
+                            : null)
                         }
                         fundError={fundEscrowError}
                         onFundViaMobile={async () => {
@@ -1431,6 +1482,7 @@ export default function TradeExecution() {
                             }
                             savePendingTask(routeId, "fundEscrow");
                             setPendingTaskType("fundEscrow");
+                            await refreshContractMobileActions();
                           } catch (e) {
                             setFundEscrowError(
                               "Failed to request funding: " + e.message,
@@ -1453,9 +1505,9 @@ export default function TradeExecution() {
                         expectedSats={contract.amount}
                         actualSats={escrowFundedAmount}
                         loading={escrowLoading}
-                        pendingRefund={
-                          pendingTaskType === "refund" ||
-                          !!contract.mobileActionRefundWasTriggered
+                        refundActionId={
+                          contract.mobileActionRefundWasTriggered ??
+                          (pendingTaskType === "refund" ? true : null)
                         }
                         onPendingClick={() => {}}
                         onContinueTrade={async () => {
@@ -1512,6 +1564,7 @@ export default function TradeExecution() {
                             }
                             savePendingTask(routeId, "refund");
                             setPendingTaskType("refund");
+                            await refreshContractMobileActions();
                           } catch (e) {
                             setActionError(
                               "Failed to request refund: " + e.message,
@@ -1828,6 +1881,7 @@ export default function TradeExecution() {
                               }
                               savePendingTask(routeId, "refund");
                               setPendingTaskType("refund");
+                              await refreshContractMobileActions();
                             } catch (e) {
                               setActionError(
                                 "Failed to request signing: " + e.message,
@@ -1849,6 +1903,7 @@ export default function TradeExecution() {
                               }
                               savePendingTask(routeId, "confirmPayment");
                               setPendingTaskType("confirmPayment");
+                              await refreshContractMobileActions();
                             } catch (e) {
                               setActionError(
                                 "Failed to request confirmation: " + e.message,
@@ -1870,6 +1925,7 @@ export default function TradeExecution() {
                               }
                               savePendingTask(routeId, "release");
                               setPendingTaskType("release");
+                              await refreshContractMobileActions();
                             } catch (e) {
                               setActionError(
                                 "Failed to request signing: " + e.message,

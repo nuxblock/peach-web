@@ -9,6 +9,7 @@ import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi, getCached, setCache, clearCache } from "../../hooks/useApi.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
+import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js";
 import MobileSigningModal from "../../components/MobileSigningModal.jsx";
 import Toast from "../../components/Toast.jsx";
 import { useUnread } from "../../hooks/useUnread.js";
@@ -1484,10 +1485,13 @@ export default function TradesDashboard() {
   const [odAcceptingWrong, setOdAcceptingWrong] = useState(false);
   const [odAcceptWrongError, setOdAcceptWrongError] = useState(null);
   const [odFundMobileLoading, setOdFundMobileLoading] = useState(false);
-  const [odFundMobileRequested, setOdFundMobileRequested] = useState(false);
+  // Pending-action id from server. null = not yet triggered. Truthy means
+  // POST succeeded; on phone we render an "Open Peach App" deep-link button.
+  const [odFundMobileActionId, setOdFundMobileActionId] = useState(null);
   const [odFundMobileError, setOdFundMobileError] = useState(null);
-  // Mobile refund pending action — set from /offer/:id/details `mobileActionRefundWasTriggered`
-  const [odRefundRequested, setOdRefundRequested] = useState(false);
+  // Mobile refund pending action id — set from /offer/:id/details
+  // `mobileActionRefundWasTriggered` (now an integer DB id, not boolean).
+  const [odRefundActionId, setOdRefundActionId] = useState(null);
 
   function openOfferDetail(offer) {
     setOdEditingPremium(false);
@@ -1508,9 +1512,9 @@ export default function TradesDashboard() {
     setOdAcceptingWrong(false);
     setOdAcceptWrongError(null);
     setOdFundMobileLoading(false);
-    setOdFundMobileRequested(false);
+    setOdFundMobileActionId(null);
     setOdFundMobileError(null);
-    setOdRefundRequested(false);
+    setOdRefundActionId(null);
   }
 
   // ── Offer details fetch (sell offers only — endpoint is sell-exclusive by design) ──
@@ -1544,11 +1548,18 @@ export default function TradesDashboard() {
           // If the details endpoint already carries the escrow address, use it.
           if (body?.escrow && typeof body.escrow === "string")
             setOdEscrowAddress(body.escrow);
-          // Respect the backend "mobile fund-escrow action was triggered" flag.
-          if (body?.mobileActionFundEscrowWasTriggered)
-            setOdFundMobileRequested(true);
+          // mobileActionFundEscrowWasTriggered is now the integer pending-action id
+          // (replacing the previous boolean). Truthy → action was triggered.
+          {
+            const maId = body?.mobileActionFundEscrowWasTriggered;
+            if (maId) setOdFundMobileActionId(typeof maId === "number" ? maId : true);
+          }
           // Same for the refund pending action — hide Withdraw if already in flight.
-          if (body?.mobileActionRefundWasTriggered) setOdRefundRequested(true);
+          // mobileActionRefundWasTriggered is now the integer pending-action id.
+          {
+            const rId = body?.mobileActionRefundWasTriggered;
+            if (rId) setOdRefundActionId(typeof rId === "number" ? rId : true);
+          }
         }
       } catch {
         if (!cancelled) setOfferDetails(null);
@@ -1732,7 +1743,19 @@ export default function TradesDashboard() {
                 `Refund request failed: HTTP ${refundRes.status}`,
             );
           }
-          setOdRefundRequested(true);
+          // Fetch /details to pull the new pending-action id.
+          try {
+            const detailsRes = await get(`/offer/${offer.id}/details`);
+            if (detailsRes.ok) {
+              const body = await detailsRes.json().catch(() => null);
+              const rId = body?.mobileActionRefundWasTriggered;
+              setOdRefundActionId(typeof rId === "number" ? rId : true);
+            } else {
+              setOdRefundActionId(true);
+            }
+          } catch {
+            setOdRefundActionId(true);
+          }
           setOdWithdrawConfirm(false);
           setLivePending((prev) =>
             prev?.filter((o) => String(o.id) !== String(offer.id)),
@@ -3087,7 +3110,27 @@ export default function TradesDashboard() {
 
                         {/* Fund via mobile app — alternative to scanning QR */}
                         <div style={{ marginBottom: 12 }}>
-                          {odFundMobileRequested ? (
+                          {IS_PHONE && typeof odFundMobileActionId === "number" ? (
+                            <a
+                              href={buildMobileActionDeepLink("fundEscrow", odFundMobileActionId)}
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                padding: "10px 14px",
+                                borderRadius: 999,
+                                background: "var(--grad)",
+                                color: "white",
+                                textDecoration: "none",
+                                fontFamily: "var(--font)",
+                                fontSize: ".8rem",
+                                fontWeight: 800,
+                                textAlign: "center",
+                                boxShadow: "0 2px 12px rgba(245,101,34,.3)",
+                              }}
+                            >
+                              Open Peach App
+                            </a>
+                          ) : odFundMobileActionId ? (
                             <div
                               style={{
                                 padding: "10px 14px",
@@ -3135,7 +3178,15 @@ export default function TradesDashboard() {
                                           `HTTP ${res.status}`,
                                       );
                                     }
-                                    setOdFundMobileRequested(true);
+                                    // Fetch /details to pull the new pending-action id.
+                                    const detailsRes = await get(`/offer/${o.id}/details`);
+                                    if (detailsRes.ok) {
+                                      const body = await detailsRes.json().catch(() => null);
+                                      const id = body?.mobileActionFundEscrowWasTriggered;
+                                      setOdFundMobileActionId(typeof id === "number" ? id : true);
+                                    } else {
+                                      setOdFundMobileActionId(true);
+                                    }
                                     setToast("Request sent — check your phone");
                                     setToastTone("orange");
                                     setTimeout(() => { setToast(null); setToastTone("default"); }, 3000);
@@ -3300,7 +3351,7 @@ export default function TradesDashboard() {
                   fundingStage === "funded" &&
                   !odEditingPremium &&
                   !odWithdrawConfirm &&
-                  !odRefundRequested && (
+                  !odRefundActionId && (
                     <div
                       style={{
                         padding: "12px 20px 16px",
@@ -3337,26 +3388,46 @@ export default function TradesDashboard() {
                   fundingStage === "funded" &&
                   !odEditingPremium &&
                   !odWithdrawConfirm &&
-                  odRefundRequested && (
+                  odRefundActionId && (
                     <div
                       style={{
                         padding: "12px 20px 16px",
                         borderTop: "1px solid var(--black-10)",
                       }}
                     >
-                      <div
-                        style={{
-                          padding: "10px 14px",
-                          borderRadius: 8,
-                          background: "var(--black-5)",
-                          color: "var(--black-65)",
-                          fontSize: ".78rem",
-                          fontWeight: 700,
-                          textAlign: "center",
-                        }}
-                      >
-                        ✓ Refund request sent — check your phone
-                      </div>
+                      {IS_PHONE && typeof odRefundActionId === "number" ? (
+                        <a
+                          href={buildMobileActionDeepLink("refundEscrow", odRefundActionId)}
+                          style={{
+                            display: "block",
+                            padding: "10px 14px",
+                            borderRadius: 999,
+                            background: "var(--grad)",
+                            color: "white",
+                            textDecoration: "none",
+                            fontSize: ".78rem",
+                            fontWeight: 800,
+                            textAlign: "center",
+                            boxShadow: "0 2px 12px rgba(245,101,34,.3)",
+                          }}
+                        >
+                          Open Peach App
+                        </a>
+                      ) : (
+                        <div
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: 8,
+                            background: "var(--black-5)",
+                            color: "var(--black-65)",
+                            fontSize: ".78rem",
+                            fontWeight: 700,
+                            textAlign: "center",
+                          }}
+                        >
+                          ✓ Refund request sent — check your phone
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -3392,8 +3463,26 @@ export default function TradesDashboard() {
                             0,
                           )
                         : null;
-                      if (odRefundRequested) {
-                        return (
+                      if (odRefundActionId) {
+                        return IS_PHONE && typeof odRefundActionId === "number" ? (
+                          <a
+                            href={buildMobileActionDeepLink("refundEscrow", odRefundActionId)}
+                            style={{
+                              display: "block",
+                              padding: "10px 14px",
+                              borderRadius: 999,
+                              background: "var(--grad)",
+                              color: "white",
+                              textDecoration: "none",
+                              fontSize: ".78rem",
+                              fontWeight: 800,
+                              textAlign: "center",
+                              boxShadow: "0 2px 12px rgba(245,101,34,.3)",
+                            }}
+                          >
+                            Open Peach App
+                          </a>
+                        ) : (
                           <div
                             style={{
                               padding: "10px 14px",
@@ -3482,20 +3571,40 @@ export default function TradesDashboard() {
                         o.tradeStatus === "fundingAmountDifferent" ||
                         fundingStage === "funded")
                     ) &&
-                    (odRefundRequested ? (
-                      <div
-                        style={{
-                          padding: "10px 14px",
-                          borderRadius: 8,
-                          background: "var(--black-5)",
-                          color: "var(--black-65)",
-                          fontSize: ".78rem",
-                          fontWeight: 700,
-                          textAlign: "center",
-                        }}
-                      >
-                        ✓ Refund request sent — check your phone
-                      </div>
+                    (odRefundActionId ? (
+                      IS_PHONE && typeof odRefundActionId === "number" ? (
+                        <a
+                          href={buildMobileActionDeepLink("refundEscrow", odRefundActionId)}
+                          style={{
+                            display: "block",
+                            padding: "10px 14px",
+                            borderRadius: 999,
+                            background: "var(--grad)",
+                            color: "white",
+                            textDecoration: "none",
+                            fontSize: ".78rem",
+                            fontWeight: 800,
+                            textAlign: "center",
+                            boxShadow: "0 2px 12px rgba(245,101,34,.3)",
+                          }}
+                        >
+                          Open Peach App
+                        </a>
+                      ) : (
+                        <div
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: 8,
+                            background: "var(--black-5)",
+                            color: "var(--black-65)",
+                            fontSize: ".78rem",
+                            fontWeight: 700,
+                            textAlign: "center",
+                          }}
+                        >
+                          ✓ Refund request sent — check your phone
+                        </div>
+                      )
                     ) : (
                       <div style={{ display: "flex", gap: 8 }}>
                         {!FINISHED_STATUSES.has(o.tradeStatus) && (
