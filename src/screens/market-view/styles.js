@@ -521,19 +521,6 @@ export const CSS = `
   }
   @keyframes drawCheck{to{stroke-dashoffset:0}}
 
-  /* Undo toast */
-  .undo-toast{
-    position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
-    z-index:650;
-    background:var(--black);color:white;
-    padding:10px 22px;border-radius:999px;
-    font-size:.82rem;font-weight:700;
-    box-shadow:0 4px 20px rgba(43,25,17,.3);
-    animation:toastIn .25s ease,toastOut .3s ease .9s forwards;
-  }
-  @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%)}}
-  @keyframes toastOut{to{opacity:0;transform:translateX(-50%) translateY(-6px)}}
-
   /* Undo row/card flash */
   .offer-table tbody tr.undo-row td{
     animation:undoFlash 1.2s ease;

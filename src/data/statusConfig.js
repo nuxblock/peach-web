@@ -71,23 +71,48 @@ export const PENDING_STATUSES = new Set([
   "escrowWaitingForConfirmation",
 ]);
 
-// /contracts/summary reports tradeCanceled for sell-side post-cancel
-// contracts while /contract/:id alternates between tradeCanceled and
-// refundOrReviveRequired. This helper normalizes both to
-// refundOrReviveRequired so polling responses don't flicker, and the
-// trade-execution screen branches on the `revived` / `refunded` flags
-// within that block to render the right sub-banner.
-//
-// Skips when escrowFundingTimeLimitExpired (seller never funded) — there's
-// no escrow to refund and no offer to revive in that case.
+// Sell-side states where the user still has work to do to complete a refund
+// (or republish). Unambiguous — these never describe a terminal/refunded state.
+// Used to bucket these items into Pending Offers instead of Active/History.
+// Deliberately excludes tradeCanceled/offerCanceled, which are ambiguous
+// (in-flight vs terminal) and would over-match historical cancelled offers.
+export const REFUND_ACTION_PENDING_STATUSES = new Set([
+  "refundOrReviveRequired",
+  "refundAddressRequired",
+  "refundTxSignatureRequired",
+]);
+
+// Resolves the right display status for sell-side cancelled contracts.
+// Distinguishes "needs refund or republish" (escrow was funded but the
+// trade was cancelled) from "cancelled before escrow funded" (no action
+// available). Two positive signals:
+//   - `tradeStatusNew === "refundOrReviveRequired"` from /contracts/summary
+//   - `escrowFundingTimeLimitExpired === false` from /contract/:id
+// Without either, we return the raw status (default-conservative).
 export function deriveDisplayStatus(c) {
   const ts = c.tradeStatus ?? c.status;
   const isSell = c.direction === "sell" || c.type === "ask";
   if (!isSell) return ts;
+
+  // Hard bail: seller never funded escrow — nothing to refund, nothing to revive.
   if (c.escrowFundingTimeLimitExpired) return ts;
-  if (ts === "tradeCanceled" || ts === "refundOrReviveRequired") {
+
+  // /contract/:id can return refundOrReviveRequired directly.
+  if (ts === "refundOrReviveRequired") return ts;
+
+  // /contracts/summary signals next-required-action via tradeStatusNew.
+  if (c.tradeStatusNew === "refundOrReviveRequired") {
     return "refundOrReviveRequired";
   }
+
+  // /contract/:id alternates between tradeCanceled and refundOrReviveRequired
+  // for action-needed contracts. When escrowFundingTimeLimitExpired is
+  // explicitly false (escrow was funded in time), normalize so polling
+  // doesn't flicker.
+  if (ts === "tradeCanceled" && c.escrowFundingTimeLimitExpired === false) {
+    return "refundOrReviveRequired";
+  }
+
   return ts;
 }
 

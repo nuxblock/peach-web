@@ -9,6 +9,7 @@ import MobileSigningModal, {
   savePendingTask,
   clearPendingTask,
 } from "../../components/MobileSigningModal.jsx";
+import Toast from "../../components/Toast.jsx";
 import {
   decryptPGPMessage,
   decryptSymmetric,
@@ -312,6 +313,7 @@ export default function TradeExecution() {
   const [chatHasMore, setChatHasMore] = useState(false);
   const [chatLoadingMore, setChatLoadingMore] = useState(false);
   const [toast, setToast] = useState(null);
+  const [toastTone, setToastTone] = useState("default"); // "default" | "error" | "orange" | "success"
   const [showDispute, setShowDispute] = useState(false);
   const [escrowFundedAmount, setEscrowFundedAmount] = useState(null);
   const [escrowLoading, setEscrowLoading] = useState(false);
@@ -1479,7 +1481,8 @@ export default function TradeExecution() {
                                 });
                               }
                               setToast("Trade continued with funded amount");
-                              setTimeout(() => setToast(null), 4000);
+                              setToastTone("success");
+                              setTimeout(() => { setToast(null); setToastTone("default"); }, 4000);
                             } else {
                               const err = await res.json().catch(() => ({}));
                               setActionError(
@@ -1797,7 +1800,8 @@ export default function TradeExecution() {
                                       ? ` — new offer: ${formatTradeId(data.newOfferId, "offer")}`
                                       : ""),
                                 );
-                                setTimeout(() => setToast(null), 4000);
+                                setToastTone("success");
+                                setTimeout(() => { setToast(null); setToastTone("default"); }, 4000);
                               } else {
                                 const err = await res.json().catch(() => ({}));
                                 setActionError(
@@ -2290,27 +2294,7 @@ export default function TradeExecution() {
       )}
 
       {/* ── TOAST ── */}
-      {toast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 80,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "var(--black-85)",
-            color: "white",
-            padding: "10px 22px",
-            borderRadius: 999,
-            fontSize: ".85rem",
-            fontWeight: 700,
-            zIndex: 9999,
-            boxShadow: "0 4px 18px rgba(0,0,0,.18)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {toast}
-        </div>
-      )}
+      <Toast message={toast} tone={toastTone} bottom={80} />
     </>
   );
 }

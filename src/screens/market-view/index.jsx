@@ -12,6 +12,7 @@ import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat, formatTradeId, toPeac
 import PeachRating from "../../components/PeachRating.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import RequestedOfferPopup from "../../components/RequestedOfferPopup.jsx";
+import Toast from "../../components/Toast.jsx";
 import { RefreshIndicator } from "../../components/RefreshIndicator.jsx";
 import { CSS } from "./styles.js";
 import { premiumStats, premiumCls, currSym, MultiSelect, Chips, RepCell, AmountCell, PriceCell } from "./components.jsx";
@@ -101,6 +102,7 @@ export default function PeachMarket() {
   const [withdrawError,    setWithdrawError]    = useState(null);
   const [signingModal,     setSigningModal]     = useState(null);    // { offerId } for sell offer cancel
   const [toast,            setToast]            = useState(null);
+  const [toastTone,        setToastTone]        = useState("default"); // "default" | "error" | "orange" | "success"
   const [tradeLoading,     setTradeLoading]     = useState(false);
   // Optimistic pending state during the 5s cancel window before the API fires.
   // Mirrors the mobile UndoButton pattern (peach-app UndoButton.tsx, TIMER_DURATION = 5000).
@@ -258,7 +260,9 @@ export default function PeachMarket() {
         setLiveOffers(prev => prev.map(o => o.id === offer.id ? { ...o, premium: val } : o));
       }
       setEditingPremium(false);
-      setToast("Premium updated"); setTimeout(() => setToast(null), 3000);
+      setToast("Premium updated");
+      setToastTone("success");
+      setTimeout(() => { setToast(null); setToastTone("default"); }, 3000);
     } catch (err) {
       setEditError(err.message || "Failed to save");
     } finally {
@@ -280,13 +284,17 @@ export default function PeachMarket() {
         closePopup();
         // Remove from list
         if (liveOffers) setLiveOffers(prev => prev.filter(o => o.id !== offer.id));
-        setToast("Refund sent to mobile for signing"); setTimeout(() => setToast(null), 4000);
+        setToast("Refund sent to mobile for signing");
+        setToastTone("orange");
+        setTimeout(() => { setToast(null); setToastTone("default"); }, 4000);
         return;
       }
       // Buy offers — done
       closePopup();
       if (liveOffers) setLiveOffers(prev => prev.filter(o => o.id !== offer.id));
-      setToast("Offer withdrawn"); setTimeout(() => setToast(null), 3000);
+      setToast("Offer withdrawn");
+      setToastTone("success");
+      setTimeout(() => { setToast(null); setToastTone("default"); }, 3000);
     } catch (err) {
       setWithdrawError(err.message || "Failed to withdraw");
     } finally {
@@ -370,7 +378,8 @@ export default function PeachMarket() {
       const counterpartyKeys = await resolveCounterpartyKeys(offer);
       if (counterpartyKeys.length === 0) {
         setToast("Could not load recipient PGP key — please try again");
-        setTimeout(() => setToast(null), 4000);
+        setToastTone("error");
+        setTimeout(() => { setToast(null); setToastTone("default"); }, 4000);
         setTradeLoading(false);
         return;
       }
@@ -429,12 +438,14 @@ export default function PeachMarket() {
       } else {
         const err = await res.json().catch(() => ({}));
         setToast("Trade request failed: " + (err.error || "try again"));
-        setTimeout(() => setToast(null), 4000);
+        setToastTone("error");
+        setTimeout(() => { setToast(null); setToastTone("default"); }, 4000);
         setTradeLoading(false);
       }
     } catch (e) {
       setToast("Trade request error: " + e.message);
-      setTimeout(() => setToast(null), 4000);
+      setToastTone("error");
+      setTimeout(() => { setToast(null); setToastTone("default"); }, 4000);
       setTradeLoading(false);
     }
   }
@@ -477,7 +488,8 @@ export default function PeachMarket() {
       console.log("[InstantTrade] counterpartyKeys count:", counterpartyKeys.length);
       if (counterpartyKeys.length === 0) {
         setToast("Could not load recipient PGP key — please try again");
-        setTimeout(() => setToast(null), 4000);
+        setToastTone("error");
+        setTimeout(() => { setToast(null); setToastTone("default"); }, 4000);
         setTradeLoading(false);
         return;
       }
@@ -536,12 +548,14 @@ export default function PeachMarket() {
       } else {
         const err = await res.json().catch(() => ({}));
         setToast("Instant trade failed: " + (err.error || "try again"));
-        setTimeout(() => setToast(null), 4000);
+        setToastTone("error");
+        setTimeout(() => { setToast(null); setToastTone("default"); }, 4000);
       }
     } catch (e) {
       const msg = e.name === "AbortError" ? "Request timed out — try again" : e.message;
       setToast("Instant trade error: " + msg);
-      setTimeout(() => setToast(null), 4000);
+      setToastTone("error");
+      setTimeout(() => { setToast(null); setToastTone("default"); }, 4000);
     } finally {
       setTradeLoading(false);
     }
@@ -1450,16 +1464,10 @@ export default function PeachMarket() {
         {popupContent}
 
         {/* ── UNDO TOAST ── */}
-        {undoAnim && (
-          <div className="undo-toast">
-            <span>↩ Trade request undone</span>
-          </div>
-        )}
+        {undoAnim && <Toast message="↩ Trade request undone" />}
 
         {/* ── TOAST ── */}
-        {toast && (
-          <div className="undo-toast">{toast}</div>
-        )}
+        <Toast message={toast} tone={toastTone} />
 
         {/* ── TOP BAR ── */}
         <Topbar

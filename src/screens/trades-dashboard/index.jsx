@@ -10,6 +10,7 @@ import { useAuth } from "../../hooks/useAuth.js";
 import { useApi, getCached, setCache, clearCache } from "../../hooks/useApi.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import MobileSigningModal from "../../components/MobileSigningModal.jsx";
+import Toast from "../../components/Toast.jsx";
 import { useUnread } from "../../hooks/useUnread.js";
 import {
   extractPMsFromProfile,
@@ -34,6 +35,7 @@ import {
   STATUS_CONFIG,
   FINISHED_STATUSES,
   PENDING_STATUSES,
+  REFUND_ACTION_PENDING_STATUSES,
   deriveDisplayStatus,
 } from "../../data/statusConfig.js";
 import { isReturnAddressFromXpub } from "../../utils/escrow.js";
@@ -432,19 +434,6 @@ const CSS = `
     padding:12px 20px;cursor:pointer;transition:background .15s,color .15s;
   }
   .match-btn-reject:hover{background:var(--error);color:white}
-  .toast-bar{
-    position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
-    background:var(--black);color:white;padding:10px 28px;border-radius:999px;
-    font-family:var(--font);font-size:.84rem;font-weight:700;
-    box-shadow:0 4px 20px rgba(0,0,0,.25);z-index:9999;
-    animation:toastIn .3s ease both;pointer-events:none;
-  }
-  .toast-bar--error{
-    background:var(--error);
-    color:var(--text-on-accent);
-    box-shadow:0 4px 20px rgba(223,50,31,.28);
-  }
-  @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
   @media(max-width:640px){
     .matches-popup{max-width:100%;border-radius:16px}
   }
@@ -790,7 +779,11 @@ export default function TradesDashboard() {
     const isDone = !!c.refunded || !!c.newTradeId;
     const displayStatus = isDone
       ? tradeStatus
-      : deriveDisplayStatus({ tradeStatus, direction });
+      : deriveDisplayStatus({
+          tradeStatus,
+          direction,
+          tradeStatusNew: c.tradeStatusNew,
+        });
     return {
       id: c.id,
       tradeId: formatTradeId(c.id),
@@ -1249,19 +1242,50 @@ export default function TradesDashboard() {
     i.tradeStatus === "wrongAmountFundedOnContractRefundWaiting" &&
     i.direction === "buy";
 
+  // Sell offer/contract awaiting refund or revive action. Belongs in Pending
+  // Offers (not Active, not History) because the user still has work to do
+  // on mobile. Works for both shapes: kind="offer" from /offers/summary and
+  // kind="contract" from /contracts/summary (never-matched cancelled offer).
+  // The status set deliberately excludes tradeCanceled/offerCanceled — those
+  // are ambiguous (in-flight vs terminal). The action-required statuses
+  // always mean "not yet refunded."
+  const isRefundActionPending = (i) =>
+    i.direction === "sell" &&
+    (REFUND_ACTION_PENDING_STATUSES.has(i.displayStatus) ||
+      REFUND_ACTION_PENDING_STATUSES.has(i.tradeStatus));
+
   const activeItems = allItems.filter(
     (i) =>
       !isBuyerSideRefundWaiting(i) &&
+      !isRefundActionPending(i) &&
       (i.disputeActive ||
         (!FINISHED_STATUSES.has(i.tradeStatus) &&
           !PENDING_STATUSES.has(i.tradeStatus))),
   );
   const historyItems = allItems.filter(
     (i) =>
-      FINISHED_STATUSES.has(i.tradeStatus) || isBuyerSideRefundWaiting(i),
+      !isRefundActionPending(i) &&
+      (FINISHED_STATUSES.has(i.tradeStatus) || isBuyerSideRefundWaiting(i)),
   );
 
-  const pendingItems = livePending ?? [];
+  // Same id can appear as both kind="offer" (from /offers/summary) and
+  // kind="contract" (from /contracts/summary). Prefer offer-shape so a click
+  // opens the rich offer detail popup with the "Refund request sent" banner
+  // instead of the minimal canceledOfferPopup.
+  const refundActionPending = allItems.filter(isRefundActionPending);
+  const seenRefundIds = new Set();
+  const dedupedRefundPending = [];
+  for (const i of refundActionPending) {
+    if (i.kind !== "offer") continue;
+    seenRefundIds.add(String(i.id));
+    dedupedRefundPending.push(i);
+  }
+  for (const i of refundActionPending) {
+    if (i.kind === "offer") continue;
+    if (seenRefundIds.has(String(i.id))) continue;
+    dedupedRefundPending.push(i);
+  }
+  const pendingItems = [...(livePending ?? []), ...dedupedRefundPending];
   const ownPendingItems = pendingItems
     .filter((i) => i.kind !== "sentRequest")
     .map((i) => {
@@ -1421,7 +1445,7 @@ export default function TradesDashboard() {
   const [localMatches, setLocalMatches] = useState({}); // tradeId → remaining matches
   const [matchError, setMatchError] = useState(null); // error message shown in popup
   const [toast, setToast] = useState(null); // bottom toast message
-  const [toastTone, setToastTone] = useState("default"); // "default" | "error"
+  const [toastTone, setToastTone] = useState("default"); // "default" | "error" | "orange" | "success"
   const [signingModal, setSigningModal] = useState(null); // mobile signing modal
   const [matchesLoading, setMatchesLoading] = useState(false); // loading matches on demand
   const [sentRequestPopup, setSentRequestPopup] = useState(null); // sent trade request detail/chat popup
@@ -1622,7 +1646,8 @@ export default function TradesDashboard() {
       );
       setOdEditingPremium(false);
       setToast("Premium updated");
-      setTimeout(() => setToast(null), 3000);
+      setToastTone("success");
+      setTimeout(() => { setToast(null); setToastTone("default"); }, 3000);
     } catch (err) {
       setOdEditError(err.message || "Failed to save");
     } finally {
@@ -1653,7 +1678,8 @@ export default function TradesDashboard() {
         );
         setRefreshKey((k) => k + 1);
         setToast("Offer cancelled");
-        setTimeout(() => setToast(null), 3000);
+        setToastTone("success");
+        setTimeout(() => { setToast(null); setToastTone("default"); }, 3000);
       } else {
         // Sell offers: cancel first (skip if already canceled). For unfunded offers
         // (fundEscrow) there's no escrow to refund, so we skip the refund pending
@@ -1674,7 +1700,8 @@ export default function TradesDashboard() {
           );
           setRefreshKey((k) => k + 1);
           setToast("Offer cancelled");
-          setTimeout(() => setToast(null), 3000);
+          setToastTone("success");
+          setTimeout(() => { setToast(null); setToastTone("default"); }, 3000);
         } else {
           // Funded offer — trigger refund pending action for mobile signing
           const refundRes = await post(
@@ -1694,8 +1721,9 @@ export default function TradesDashboard() {
             prev?.filter((o) => String(o.id) !== String(offer.id)),
           );
           setRefreshKey((k) => k + 1);
-          setToast("Refund requested — check your phone");
-          setTimeout(() => setToast(null), 4000);
+          setToast("Refund confirmation needed on mobile");
+          setToastTone("orange");
+          setTimeout(() => { setToast(null); setToastTone("default"); }, 4000);
         }
       }
     } catch (err) {
@@ -1715,7 +1743,8 @@ export default function TradesDashboard() {
         throw new Error(d?.error || d?.message || `Server error ${res.status}`);
       }
       setToast("Escrow accepted — offer going live");
-      setTimeout(() => setToast(null), 3000);
+      setToastTone("success");
+      setTimeout(() => { setToast(null); setToastTone("default"); }, 3000);
       closeOfferDetail();
       setRefreshKey((k) => k + 1);
     } catch (err) {
@@ -3053,7 +3082,8 @@ export default function TradesDashboard() {
                                     }
                                     setOdFundMobileRequested(true);
                                     setToast("Request sent — check your phone");
-                                    setTimeout(() => setToast(null), 3000);
+                                    setToastTone("orange");
+                                    setTimeout(() => { setToast(null); setToastTone("default"); }, 3000);
                                   } catch (e) {
                                     setOdFundMobileError(
                                       "Failed to request funding: " + e.message,
@@ -3244,6 +3274,33 @@ export default function TradesDashboard() {
                         >
                           Cancel offer
                         </button>
+                      </div>
+                    </div>
+                  )}
+
+                {!isBuy &&
+                  fundingStage === "funded" &&
+                  !odEditingPremium &&
+                  !odWithdrawConfirm &&
+                  odRefundRequested && (
+                    <div
+                      style={{
+                        padding: "12px 20px 16px",
+                        borderTop: "1px solid var(--black-10)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: "10px 14px",
+                          borderRadius: 8,
+                          background: "var(--black-5)",
+                          color: "var(--black-65)",
+                          fontSize: ".78rem",
+                          fontWeight: 700,
+                          textAlign: "center",
+                        }}
+                      >
+                        ✓ Refund request sent — check your phone
                       </div>
                     </div>
                   )}
@@ -3808,11 +3865,7 @@ export default function TradesDashboard() {
       />
 
       {/* ── TOAST ── */}
-      {toast && (
-        <div className={`toast-bar${toastTone === "error" ? " toast-bar--error" : ""}`}>
-          {toast}
-        </div>
-      )}
+      <Toast message={toast} tone={toastTone} />
     </>
   );
 }
