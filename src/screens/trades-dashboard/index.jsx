@@ -1481,6 +1481,7 @@ export default function TradesDashboard() {
   const [odEscrowAddress, setOdEscrowAddress] = useState(null);
   const [odCopiedAddr, setOdCopiedAddr] = useState(false);
   const [odCopiedRefund, setOdCopiedRefund] = useState(false);
+  const [odCopiedEscrowSummary, setOdCopiedEscrowSummary] = useState(false);
   const [odQrWithAmount, setOdQrWithAmount] = useState(true);
   const [odAcceptingWrong, setOdAcceptingWrong] = useState(false);
   const [odAcceptWrongError, setOdAcceptWrongError] = useState(null);
@@ -1521,18 +1522,21 @@ export default function TradesDashboard() {
   // Fetches GET /v1/offer/:id/details when the popup opens, to enrich the view
   // with funding status, match count, and live fiat price. Silently falls back
   // to the list-sourced normalized offer on error.
+  // Fires for either the offer-summary popup OR the matches popup so the
+  // collapsible offer summary inside MatchesPopup also gets enriched.
+  const detailSource = offerDetailPopup ?? matchesPopup;
   const [offerDetails, setOfferDetails] = useState(null);
   useEffect(() => {
-    if (!offerDetailPopup?.id) {
+    if (!detailSource?.id) {
       setOfferDetails(null);
       return;
     }
     // Endpoint is sell-exclusive per backend — buy offers return 401 by design.
-    if (offerDetailPopup.direction !== "sell") {
+    if (detailSource.direction !== "sell") {
       setOfferDetails(null);
       return;
     }
-    const offerId = offerDetailPopup.id;
+    const offerId = detailSource.id;
     let cancelled = false;
     async function check() {
       try {
@@ -1572,9 +1576,9 @@ export default function TradesDashboard() {
       clearInterval(iv);
     };
   }, [
-    offerDetailPopup?.id,
-    offerDetailPopup?.direction,
-    offerDetailPopup?.tradeStatus,
+    detailSource?.id,
+    detailSource?.direction,
+    detailSource?.tradeStatus,
   ]);
 
   // Determine whether a sell offer's refund address was derived from the user's
@@ -1582,18 +1586,18 @@ export default function TradesDashboard() {
   // externally-provided "custom wallet" address. Custom wallets carry the
   // address through so the popup can render and copy it.
   const refundWalletInfo = useMemo(() => {
-    if (offerDetailPopup?.direction !== "sell") return null;
+    if (detailSource?.direction !== "sell") return null;
     const addr = offerDetails?.returnAddress;
     if (!addr || !auth?.xpub) return null;
     if (isReturnAddressFromXpub(auth.xpub, addr))
       return { label: "Peach Wallet", address: null };
     return { label: "Custom Wallet", address: addr };
-  }, [offerDetailPopup?.direction, offerDetails?.returnAddress, auth?.xpub]);
+  }, [detailSource?.direction, offerDetails?.returnAddress, auth?.xpub]);
 
   // Secondary fetch: ensure the escrow address is available for fundEscrow sell offers
   // even if GET /offer/:id/details does not expose it. Mirrors offer-creation polling.
   useEffect(() => {
-    const o = offerDetailPopup;
+    const o = detailSource;
     if (!o || o.direction !== "sell" || o.tradeStatus !== "fundEscrow") return;
     if (odEscrowAddress) return; // already populated (from /details or previous fetch)
     let cancelled = false;
@@ -1609,9 +1613,9 @@ export default function TradesDashboard() {
       cancelled = true;
     };
   }, [
-    offerDetailPopup?.id,
-    offerDetailPopup?.direction,
-    offerDetailPopup?.tradeStatus,
+    detailSource?.id,
+    detailSource?.direction,
+    detailSource?.tradeStatus,
     odEscrowAddress,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -2242,6 +2246,7 @@ export default function TradesDashboard() {
     setMatchDetail(null);
     setMatchConfirm(null);
     setMatchError(null);
+    setOdEscrowAddress(null);
   }
 
   return (
@@ -2564,6 +2569,9 @@ export default function TradesDashboard() {
           onReject={handleRejectRequest}
           onAccept={handleAcceptMatch}
           onConfirmAccept={handleConfirmAccept}
+          offerDetails={offerDetails}
+          refundWalletInfo={refundWalletInfo}
+          escrowAddress={odEscrowAddress}
         />
       )}
 
@@ -2684,6 +2692,23 @@ export default function TradesDashboard() {
                   >
                     {o.tradeId}
                   </span>
+                  {o.createdAt && (
+                    <span
+                      style={{
+                        marginLeft: "auto",
+                        marginRight: 16,
+                        fontSize: ".75rem",
+                        color: "var(--black-50)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Created:{" "}
+                      {(() => {
+                        const d = new Date(o.createdAt);
+                        return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+                      })()}
+                    </span>
+                  )}
                   <button className="matches-close" onClick={closeOfferDetail}>
                     ✕
                   </button>
@@ -2717,18 +2742,96 @@ export default function TradesDashboard() {
                     <span
                       className="offer-detail-value"
                       style={{
-                        color:
-                          (o.premium ?? 0) > 0
-                            ? "var(--success, var(--success))"
-                            : (o.premium ?? 0) < 0
-                              ? "var(--error)"
-                              : "var(--black)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
                       }}
                     >
-                      {(o.premium ?? 0) > 0 ? "+" : ""}
-                      {(o.premium ?? 0).toFixed(1)}%
+                      {!FINISHED_STATUSES.has(o.tradeStatus) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOdEditPremiumVal(String(o.premium ?? 0));
+                            setOdEditingPremium(true);
+                            setOdEditError(null);
+                          }}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 3,
+                            background: "none",
+                            border: "none",
+                            padding: 0,
+                            cursor: "pointer",
+                            color: "var(--primary-dark)",
+                            fontFamily: "var(--font)",
+                            fontSize: ".74rem",
+                            fontWeight: 700,
+                            textDecoration: "underline",
+                          }}
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                          </svg>
+                          Edit
+                        </button>
+                      )}
+                      <span
+                        style={{
+                          color:
+                            (o.premium ?? 0) > 0
+                              ? "var(--success, var(--success))"
+                              : (o.premium ?? 0) < 0
+                                ? "var(--error)"
+                                : "var(--black)",
+                        }}
+                      >
+                        {(o.premium ?? 0) > 0 ? "+" : ""}
+                        {(o.premium ?? 0).toFixed(1)}%
+                      </span>
                     </span>
                   </div>
+                  {/* Live fiat price — from /offer/:id/details (sell offers) */}
+                  {offerDetails?.prices &&
+                    Object.keys(offerDetails.prices).length > 0 && (
+                      <div className="offer-detail-row">
+                        <span className="offer-detail-label">Live price</span>
+                        <span className="offer-detail-value">
+                          {Object.entries(offerDetails.prices).map(
+                            ([cur, val]) => (
+                              <span key={cur} style={{ marginRight: 8 }}>
+                                {cur} {val}
+                              </span>
+                            ),
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  {/* Live fiat price — buy offers (computed locally in allItems useMemo) */}
+                  {isBuy &&
+                    o.prices &&
+                    Object.keys(o.prices).length > 0 && (
+                      <div className="offer-detail-row">
+                        <span className="offer-detail-label">Live price</span>
+                        <span className="offer-detail-value">
+                          {Object.entries(o.prices).map(([cur, val]) => (
+                            <span key={cur} style={{ marginRight: 8 }}>
+                              {cur} {Number(val).toFixed(2)}
+                            </span>
+                          ))}
+                        </span>
+                      </div>
+                    )}
                   {o.methods?.length > 0 && (
                     <div className="offer-detail-row">
                       <span className="offer-detail-label">
@@ -2755,6 +2858,76 @@ export default function TradesDashboard() {
                       </div>
                     </div>
                   )}
+                  {/* Compact escrow row — only when the big QR block is NOT showing */}
+                  {!isBuy &&
+                    odEscrowAddress &&
+                    !(
+                      fundingStage === "needs" || fundingStage === "mempool"
+                    ) && (
+                      <div className="offer-detail-row">
+                        <span className="offer-detail-label">Escrow</span>
+                        <span
+                          className="offer-detail-value"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          <span
+                            onClick={() => {
+                              navigator.clipboard
+                                ?.writeText(odEscrowAddress)
+                                .catch(() => {});
+                              setOdCopiedEscrowSummary(true);
+                              setTimeout(
+                                () => setOdCopiedEscrowSummary(false),
+                                1500,
+                              );
+                            }}
+                            title={odEscrowAddress}
+                            style={{
+                              fontFamily: "monospace",
+                              fontSize: ".74rem",
+                              color: odCopiedEscrowSummary
+                                ? "var(--success)"
+                                : "var(--black)",
+                              textDecoration: "underline",
+                              cursor: "pointer",
+                              userSelect: "all",
+                            }}
+                          >
+                            {odCopiedEscrowSummary
+                              ? "✓ Copied"
+                              : `${odEscrowAddress.slice(0, 6)}…${odEscrowAddress.slice(-4)}`}
+                          </span>
+                          <a
+                            href={`${odEscrowAddress.startsWith("bcrt1") ? "https://electrum-regtest.peachbitcoin.com" : "https://mempool.space"}/address/${odEscrowAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="View on block explorer"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              color: "var(--primary)",
+                            }}
+                          >
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 11 11"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.7"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M2 9L9 2M9 2H5M9 2v4" />
+                            </svg>
+                          </a>
+                        </span>
+                      </div>
+                    )}
                   {!isBuy && refundWalletInfo && (
                     <div className="offer-detail-row">
                       <span className="offer-detail-label">Refund to</span>
@@ -2799,12 +2972,6 @@ export default function TradesDashboard() {
                       </span>
                     </div>
                   )}
-                  <div className="offer-detail-row">
-                    <span className="offer-detail-label">Status</span>
-                    <span className="offer-detail-value">
-                      {derivedStatus}
-                    </span>
-                  </div>
                   {/* Trade request count — from /offer/:id/details (only after funding confirmed) */}
                   {fundingStage === "funded" &&
                     Array.isArray(offerDetails?.matches) && (
@@ -2815,46 +2982,10 @@ export default function TradesDashboard() {
                         </span>
                       </div>
                     )}
-                  {/* Live fiat price — from /offer/:id/details */}
-                  {offerDetails?.prices &&
-                    Object.keys(offerDetails.prices).length > 0 && (
-                      <div className="offer-detail-row">
-                        <span className="offer-detail-label">Live price</span>
-                        <span className="offer-detail-value">
-                          {Object.entries(offerDetails.prices).map(
-                            ([cur, val]) => (
-                              <span key={cur} style={{ marginRight: 8 }}>
-                                {cur} {val}
-                              </span>
-                            ),
-                          )}
-                        </span>
-                      </div>
-                    )}
-                  {/* Live fiat price — buy offers (computed locally in allItems useMemo) */}
-                  {isBuy &&
-                    o.prices &&
-                    Object.keys(o.prices).length > 0 && (
-                      <div className="offer-detail-row">
-                        <span className="offer-detail-label">Live price</span>
-                        <span className="offer-detail-value">
-                          {Object.entries(o.prices).map(([cur, val]) => (
-                            <span key={cur} style={{ marginRight: 8 }}>
-                              {cur} {Number(val).toFixed(2)}
-                            </span>
-                          ))}
-                        </span>
-                      </div>
-                    )}
                   <div className="offer-detail-row">
-                    <span className="offer-detail-label">Created</span>
+                    <span className="offer-detail-label">Status</span>
                     <span className="offer-detail-value">
-                      {o.createdAt
-                        ? (() => {
-                            const d = new Date(o.createdAt);
-                            return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-                          })()
-                        : "—"}
+                      {derivedStatus}
                     </span>
                   </div>
                   <div className="offer-detail-row">
@@ -3346,7 +3477,7 @@ export default function TradesDashboard() {
                   </div>
                 )}
 
-                {/* Funded sell offer: Edit + Cancel buttons replace the address section */}
+                {/* Funded sell offer: Cancel button replaces the address section */}
                 {!isBuy &&
                   fundingStage === "funded" &&
                   !odEditingPremium &&
@@ -3358,21 +3489,10 @@ export default function TradesDashboard() {
                         borderTop: "1px solid var(--black-10)",
                       }}
                     >
-                      <div style={{ display: "flex", gap: 8 }}>
-                        {!FINISHED_STATUSES.has(o.tradeStatus) && (
-                          <button
-                            className="offer-detail-btn offer-detail-btn-edit"
-                            onClick={() => {
-                              setOdEditPremiumVal(String(o.premium ?? 0));
-                              setOdEditingPremium(true);
-                              setOdEditError(null);
-                            }}
-                          >
-                            Edit premium
-                          </button>
-                        )}
+                      <div style={{ display: "flex", justifyContent: "center" }}>
                         <button
                           className="offer-detail-btn offer-detail-btn-withdraw"
+                          style={{ flex: "0 0 50%" }}
                           onClick={() => {
                             setOdWithdrawConfirm(true);
                             setOdWithdrawError(null);
@@ -3606,21 +3726,10 @@ export default function TradesDashboard() {
                         </div>
                       )
                     ) : (
-                      <div style={{ display: "flex", gap: 8 }}>
-                        {!FINISHED_STATUSES.has(o.tradeStatus) && (
-                          <button
-                            className="offer-detail-btn offer-detail-btn-edit"
-                            onClick={() => {
-                              setOdEditPremiumVal(String(o.premium ?? 0));
-                              setOdEditingPremium(true);
-                              setOdEditError(null);
-                            }}
-                          >
-                            Edit premium
-                          </button>
-                        )}
+                      <div style={{ display: "flex", justifyContent: "center" }}>
                         <button
                           className="offer-detail-btn offer-detail-btn-withdraw"
+                          style={{ flex: "0 0 50%" }}
                           onClick={() => {
                             setOdWithdrawConfirm(true);
                             setOdWithdrawError(null);
@@ -3642,7 +3751,7 @@ export default function TradesDashboard() {
                       const step = 0.2;
                       const clamp = (v) =>
                         String(
-                          Math.round(Math.max(-50, Math.min(50, v)) * 10) / 10,
+                          Math.round(Math.max(-35, Math.min(35, v)) * 10) / 10,
                         );
                       return (
                         <div className="premium-editor">
@@ -3660,7 +3769,7 @@ export default function TradesDashboard() {
                           <div className="premium-editor-controls">
                             <button
                               className="premium-circle-btn"
-                              disabled={pVal <= -50}
+                              disabled={pVal <= -35}
                               onClick={() =>
                                 setOdEditPremiumVal(clamp(pVal - step))
                               }
@@ -3685,7 +3794,7 @@ export default function TradesDashboard() {
                             </div>
                             <button
                               className="premium-circle-btn"
-                              disabled={pVal >= 50}
+                              disabled={pVal >= 35}
                               onClick={() =>
                                 setOdEditPremiumVal(clamp(pVal + step))
                               }
@@ -3699,8 +3808,8 @@ export default function TradesDashboard() {
                             <input
                               type="range"
                               className="premium-slider"
-                              min="-50"
-                              max="50"
+                              min="-35"
+                              max="35"
                               step="0.2"
                               value={pVal}
                               onChange={(e) =>
@@ -3929,7 +4038,7 @@ export default function TradesDashboard() {
                     <span className="offer-detail-label">Created</span>
                     <span className="offer-detail-value">
                       {o.createdAt
-                        ? new Date(o.createdAt).toLocaleDateString()
+                        ? new Date(o.createdAt).toLocaleDateString("en-GB")
                         : "—"}
                     </span>
                   </div>

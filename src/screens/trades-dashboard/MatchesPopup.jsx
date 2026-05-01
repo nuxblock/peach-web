@@ -11,6 +11,7 @@ import Avatar from "../../components/Avatar.jsx";
 import { Badge, satsToFiat } from "./components.jsx";
 import PeachRating from "../../components/PeachRating.jsx";
 import { toPeaches } from "../../utils/format.js";
+import { STATUS_CONFIG } from "../../data/statusConfig.js";
 import {
   decryptPGPMessage,
   decryptSymmetric,
@@ -206,6 +207,9 @@ export function transformTradeRequest(tr, offer, userProfile) {
 //   onReject        — (trade, match) handler (v069 trade requests)
 //   onAccept        — (trade, match) handler
 //   onConfirmAccept — (trade, match) handler
+//   offerDetails    — /v1/offer/:id/details payload (sell only) or null
+//   refundWalletInfo — { label, address|null } or null (sell only)
+//   escrowAddress   — string or null (sell only)
 // ─────────────────────────────────────────────────────────────────────────────
 export default function MatchesPopup({
   trade,
@@ -221,6 +225,9 @@ export default function MatchesPopup({
   onReject,
   onAccept,
   onConfirmAccept,
+  offerDetails = null,
+  refundWalletInfo = null,
+  escrowAddress = null,
 }) {
   const auth = window.__PEACH_AUTH__ ?? null;
   const isBuy = trade.direction === "buy";
@@ -228,6 +235,11 @@ export default function MatchesPopup({
   const goToUser = (peachId) => {
     if (peachId && peachId !== "unknown") navigate(`/user/${peachId}`);
   };
+
+  // ── Offer summary collapse state ──
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [copiedEscrow, setCopiedEscrow] = useState(false);
+  const [copiedRefund, setCopiedRefund] = useState(false);
 
   // ── Chat state (local to popup) ──
   const [chatMatch, setChatMatch] = useState(null);
@@ -909,56 +921,343 @@ export default function MatchesPopup({
             ✕
           </button>
         </div>
-        {/* Offer summary — tinted card for visual separation */}
-        <div
-          style={{
-            margin: "0 16px 0",
-            padding: "12px 16px",
-            background: "var(--primary-mild)",
-            borderRadius: 12,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-            }}
-          >
-            <span
-              className={`direction-badge direction-${isBuy ? "buy" : "sell"}`}
+        {/* Offer summary — collapsible tinted card */}
+        {(() => {
+          const livePrices = !isBuy
+            ? offerDetails?.prices && Object.keys(offerDetails.prices).length > 0
+              ? offerDetails.prices
+              : null
+            : trade.prices && Object.keys(trade.prices).length > 0
+              ? trade.prices
+              : null;
+          const criteria =
+            offerDetails?.instantTradeCriteria ?? trade.instantTradeCriteria ?? null;
+          const instantTradeOn = offerDetails
+            ? !!(
+                offerDetails.paymentData &&
+                Object.values(offerDetails.paymentData).some((d) => d && d.encrypted)
+              )
+            : !!trade.instantTrade;
+          const BADGE_LABELS = {
+            fastTrader: "Fast trader",
+            superTrader: "Super trader",
+          };
+          const attrChips = [];
+          if (instantTradeOn) attrChips.push("⚡ Instant trade");
+          if (criteria) {
+            if ((criteria.minTrades ?? 0) > 0) attrChips.push("No new users");
+            if ((criteria.minReputation ?? -1) > 0.5)
+              attrChips.push("Min reputation 4.5");
+            for (const b of criteria.badges ?? []) {
+              attrChips.push(BADGE_LABELS[b] ?? b);
+            }
+          }
+          if (trade.experienceLevel === "experiencedUsersOnly")
+            attrChips.push("Experienced users only");
+          if (trade.experienceLevel === "newUsersOnly")
+            attrChips.push("New users only");
+
+          const statusLabel = (
+            STATUS_CONFIG[trade.tradeStatus]?.label ?? trade.tradeStatus ?? ""
+          )
+            .toString()
+            .toUpperCase();
+
+          return (
+            <div
+              style={{
+                margin: "0 16px 0",
+                background: "var(--primary-mild)",
+                borderRadius: 12,
+                overflow: "hidden",
+              }}
             >
-              {isBuy ? "BUY" : "SELL"}
-            </span>
-            <SatsAmount sats={trade.amount} />
-            {trade.premium !== undefined && (
-              <span
+              <button
+                type="button"
+                onClick={() => setSummaryOpen((v) => !v)}
+                aria-expanded={summaryOpen}
                 style={{
-                  fontSize: ".78rem",
-                  fontWeight: 700,
-                  color: isBuy
-                    ? trade.premium < 0
-                      ? "var(--success)"
-                      : "var(--error)"
-                    : trade.premium > 0
-                      ? "var(--success)"
-                      : "var(--error)",
+                  width: "100%",
+                  padding: "12px 16px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontFamily: "inherit",
                 }}
               >
-                {trade.premium > 0 ? "+" : ""}
-                {trade.premium.toFixed(2)}%
-              </span>
-            )}
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {(trade.methods || []).map((m) => (
-                <span key={m} className="tag tag-method">
-                  {m}
-                </span>
-              ))}
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span
+                    className={`direction-badge direction-${isBuy ? "buy" : "sell"}`}
+                  >
+                    {isBuy ? "BUY" : "SELL"}
+                  </span>
+                  <SatsAmount sats={trade.amount} />
+                  {trade.premium !== undefined && (
+                    <span
+                      style={{
+                        fontSize: ".78rem",
+                        fontWeight: 700,
+                        color: isBuy
+                          ? trade.premium < 0
+                            ? "var(--success)"
+                            : "var(--error)"
+                          : trade.premium > 0
+                            ? "var(--success)"
+                            : "var(--error)",
+                      }}
+                    >
+                      {trade.premium > 0 ? "+" : ""}
+                      {trade.premium.toFixed(2)}%
+                    </span>
+                  )}
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {(trade.methods || []).map((m) => (
+                      <span key={m} className="tag tag-method">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{
+                    flexShrink: 0,
+                    color: "var(--black-65)",
+                    transform: summaryOpen ? "rotate(90deg)" : "rotate(0deg)",
+                    transition: "transform 150ms ease",
+                  }}
+                >
+                  <polyline points="6,3 12,8 6,13" />
+                </svg>
+              </button>
+              {summaryOpen && (
+                <div
+                  className="offer-detail-body"
+                  style={{ padding: "4px 16px 14px" }}
+                >
+                  <div className="offer-detail-row">
+                    <span className="offer-detail-label">Type</span>
+                    <span
+                      className="offer-detail-value"
+                      style={{
+                        color: isBuy ? "var(--success)" : "var(--error)",
+                      }}
+                    >
+                      {isBuy ? "Buy" : "Sell"}
+                    </span>
+                  </div>
+                  <div className="offer-detail-row">
+                    <span className="offer-detail-label">
+                      {isBuy ? "You buy" : "You sell"}
+                    </span>
+                    <span className="offer-detail-value">
+                      <SatsAmount sats={trade.amount} />
+                    </span>
+                  </div>
+                  <div className="offer-detail-row">
+                    <span className="offer-detail-label">Premium</span>
+                    <span
+                      className="offer-detail-value"
+                      style={{
+                        color:
+                          (trade.premium ?? 0) > 0
+                            ? "var(--success)"
+                            : (trade.premium ?? 0) < 0
+                              ? "var(--error)"
+                              : "var(--black)",
+                      }}
+                    >
+                      {(trade.premium ?? 0) > 0 ? "+" : ""}
+                      {(trade.premium ?? 0).toFixed(1)}%
+                    </span>
+                  </div>
+                  {livePrices && (
+                    <div className="offer-detail-row">
+                      <span className="offer-detail-label">Live price</span>
+                      <span className="offer-detail-value">
+                        {Object.entries(livePrices).map(([cur, val]) => (
+                          <span key={cur} style={{ marginRight: 8 }}>
+                            {cur} {Number(val).toFixed(2)}
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                  )}
+                  {trade.methods?.length > 0 && (
+                    <div className="offer-detail-row">
+                      <span className="offer-detail-label">Payment methods</span>
+                      <div className="offer-detail-chips">
+                        {trade.methods.map((m) => (
+                          <span key={m} className="method-chip">
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {trade.currencies?.length > 0 && (
+                    <div className="offer-detail-row">
+                      <span className="offer-detail-label">Currencies</span>
+                      <div className="offer-detail-chips">
+                        {trade.currencies.map((c) => (
+                          <span key={c} className="currency-chip">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {!isBuy && escrowAddress && (
+                    <div className="offer-detail-row">
+                      <span className="offer-detail-label">Escrow</span>
+                      <span
+                        className="offer-detail-value"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <span
+                          onClick={() => {
+                            navigator.clipboard
+                              ?.writeText(escrowAddress)
+                              .catch(() => {});
+                            setCopiedEscrow(true);
+                            setTimeout(() => setCopiedEscrow(false), 1500);
+                          }}
+                          title={escrowAddress}
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: ".74rem",
+                            color: copiedEscrow
+                              ? "var(--success)"
+                              : "var(--black)",
+                            textDecoration: "underline",
+                            cursor: "pointer",
+                            userSelect: "all",
+                          }}
+                        >
+                          {copiedEscrow
+                            ? "✓ Copied"
+                            : `${escrowAddress.slice(0, 6)}…${escrowAddress.slice(-4)}`}
+                        </span>
+                        <a
+                          href={`${escrowAddress.startsWith("bcrt1") ? "https://electrum-regtest.peachbitcoin.com" : "https://mempool.space"}/address/${escrowAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="View on block explorer"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            color: "var(--primary)",
+                          }}
+                        >
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 11 11"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.7"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M2 9L9 2M9 2H5M9 2v4" />
+                          </svg>
+                        </a>
+                      </span>
+                    </div>
+                  )}
+                  {!isBuy && refundWalletInfo && (
+                    <div className="offer-detail-row">
+                      <span className="offer-detail-label">Refund to</span>
+                      <span
+                        className="offer-detail-value"
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          gap: 2,
+                        }}
+                      >
+                        <span>{refundWalletInfo.label}</span>
+                        {refundWalletInfo.address && (
+                          <span
+                            onClick={() => {
+                              navigator.clipboard
+                                ?.writeText(refundWalletInfo.address)
+                                .catch(() => {});
+                              setCopiedRefund(true);
+                              setTimeout(() => setCopiedRefund(false), 1500);
+                            }}
+                            title={refundWalletInfo.address}
+                            style={{
+                              fontFamily: "monospace",
+                              fontSize: ".72rem",
+                              color: copiedRefund
+                                ? "var(--success)"
+                                : "var(--black-65)",
+                              cursor: "pointer",
+                              userSelect: "all",
+                            }}
+                          >
+                            {copiedRefund
+                              ? "✓ Copied"
+                              : `${refundWalletInfo.address.slice(0, 6)}…${refundWalletInfo.address.slice(-4)}`}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  <div className="offer-detail-row">
+                    <span className="offer-detail-label">Status</span>
+                    <span className="offer-detail-value">{statusLabel}</span>
+                  </div>
+                  <div className="offer-detail-row">
+                    <span className="offer-detail-label">Attributes</span>
+                    {attrChips.length === 0 ? (
+                      <span
+                        className="offer-detail-value"
+                        style={{ color: "var(--black-50)" }}
+                      >
+                        None
+                      </span>
+                    ) : (
+                      <div className="offer-detail-chips">
+                        {attrChips.map((c, i) => (
+                          <span key={`${c}-${i}`} className="method-chip">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+          );
+        })()}
         {/* Count / Loading */}
         <div
           style={{

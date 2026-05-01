@@ -149,6 +149,7 @@ export default function OfferCreation({ initialType="buy" }) {
     refundChoices:[{ mode:"peach", address:"" }]});
   const [form, setForm] = useState(initForm());
   const [refundErrors, setRefundErrors] = useState({});
+  const [refundExpanded, setRefundExpanded] = useState(false);
 
   const isSell = type==="sell";
   const STEPS  = getSteps(type);
@@ -327,6 +328,7 @@ export default function OfferCreation({ initialType="buy" }) {
     setMultiEnabled(false);setMultiCount(2);setMultiResults(null);setSelectedEscrowIdx(0);setMultiPublishProgress(null);
     setFundMobileLoading(false);setFundMobileActionId(null);setFundMobileError(null);
     setRefundErrors({});
+    setRefundExpanded(false);
   }
   function switchType(t){ setType(t); reset(); }
 
@@ -1191,9 +1193,17 @@ export default function OfferCreation({ initialType="buy" }) {
                     </>
                   )}
                 </div>
+              </div>
+
+              {/* §4 Attributes */}
+              <div className="card-section">
+                <div className="section-header">
+                  <div className="section-num filled">4</div>
+                  <span className="section-title">Attributes</span>
+                </div>
 
                 {/* ── INSTANT MATCH TOGGLE ── */}
-                <div className="check-row" style={{marginTop:12}}
+                <div className="check-row" style={{marginTop:0}}
                   onClick={()=>setForm(f=>({...f, instantMatch:!f.instantMatch,
                     ...(f.instantMatch ? {noNewUsers:false,minReputation:false,instantMatchBadges:[]} : {})}))}>
                   <div className="check-box" style={{
@@ -1294,12 +1304,20 @@ export default function OfferCreation({ initialType="buy" }) {
                 <MultiOfferControl
                   enabled={multiEnabled}
                   count={multiCount}
-                  onToggle={() => { setMultiEnabled(e => !e); setMultiResults(null); }}
+                  onToggle={() => { setMultiEnabled(e => !e); setMultiResults(null); setRefundExpanded(false); }}
                   onCountChange={setMultiCount}
                 />
+              </div>
 
-                {/* ── REFUND WALLET SELECTOR (sell only) ── */}
-                {isSell && (() => {
+              {/* §5 Refund (sell only) */}
+              {isSell && (
+                <div className="card-section">
+                  <div className="section-header">
+                    <div className={`section-num${refundOk?" filled":""}`}>5</div>
+                    <span className="section-title">Refund</span>
+                    {refundOk && <span className="section-done">✓ Done</span>}
+                  </div>
+                  {(() => {
                   const externalDupes = new Map();
                   form.refundChoices.forEach((c, i) => {
                     if (c.mode !== "external") return;
@@ -1315,92 +1333,133 @@ export default function OfferCreation({ initialType="buy" }) {
                     if (list.length < 2) return null;
                     return list.find(j => j !== i);
                   };
+                  const externalCount = form.refundChoices.filter(c => c.mode === "external").length;
+                  const peachCount = form.refundChoices.length - externalCount;
+                  const summaryLabel =
+                    externalCount === 0
+                      ? "Peach Wallet (default)"
+                      : peachCount === 0
+                        ? `${externalCount} external address${externalCount === 1 ? "" : "es"}`
+                        : `${externalCount} external, ${peachCount} Peach Wallet`;
+                  const showExpanded = !multiEnabled || refundExpanded || !refundOk;
+
+                  const renderChoiceRow = (choice, i) => {
+                    const dup = dupeOf(i);
+                    const err = refundErrors[i];
+                    return (
+                      <div key={i} style={{
+                        padding: multiEnabled ? "10px 12px" : 0,
+                        background: multiEnabled ? "var(--black-3)" : "transparent",
+                        borderRadius: multiEnabled ? 8 : 0,
+                      }}>
+                        {multiEnabled && (
+                          <div style={{fontSize:".72rem",fontWeight:700,color:"var(--black-65)",marginBottom:8}}>
+                            Offer {i + 1}
+                          </div>
+                        )}
+                        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                          {[["peach","Peach Wallet"],["external","Add external address"]].map(([val,label])=>{
+                            const selected = choice.mode === val;
+                            return (
+                              <button key={val} type="button"
+                                onClick={()=>{
+                                  updateRefund(i, { mode: val });
+                                  if (val === "peach") setRefundErrors(p => { const n={...p}; delete n[i]; return n; });
+                                }}
+                                style={{
+                                  border:"1.5px solid var(--primary)",
+                                  background: selected ? "var(--primary)" : "transparent",
+                                  color: selected ? "var(--surface)" : "var(--primary)",
+                                  padding:"8px 16px",
+                                  borderRadius:999,
+                                  fontWeight:700,
+                                  fontSize:".78rem",
+                                  fontFamily:"'Baloo 2', cursive",
+                                  cursor:"pointer",
+                                  transition:"background .15s, color .15s",
+                                }}>
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {choice.mode === "external" && (
+                          <div style={{marginTop:10,marginLeft:32}}>
+                            <input
+                              value={choice.address}
+                              onChange={e => {
+                                updateRefund(i, { address: e.target.value });
+                                setRefundErrors(p => { const n={...p}; delete n[i]; return n; });
+                              }}
+                              onBlur={() => {
+                                const v = (choice.address ?? "").trim();
+                                if (!v) { setRefundErrors(p => { const n={...p}; delete n[i]; return n; }); return; }
+                                const r = validateBtcAddress(v);
+                                setRefundErrors(p => ({ ...p, [i]: r.valid ? null : r.error }));
+                              }}
+                              placeholder="bc1q… / 3… / 1…"
+                              style={{
+                                width:"100%",padding:"10px 14px",borderRadius:10,
+                                border: err ? "1.5px solid var(--error)" : "1.5px solid var(--black-25)",
+                                background:"var(--surface)",fontFamily:"'Baloo 2',cursive",
+                                fontSize:".85rem",color:"var(--black)",outline:"none"
+                              }}/>
+                            {err && (
+                              <div style={{fontSize:".72rem",color:"var(--error)",marginTop:6}}>{err}</div>
+                            )}
+                            {!err && (choice.address ?? "").trim() && validateBtcAddress(choice.address.trim()).valid && (
+                              <div style={{fontSize:".72rem",color:"var(--success)",fontWeight:700,marginTop:6}}>✓ Valid address</div>
+                            )}
+                            {!err && dup != null && (
+                              <div style={{fontSize:".72rem",color:"#C77700",marginTop:6}}>
+                                This address is also used by Offer {dup + 1}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  };
+
+                  if (!multiEnabled) {
+                    return (
+                      <div style={{marginTop:14}}>
+                        <div style={{fontSize:".78rem",fontWeight:700,marginBottom:8}}>Refund to:</div>
+                        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                          {form.refundChoices.map((choice, i) => renderChoiceRow(choice, i))}
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div style={{marginTop:14}}>
-                      <div style={{fontSize:".78rem",fontWeight:700,marginBottom:8}}>Refund to:</div>
-                      <div style={{display:"flex",flexDirection:"column",gap: multiEnabled ? 10 : 8}}>
-                        {form.refundChoices.map((choice, i) => {
-                          const dup = dupeOf(i);
-                          const err = refundErrors[i];
-                          return (
-                            <div key={i} style={{
-                              padding: multiEnabled ? "10px 12px" : 0,
-                              background: multiEnabled ? "var(--black-3)" : "transparent",
-                              borderRadius: multiEnabled ? 8 : 0,
-                            }}>
-                              {multiEnabled && (
-                                <div style={{fontSize:".72rem",fontWeight:700,color:"var(--black-65)",marginBottom:8}}>
-                                  Offer {i + 1}
-                                </div>
-                              )}
-                              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                                {[["peach","Peach Wallet"],["external","Add external address"]].map(([val,label])=>{
-                                  const selected = choice.mode === val;
-                                  return (
-                                    <button key={val} type="button"
-                                      onClick={()=>{
-                                        updateRefund(i, { mode: val });
-                                        if (val === "peach") setRefundErrors(p => { const n={...p}; delete n[i]; return n; });
-                                      }}
-                                      style={{
-                                        border:"1.5px solid var(--primary)",
-                                        background: selected ? "var(--primary)" : "transparent",
-                                        color: selected ? "var(--surface)" : "var(--primary)",
-                                        padding:"8px 16px",
-                                        borderRadius:999,
-                                        fontWeight:700,
-                                        fontSize:".78rem",
-                                        fontFamily:"'Baloo 2', cursive",
-                                        cursor:"pointer",
-                                        transition:"background .15s, color .15s",
-                                      }}>
-                                      {label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              {choice.mode === "external" && (
-                                <div style={{marginTop:10,marginLeft:32}}>
-                                  <input
-                                    value={choice.address}
-                                    onChange={e => {
-                                      updateRefund(i, { address: e.target.value });
-                                      setRefundErrors(p => { const n={...p}; delete n[i]; return n; });
-                                    }}
-                                    onBlur={() => {
-                                      const v = (choice.address ?? "").trim();
-                                      if (!v) { setRefundErrors(p => { const n={...p}; delete n[i]; return n; }); return; }
-                                      const r = validateBtcAddress(v);
-                                      setRefundErrors(p => ({ ...p, [i]: r.valid ? null : r.error }));
-                                    }}
-                                    placeholder="bc1q… / 3… / 1…"
-                                    style={{
-                                      width:"100%",padding:"10px 14px",borderRadius:10,
-                                      border: err ? "1.5px solid var(--error)" : "1.5px solid var(--black-25)",
-                                      background:"var(--surface)",fontFamily:"'Baloo 2',cursive",
-                                      fontSize:".85rem",color:"var(--black)",outline:"none"
-                                    }}/>
-                                  {err && (
-                                    <div style={{fontSize:".72rem",color:"var(--error)",marginTop:6}}>{err}</div>
-                                  )}
-                                  {!err && (choice.address ?? "").trim() && validateBtcAddress(choice.address.trim()).valid && (
-                                    <div style={{fontSize:".72rem",color:"var(--success)",fontWeight:700,marginTop:6}}>✓ Valid address</div>
-                                  )}
-                                  {!err && dup != null && (
-                                    <div style={{fontSize:".72rem",color:"#C77700",marginTop:6}}>
-                                      This address is also used by Offer {dup + 1}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                      <div style={{display:"flex",flexWrap:"wrap",alignItems:"baseline",gap:6,marginBottom:6}}>
+                        <span style={{fontSize:".78rem",fontWeight:700}}>Refund to:</span>
+                        <span style={{fontSize:".78rem",fontWeight:500,color:"var(--black-65)"}}>{summaryLabel}</span>
                       </div>
+                      <button type="button"
+                        onClick={() => { if (refundOk) setRefundExpanded(v => !v); }}
+                        disabled={!refundOk}
+                        style={{
+                          background:"transparent",border:"none",padding:0,
+                          color:"var(--primary)",fontWeight:700,fontSize:".78rem",
+                          fontFamily:"'Baloo 2', cursive",
+                          cursor: refundOk ? "pointer" : "default",
+                          opacity: refundOk ? 1 : 0.85,
+                        }}>
+                        {showExpanded ? "▼" : "▶"} Edit refund addresses individually
+                      </button>
+                      {showExpanded && (
+                        <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:10}}>
+                          {form.refundChoices.map((choice, i) => renderChoiceRow(choice, i))}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
-              </div>
+                </div>
+              )}
             </div>
           )}
 

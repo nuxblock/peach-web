@@ -120,7 +120,7 @@ export const CSS = `
     justify-content:center;font-size:.65rem;font-weight:800;color:var(--black-65);flex-shrink:0}
   .section-num.filled{background:var(--primary-mild);border-color:var(--primary-mild2);
     color:var(--primary-dark)}
-  .section-title{font-size:.88rem;font-weight:800;color:var(--black)}
+  .section-title{font-size:1.1rem;font-weight:800;color:var(--black)}
   .section-done{font-size:.7rem;font-weight:700;color:var(--success);
     background:var(--success-bg);padding:2px 8px;border-radius:999px;margin-left:auto}
 
