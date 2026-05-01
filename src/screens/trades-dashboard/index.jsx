@@ -682,8 +682,12 @@ export default function TradesDashboard() {
       }
     }
     const mop = o.meansOfPayment ?? {};
-    const offerCurrencies = Object.keys(mop);
     const offerMethods = [...new Set(Object.values(mop).flat())];
+    // Sells from /offers/summary lack meansOfPayment; derive currencies from `prices` keys.
+    const offerCurrencies =
+      Object.keys(mop).length > 0
+        ? Object.keys(mop)
+        : Object.keys(o.prices ?? {});
     const amtForPrice =
       o.amountSats ?? (Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0));
     // Buy offers from v069 don't reliably expose priceIn{offerCurrency} — compute
@@ -807,7 +811,7 @@ export default function TradesDashboard() {
 
   // ── FAST TIER: Core data (every 15s) ──
   // Fetches: /offers/summary (once, shared), /contracts/summary,
-  //          /v069/buyOffer?ownOffers=true, /v069/user/{peachId}/offers
+  //          /v069/buyOffer?ownOffers=true
   useEffect(() => {
     if (!auth) return;
 
@@ -816,24 +820,18 @@ export default function TradesDashboard() {
       const hdrs = { Authorization: `Bearer ${auth.token}` };
       setIsRefetching(true);
       try {
-        const [offersRes, contractsRes, v069BuyRes, ownOffersRes] =
-          await Promise.all([
-            get("/offers/summary"),
-            get("/contracts/summary"),
-            fetchWithSessionCheck(`${v069Base}/buyOffer?ownOffers=true`, {
-              headers: hdrs,
-            }),
-            fetchWithSessionCheck(`${v069Base}/user/${auth.peachId}/offers`, {
-              headers: hdrs,
-            }),
-          ]);
-        const [offersData, contractsData, v069BuyData, ownOffersData] =
-          await Promise.all([
-            offersRes.ok ? offersRes.json() : [],
-            contractsRes.ok ? contractsRes.json() : [],
-            v069BuyRes.ok ? v069BuyRes.json() : [],
-            ownOffersRes.ok ? ownOffersRes.json() : null,
-          ]);
+        const [offersRes, contractsRes, v069BuyRes] = await Promise.all([
+          get("/offers/summary"),
+          get("/contracts/summary"),
+          fetchWithSessionCheck(`${v069Base}/buyOffer?ownOffers=true`, {
+            headers: hdrs,
+          }),
+        ]);
+        const [offersData, contractsData, v069BuyData] = await Promise.all([
+          offersRes.ok ? offersRes.json() : [],
+          contractsRes.ok ? contractsRes.json() : [],
+          v069BuyRes.ok ? v069BuyRes.json() : [],
+        ]);
 
         const offersArr = Array.isArray(offersData)
           ? offersData
@@ -850,15 +848,9 @@ export default function TradesDashboard() {
           o._direction = "buy";
         });
 
-        // Own sell offers from /user/{peachId}/offers (replaces broken sellOffer?ownOffers=true)
-        const ownSellArr = ownOffersData?.sellOffers ?? [];
-        ownSellArr.forEach((o) => {
-          o._direction = "sell";
-        });
-
-        // Debug: decrypt selfEncrypted PM data on own offers
+        // Debug: decrypt selfEncrypted PM data on own buy offers
         if (auth?.pgpPrivKey) {
-          for (const o of [...v069BuyArr, ...ownSellArr]) {
+          for (const o of v069BuyArr) {
             const pd = o.paymentData;
             if (!pd) continue;
             for (const [method, data] of Object.entries(pd)) {
@@ -871,39 +863,13 @@ export default function TradesDashboard() {
           }
         }
 
-        // Also pull own buy offers from the /user/{id}/offers response as backup
-        const ownBuyBackup = ownOffersData?.buyOffers ?? [];
-
-        // Merge and deduplicate by ID. Sell offers come from /v1/offers/summary
-        // (type="ask") — that endpoint carries the owner's full paymentData with
-        // the `encrypted` blob that signals instant trade. /user/{id}/offers lacks it.
+        // Merge by id: /offers/summary is canonical for sells (type="ask").
+        // v069 buyOffer adds buy-side rows; v069 may omit `prices`, so carry v1's over.
         const byId = new Map();
-        offersArr.forEach((o) => byId.set(o.id, o)); // v1 base layer — canonical for own sells
-        ownBuyBackup.forEach((o) => {
-          o._direction = "buy";
-          const existing = byId.get(o.id);
-          if (existing?.prices && !o.prices) o.prices = existing.prices;
-          byId.set(o.id, o);
-        });
+        offersArr.forEach((o) => byId.set(o.id, o));
         v069BuyArr.forEach((o) => {
-          // v069 has full tradeStatus but may omit `prices` — carry v1's over so
-          // buy-offer rows can display fiat without waiting for /market/prices.
           const existing = byId.get(o.id);
           if (existing?.prices && !o.prices) o.prices = existing.prices;
-          byId.set(o.id, o);
-        });
-        ownSellArr.forEach((o) => {
-          // Sell offers from /v1/offers/summary lack meansOfPayment; v069 carries it.
-          // Preserve fields v069 doesn't return: tradeStatus, prices, instantTradeEnabled.
-          const existing = byId.get(o.id);
-          if (existing?.prices && !o.prices) o.prices = existing.prices;
-          if (existing?.tradeStatus && !o.tradeStatus)
-            o.tradeStatus = existing.tradeStatus;
-          if (
-            existing?.instantTradeEnabled != null &&
-            o.instantTradeEnabled == null
-          )
-            o.instantTradeEnabled = existing.instantTradeEnabled;
           byId.set(o.id, o);
         });
 
@@ -1089,10 +1055,14 @@ export default function TradesDashboard() {
         setLivePending((prev) => {
           const currentPending = prev ?? [];
           const ownOffers = currentPending.filter((o) => o.kind === "offer");
+          // Sells: matches load on popup-open via the on-demand path, so skip the
+          // slow-tier pre-warm here (every sell with `acceptTradeRequest` would
+          // otherwise hit /v069 every minute).
           const matchable = ownOffers.filter(
             (o) =>
-              o.tradeStatus === "hasMatchesAvailable" ||
-              o.tradeStatus === "acceptTradeRequest",
+              o.direction !== "sell" &&
+              (o.tradeStatus === "hasMatchesAvailable" ||
+                o.tradeStatus === "acceptTradeRequest"),
           );
 
           if (matchable.length > 0) {
@@ -2832,20 +2802,30 @@ export default function TradesDashboard() {
                         </span>
                       </div>
                     )}
-                  {o.methods?.length > 0 && (
-                    <div className="offer-detail-row">
-                      <span className="offer-detail-label">
-                        Payment methods
-                      </span>
-                      <div className="offer-detail-chips">
-                        {o.methods.map((m) => (
-                          <span key={m} className="method-chip">
-                            {m}
-                          </span>
-                        ))}
+                  {(() => {
+                    // Sells fetch /offer/{id}/details on open — paymentData keys are the methods.
+                    // Buys: details endpoint is sell-only, fall back to list-row methods.
+                    const detailMethods = Object.keys(
+                      offerDetails?.paymentData ?? {},
+                    );
+                    const methods =
+                      detailMethods.length > 0 ? detailMethods : o.methods ?? [];
+                    if (methods.length === 0) return null;
+                    return (
+                      <div className="offer-detail-row">
+                        <span className="offer-detail-label">
+                          Payment methods
+                        </span>
+                        <div className="offer-detail-chips">
+                          {methods.map((m) => (
+                            <span key={m} className="method-chip">
+                              {m}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                   {o.currencies?.length > 0 && (
                     <div className="offer-detail-row">
                       <span className="offer-detail-label">Currencies</span>
