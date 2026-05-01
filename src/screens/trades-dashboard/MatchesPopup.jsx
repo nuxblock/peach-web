@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { relTime as relativeTime, formatTradeId } from "../../utils/format.js";
 import Avatar from "../../components/Avatar.jsx";
+import RepeatTraderBadge from "../../components/RepeatTraderBadge.jsx";
 import { Badge, satsToFiat } from "./components.jsx";
 import PeachRating from "../../components/PeachRating.jsx";
 import { toPeaches } from "../../utils/format.js";
@@ -776,16 +777,15 @@ export default function MatchesPopup({
               <span style={{ fontSize: ".82rem", color: "var(--black-65)" }}>
                 {m.user.trades} trades
               </span>
-              {m.user.badges.length > 0 && (
-                <div style={{ display: "flex", gap: 6 }}>
-                  {m.user.badges.includes("supertrader") && (
-                    <Badge label="supertrader" icon="☆" />
-                  )}
-                  {m.user.badges.includes("fast") && (
-                    <Badge label="fast" icon="⚡" />
-                  )}
-                </div>
-              )}
+              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                {m.user.badges.includes("supertrader") && (
+                  <Badge label="supertrader" icon="☆" />
+                )}
+                {m.user.badges.includes("fast") && (
+                  <Badge label="fast" icon="⚡" />
+                )}
+                <RepeatTraderBadge userId={m.user.peachId} />
+              </div>
             </div>
             {/* Trade terms */}
             <div className="match-detail-terms">
@@ -1358,16 +1358,15 @@ export default function MatchesPopup({
                         {d.opened} opened · {d.won} won · {d.lost} lost
                       </span>
                     </div>
-                    {m.user.badges.length > 0 && (
-                      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                        {m.user.badges.includes("supertrader") && (
-                          <Badge label="supertrader" icon="☆" />
-                        )}
-                        {m.user.badges.includes("fast") && (
-                          <Badge label="fast" icon="⚡" />
-                        )}
-                      </div>
-                    )}
+                    <div style={{ display: "flex", gap: 6, marginTop: 4, alignItems: "center", flexWrap: "wrap" }}>
+                      {m.user.badges.includes("supertrader") && (
+                        <Badge label="supertrader" icon="☆" />
+                      )}
+                      {m.user.badges.includes("fast") && (
+                        <Badge label="fast" icon="⚡" />
+                      )}
+                      <RepeatTraderBadge userId={m.user.peachId} />
+                    </div>
                     {(m.methods?.length > 0 || m.currencies?.length > 0) && (
                       <div
                         style={{

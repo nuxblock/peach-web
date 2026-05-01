@@ -129,6 +129,7 @@ export const CSS = `
     font-size:.62rem;font-weight:700;white-space:nowrap}
   .badge-super{background:var(--grad);color:white}
   .badge-fast{background:var(--primary-mild);color:var(--primary-dark)}
+  .badge-ambassador{background:var(--btc, #f7931a);color:white}
 
   /* ── AUTO BADGE ── */
   .auto-badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;
@@ -146,6 +147,20 @@ export const CSS = `
     padding:1px 7px;border-radius:999px;white-space:nowrap;letter-spacing:.03em}
   .offer-id-label{font-size:.62rem;font-weight:600;color:var(--black-50);
     font-family:inherit;white-space:nowrap;letter-spacing:.02em;margin-bottom:-2px}
+  .user-peach-id{font-size:.82rem;font-weight:800;color:var(--black-65);
+    font-family:inherit;white-space:nowrap;letter-spacing:.04em;line-height:1.2}
+  .my-offer-badge{display:inline-flex;align-items:center;justify-content:center;
+    padding:6px 18px;border-radius:999px;background:var(--primary-mild);
+    color:var(--primary-dark);font-size:.8rem;font-weight:800;letter-spacing:.02em;
+    border:1.5px solid rgba(245,101,34,.25);white-space:nowrap;align-self:flex-start}
+  .rep-cell-own{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+  .offer-id-copy{display:inline-flex;align-items:baseline;gap:4px;cursor:pointer;
+    font-size:.7rem;user-select:none;line-height:1.2;white-space:nowrap}
+  .offer-id-copy-label{color:var(--black-65);font-weight:600}
+  .offer-id-copy-value{color:var(--primary);font-weight:700;
+    text-decoration:underline;text-underline-offset:2px;letter-spacing:.01em}
+  .offer-id-copy:hover .offer-id-copy-value{color:var(--primary-dark)}
+  .offer-id-copy-value.is-copied{color:var(--success);text-decoration:none}
   /* mobile own card */
   .offer-card.own-card{border-left:3px solid var(--primary);background:linear-gradient(135deg,rgba(245,101,34,.04),var(--surface))}
   .my-offers-check{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;
@@ -214,7 +229,8 @@ export const CSS = `
     background:var(--primary-mild);color:var(--primary-dark);letter-spacing:.04em}
 
   /* ── ACTION ── */
-  .action-cell{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+  .action-cell{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .action-cell-badges{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
   .action-btn{padding:6px 18px;border-radius:999px;font-family:var(--font);font-size:.8rem;
     font-weight:800;border:none;cursor:pointer;letter-spacing:.02em;transition:all .12s;white-space:nowrap}
   .action-buy{background:var(--success-bg);color:var(--success)}
@@ -350,8 +366,10 @@ export const CSS = `
   .popup-anim-card{display:flex;align-items:center;justify-content:center;min-height:220px}
   .popup-header{
     display:flex;align-items:center;justify-content:space-between;
-    padding:18px 22px 0;
+    padding:18px 22px 0;gap:10px;
   }
+  .popup-header-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;min-width:0}
+  .popup-user-badges{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
   .popup-title{font-weight:800;font-size:1rem;color:var(--black)}
   .popup-close{
     width:30px;height:30px;border-radius:8px;border:none;background:var(--black-5);

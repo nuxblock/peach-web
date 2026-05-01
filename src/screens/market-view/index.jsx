@@ -11,11 +11,12 @@ import { getCached, setCache, clearCache } from "../../hooks/useApi.js";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat, formatTradeId, toPeaches } from "../../utils/format.js";
 import PeachRating from "../../components/PeachRating.jsx";
 import Avatar from "../../components/Avatar.jsx";
+import RepeatTraderBadge from "../../components/RepeatTraderBadge.jsx";
 import RequestedOfferPopup from "../../components/RequestedOfferPopup.jsx";
 import Toast from "../../components/Toast.jsx";
 import { RefreshIndicator } from "../../components/RefreshIndicator.jsx";
 import { CSS } from "./styles.js";
-import { premiumStats, premiumCls, currSym, MultiSelect, Chips, RepCell, AmountCell, PriceCell } from "./components.jsx";
+import { premiumStats, premiumCls, currSym, MultiSelect, Chips, RepCell, AmountCell, PriceCell, OfferIdCopy } from "./components.jsx";
 import { CATEGORY_META } from "../../components/AddPMFlow.jsx";
 import {
   PM_NAMES, PM_CATEGORIES,
@@ -617,7 +618,11 @@ export default function PeachMarket() {
       currencies,
       rep: toPeaches(o.user?.rating ?? 0),
       trades: o.user?.trades ?? 0,
-      badges: o.user?.medals ?? o.user?.badges ?? [],
+      badges: (o.user?.medals ?? o.user?.badges ?? []).map((m) =>
+        m === "fastTrader" ? "fast"
+          : m === "superTrader" ? "supertrader"
+          : m,
+      ),
       auto: o.allowedToInstantTrade ?? false,
       experienceLevel: o.experienceLevelCriteria ?? null,
       online: o.user?.online ?? false,
@@ -642,10 +647,16 @@ export default function PeachMarket() {
       currencies,
       rep: toPeaches(auth?.profile?.rating ?? 0),
       trades: auth?.profile?.trades ?? 0,
-      badges: auth?.profile?.medals ?? [],
+      badges: (auth?.profile?.medals ?? []).map((m) =>
+        m === "fastTrader" ? "fast"
+          : m === "superTrader" ? "supertrader"
+          : m,
+      ),
       auto: false,
       experienceLevel: o.experienceLevelCriteria ?? null,
       online: true,
+      userId: peachId ?? "",
+      peachId: peachId ? ("PEACH" + peachId.slice(0, 8).toUpperCase()) : "",
       isOwn: true,
       _raw: o,
     };
@@ -1122,24 +1133,29 @@ export default function PeachMarket() {
         <div className="popup-card" onClick={e => e.stopPropagation()}>
           {/* Header */}
           <div className="popup-header">
-            <span className="popup-title">
-              {isOwn ? "Your offer" : isReq ? "Trade requested" : "Offer details"}
-              <span className="offer-id-label" style={{marginLeft:8}}>{offer.tradeId}</span>
-              {detailsLoading && (
-                <span
-                  aria-label="Loading details"
-                  title="Loading details"
-                  style={{
-                    display:"inline-block",
-                    marginLeft:8,
-                    fontSize:".78rem",
-                    animation:"spin 1s linear infinite",
-                    color:"var(--black-50)",
-                    verticalAlign:"middle",
-                  }}
-                >↻</span>
-              )}
-            </span>
+            <div className="popup-header-left">
+              <span className="popup-title">
+                {isOwn ? "Your offer" : isReq ? "Trade requested" : "Offer details"}
+                <span className="offer-id-label" style={{marginLeft:8}}>{offer.tradeId}</span>
+                {detailsLoading && (
+                  <span
+                    aria-label="Loading details"
+                    title="Loading details"
+                    style={{
+                      display:"inline-block",
+                      marginLeft:8,
+                      fontSize:".78rem",
+                      animation:"spin 1s linear infinite",
+                      color:"var(--black-50)",
+                      verticalAlign:"middle",
+                    }}
+                  >↻</span>
+                )}
+              </span>
+              {isInstant && <span className="auto-badge">⚡ Instant</span>}
+              {offer.experienceLevel === "newUsersOnly" && <span className="exp-badge">🆕 FOR NEW USERS</span>}
+              {offer.experienceLevel === "experiencedUsersOnly" && <span className="exp-badge">👤 FOR EXPERIENCED USERS</span>}
+            </div>
             <button className="popup-close" onClick={closePopup}>✕</button>
           </div>
 
@@ -1170,19 +1186,18 @@ export default function PeachMarket() {
                     {formatPeachId(offer.userId).toLowerCase()}
                   </div>
                 )}
-                <div style={{display:"flex",alignItems:"center",gap:5}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
                   <PeachRating rep={offer.rep} size={16}/>
                   <span className="rep-trades">({offer.trades} trades)</span>
-                </div>
-                <div style={{display:"flex",gap:3,marginTop:3}}>
-                  {offer.badges.includes("supertrader") && <span className="badge badge-super">🏆 Super</span>}
-                  {offer.badges.includes("fast") && <span className="badge badge-fast">⚡ Fast</span>}
-                  {isOwn && <span className="own-label">Your offer</span>}
+                  {isOwn && <span className="own-label" style={{marginLeft:6}}>Your offer</span>}
                 </div>
               </div>
-              {isInstant && <span className="auto-badge">⚡ Instant</span>}
-              {offer.experienceLevel==="experiencedUsersOnly"&&<span className="exp-badge">👤 Experienced only</span>}
-              {offer.experienceLevel==="newUsersOnly"&&<span className="exp-badge">🆕 New users</span>}
+              <div className="popup-user-badges">
+                {offer.badges.includes("supertrader") && <span className="badge badge-super">🏆 Super</span>}
+                {offer.badges.includes("fast") && <span className="badge badge-fast">⚡ Fast</span>}
+                {offer.badges.includes("ambassador") && <span className="badge badge-ambassador">⭐ Ambassador</span>}
+                <RepeatTraderBadge userId={offer.userId} />
+              </div>
             </div>
 
             {/* Summary rows */}
@@ -1571,7 +1586,7 @@ export default function PeachMarket() {
                   disabled={!isLoggedIn}
                 />
                 <span className="my-offers-check-box"/>
-                Show My Offers
+                Compare my offers
               </label>
               <span
                 className="info-dot"
@@ -1660,9 +1675,9 @@ export default function PeachMarket() {
                       </td>
                       <td>
                         <div className="action-cell">
-                          {offer.isOwn && <span className="own-label">Your offer</span>}
+                          <OfferIdCopy tradeId={offer.tradeId} />
                           {(offer.auto||offer.experienceLevel)&&(
-                            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                            <div className="action-cell-badges">
                               {offer.auto&&<span className="auto-badge">⚡ Instant Trade</span>}
                               {offer.experienceLevel==="experiencedUsersOnly"&&<span className="exp-badge">👤 Experienced only</span>}
                               {offer.experienceLevel==="newUsersOnly"&&<span className="exp-badge">🆕 New users</span>}
@@ -1703,20 +1718,33 @@ export default function PeachMarket() {
             ) : displayOffers.map(offer => (
             <div key={offer.id} className={`offer-card${offer.isOwn?" own-card":""}${effectiveRequested.has(offer.id)&&!offer.auto&&!offer.isOwn?" requested-card":""}${undoAnim===offer.id?" undo-card":""}${highlightedIds.has(offer.id)?" new-offer-card":""}`}
               style={{cursor: isLoggedIn ? "pointer" : "default"}} onClick={() => isLoggedIn && openPopup(offer)}>
-                {/* Row 1: tradeID + avatar · rep/badges (left) | action buttons (right) */}
-                <span className="offer-id-label">{offer.tradeId}</span>
+                {/* Row 1: PeachID + avatar · rep/badges (left) | offer ID + action (right) */}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                  <span className="user-peach-id">{offer.peachId}</span>
+                  <OfferIdCopy tradeId={offer.tradeId} />
+                </div>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <Avatar peachId={offer.userId} size={27} online={offer.online} />
-                  <div style={{flex:1,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
-                    <PeachRating rep={offer.rep} size={14}/>
-                    <span className="rep-trades">({offer.trades})</span>
-                    {offer.isOwn && <span className="own-label">Your offer</span>}
-                    {offer.badges.includes("supertrader")&&<span className="badge badge-super">🏆</span>}
-                    {offer.badges.includes("fast")&&<span className="badge badge-fast">⚡</span>}
-                  </div>
+                  {offer.isOwn ? (
+                    <div style={{flex:1,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      <span className="my-offer-badge">My offer</span>
+                      {offer.badges.includes("supertrader")&&<span className="badge badge-super">🏆</span>}
+                      {offer.badges.includes("fast")&&<span className="badge badge-fast">⚡</span>}
+                    </div>
+                  ) : (
+                    <>
+                      <Avatar peachId={offer.userId} size={32} online={offer.online} />
+                      <div style={{flex:1,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+                        <PeachRating rep={offer.rep} size={14}/>
+                        <span className="rep-trades">({offer.trades})</span>
+                        {offer.badges.includes("supertrader")&&<span className="badge badge-super">🏆</span>}
+                        {offer.badges.includes("fast")&&<span className="badge badge-fast">⚡</span>}
+                        <RepeatTraderBadge userId={offer.userId} />
+                      </div>
+                    </>
+                  )}
                   <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
                     {(offer.auto||offer.experienceLevel)&&(
-                      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                      <div className="action-cell-badges">
                         {offer.auto&&<span className="auto-badge">⚡ Instant Trade</span>}
                         {offer.experienceLevel==="experiencedUsersOnly"&&<span className="exp-badge">👤 Experienced only</span>}
                         {offer.experienceLevel==="newUsersOnly"&&<span className="exp-badge">🆕 New users</span>}

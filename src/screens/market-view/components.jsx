@@ -144,12 +144,26 @@ export function Chips({ items, className }) {
 // ── RepCell ───────────────────────────────────────────────────────────────────
 
 export function RepCell({ offer }) {
+  if (offer.isOwn) {
+    return (
+      <div className="rep-cell rep-cell-own">
+        <span className="user-peach-id">{offer.peachId}</span>
+        <span className="my-offer-badge">My offer</span>
+        {offer.badges.length > 0 && (
+          <div className="badges-row">
+            {offer.badges.includes("supertrader") && <span className="badge badge-super">🏆 Super</span>}
+            {offer.badges.includes("fast")        && <span className="badge badge-fast">⚡ Fast</span>}
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="rep-cell">
-      <span className="offer-id-label">{offer.tradeId}</span>
-      <div style={{display:"flex",alignItems:"center",gap:8}}>
-        <Avatar peachId={offer.userId} size={27} online={offer.online} />
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <Avatar peachId={offer.userId} size={32} online={offer.online} />
         <div className="rep-info">
+          <span className="user-peach-id">{offer.peachId}</span>
           <div className="rep-row">
             <PeachRating rep={offer.rep} size={14}/>
             <span className="rep-trades">({offer.trades})</span>
@@ -163,6 +177,26 @@ export function RepCell({ offer }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── OfferIdCopy ──────────────────────────────────────────────────────────────
+
+export function OfferIdCopy({ tradeId }) {
+  const [copied, setCopied] = useState(false);
+  function copy(e) {
+    e.stopPropagation();
+    try { navigator.clipboard.writeText(tradeId); } catch {}
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+  return (
+    <span className="offer-id-copy" onClick={copy} title="Copy offer ID">
+      <span className="offer-id-copy-label">offer ID:</span>
+      <span className={`offer-id-copy-value${copied ? " is-copied" : ""}`}>
+        {copied ? "✓ Copied" : tradeId}
+      </span>
+    </span>
   );
 }
 

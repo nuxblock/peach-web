@@ -13,6 +13,7 @@ import {
   formatTradeId,
 } from "../../utils/format.js";
 import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js";
+import { InfoDot } from "../../components/InfoPopup.jsx";
 
 // ─── CONSTANTS (shared with index.jsx) ──────────────────────────────────────
 
@@ -398,7 +399,7 @@ export function AmountSlider({ form, setF, btcPrice }) {
 
 // ─── MULTI-OFFER CONTROL ────────────────────────────────────────────────────
 
-export function MultiOfferControl({ enabled, count, onToggle, onCountChange }) {
+export function MultiOfferControl({ enabled, count, onToggle, onCountChange, onInfoClick }) {
   return (
     <div style={{ marginTop: 16 }}>
       <div className="check-row" onClick={onToggle}>
@@ -414,6 +415,9 @@ export function MultiOfferControl({ enabled, count, onToggle, onCountChange }) {
         <div>
           <div style={{ fontSize: ".8rem", fontWeight: 700 }}>
             Create multiple offers
+            {onInfoClick && (
+              <InfoDot ariaLabel="About multiple offers" onClick={onInfoClick}/>
+            )}
           </div>
           <div
             style={{

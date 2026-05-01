@@ -3496,55 +3496,49 @@ export default function TradesDashboard() {
                     </div>
                   )}
 
-                {!isBuy &&
-                  fundingStage === "funded" &&
-                  !odEditingPremium &&
-                  !odWithdrawConfirm &&
-                  odRefundActionId && (
-                    <div
-                      style={{
-                        padding: "12px 20px 16px",
-                        borderTop: "1px solid var(--black-10)",
-                      }}
-                    >
-                      {IS_PHONE && typeof odRefundActionId === "number" ? (
-                        <a
-                          href={buildMobileActionDeepLink("refundEscrow", odRefundActionId)}
-                          style={{
-                            display: "block",
-                            padding: "10px 14px",
-                            borderRadius: 999,
-                            background: "var(--grad)",
-                            color: "white",
-                            textDecoration: "none",
-                            fontSize: ".78rem",
-                            fontWeight: 800,
-                            textAlign: "center",
-                            boxShadow: "0 2px 12px rgba(245,101,34,.3)",
-                          }}
-                        >
-                          Open Peach App
-                        </a>
-                      ) : (
-                        <div
-                          style={{
-                            padding: "10px 14px",
-                            borderRadius: 8,
-                            background: "var(--black-5)",
-                            color: "var(--black-65)",
-                            fontSize: ".78rem",
-                            fontWeight: 700,
-                            textAlign: "center",
-                          }}
-                        >
-                          ✓ Refund request sent — check your phone
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                 {/* Footer — actions */}
                 <div className="offer-detail-footer">
+                  {/* Funded sell offer with refund pending: greyed message
+                    (or Open Peach App deeplink on mobile). */}
+                  {!odEditingPremium &&
+                    !odWithdrawConfirm &&
+                    o.direction === "sell" &&
+                    fundingStage === "funded" &&
+                    odRefundActionId &&
+                    (IS_PHONE && typeof odRefundActionId === "number" ? (
+                      <a
+                        href={buildMobileActionDeepLink("refundEscrow", odRefundActionId)}
+                        style={{
+                          display: "block",
+                          padding: "10px 14px",
+                          borderRadius: 999,
+                          background: "var(--grad)",
+                          color: "white",
+                          textDecoration: "none",
+                          fontSize: ".78rem",
+                          fontWeight: 800,
+                          textAlign: "center",
+                          boxShadow: "0 2px 12px rgba(245,101,34,.3)",
+                        }}
+                      >
+                        Open Peach App
+                      </a>
+                    ) : (
+                      <div
+                        style={{
+                          padding: "10px 14px",
+                          borderRadius: 8,
+                          background: "var(--black-5)",
+                          color: "var(--black-65)",
+                          fontSize: ".78rem",
+                          fontWeight: 700,
+                          textAlign: "center",
+                        }}
+                      >
+                        ✓ Refund request sent — check your phone
+                      </div>
+                    ))}
+
                   {/* Unfunded sell offer: single "Cancel offer" button, no confirmation
                     (nothing has been escrowed, so the action is non-destructive). */}
                   {!odEditingPremium &&

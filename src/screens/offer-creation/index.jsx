@@ -24,7 +24,57 @@ import {
 import {
   AddPMFlow, methodLabel, normalizeApiPaymentMethods,
 } from "../../components/AddPMFlow.jsx";
+import InfoPopup, { InfoDot } from "../../components/InfoPopup.jsx";
 import { syncPMsToServer } from "../../utils/pmSync.js";
+
+// ─── Help-popup copy (verbatim from mobile app) ─────────────────────────────
+const INFO_COPY = {
+  amountSell: {
+    title: "selling bitcoin",
+    body: (
+      <>
+        <p className="ip-text">Selling sats on Peach is free!</p>
+        <p className="ip-text">To publish a sell offer, send your sats to escrow to prove ownership.</p>
+        <p className="ip-text">Escrow is a multi-signature wallet: you hold one key, Peach holds another.</p>
+      </>
+    ),
+  },
+  amountBuy: {
+    title: "buying bitcoin on Peach costs 2% of the transaction",
+    body: (
+      <>
+        <p className="ip-text">Peach wallet is self-custodial: YOU control your keys.</p>
+        <p className="ip-text">Go to Settings &gt; seed phrase and write it down! #NotYourKeysNotYourBitcoin</p>
+      </>
+    ),
+  },
+  multi: {
+    title: "fund multiple sell offers",
+    body: (
+      <p className="ip-text">Create multiple sell offers with a single transaction to save network fees!</p>
+    ),
+  },
+  instant: {
+    title: "instant trade",
+    body: (
+      <>
+        <p className="ip-text">Enable a buyer to start trading instantly, without your confirmation.</p>
+        <p className="ip-text">You can select some criteria to allow the instant trade to happen.</p>
+        <p className="ip-text">"no new users " will still allow new users to request to trade, but they will require your confirmation.</p>
+        <p className="ip-text">To completely avoid new users, use the "experience level" option below.</p>
+      </>
+    ),
+  },
+  experience: {
+    title: "experience level",
+    body: (
+      <>
+        <p className="ip-text">Create offers exclusively for users depending on their experience.</p>
+        <p className="ip-text">New Users are users with less than 4 successful trades.</p>
+      </>
+    ),
+  },
+};
 
 
 // ─── MAIN ───────────────────────────────────────────────────────────────────
@@ -48,6 +98,7 @@ export default function OfferCreation({ initialType="buy" }) {
   const [catalogueError, setCatalogueError] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPM,    setEditingPM]    = useState(null); // PM object being edited
+  const [openInfo,     setOpenInfo]     = useState(null); // "amount" | "instant" | "experience" | "multi" | null
   const [pmError,      setPmError]      = useState(false);
   const [publishing,   setPublishing]   = useState(false);
   const [publishError, setPublishError] = useState(null);
@@ -923,6 +974,15 @@ export default function OfferCreation({ initialType="buy" }) {
           onSave={handleSavePM} onClose={()=>setEditingPM(null)}
           error={catalogueError} onRetry={fetchCatalogue}/>
       )}
+      {openInfo&&(() => {
+        const key = openInfo === "amount" ? (isSell ? "amountSell" : "amountBuy") : openInfo;
+        const copy = INFO_COPY[key];
+        return (
+          <InfoPopup title={copy.title} onClose={()=>setOpenInfo(null)}>
+            {copy.body}
+          </InfoPopup>
+        );
+      })()}
       <Topbar
         onBurgerClick={() => setSidebarMobileOpen(o => !o)}
         isLoggedIn={isLoggedIn}
@@ -1016,6 +1076,10 @@ export default function OfferCreation({ initialType="buy" }) {
                   <div className={`section-num${amtOk?" filled":""}`}>1</div>
                   <span className="section-title">
                     {isSell?"Amount to sell":"Amount to buy"}
+                    <InfoDot
+                      ariaLabel={isSell?"About selling bitcoin":"About buying bitcoin"}
+                      onClick={()=>setOpenInfo("amount")}
+                    />
                   </span>
                   {amtOk&&<span className="section-done">✓ Done</span>}
                 </div>
@@ -1212,7 +1276,10 @@ export default function OfferCreation({ initialType="buy" }) {
                     {form.instantMatch&&"✓"}
                   </div>
                   <div>
-                    <div style={{fontSize:".8rem",fontWeight:700}}>⚡ Enable Instant Trade</div>
+                    <div style={{fontSize:".8rem",fontWeight:700}}>
+                      ⚡ Enable Instant Trade
+                      <InfoDot ariaLabel="About instant trade" onClick={()=>setOpenInfo("instant")}/>
+                    </div>
                     <div style={{fontSize:".7rem",color:"var(--black-65)",fontWeight:500}}>
                       Auto-accept any qualifying {isSell?"buy":"sell"} offer
                     </div>
@@ -1276,7 +1343,10 @@ export default function OfferCreation({ initialType="buy" }) {
                     {form.experienceLevel&&"✓"}
                   </div>
                   <div>
-                    <div style={{fontSize:".8rem",fontWeight:700}}>Filter by experience level</div>
+                    <div style={{fontSize:".8rem",fontWeight:700}}>
+                      Filter by experience level
+                      <InfoDot ariaLabel="About experience level" onClick={()=>setOpenInfo("experience")}/>
+                    </div>
                     <div style={{fontSize:".7rem",color:"var(--black-65)",fontWeight:500}}>
                       Only accept trades from {isSell?"buyers":"sellers"} matching your criteria
                     </div>
@@ -1306,6 +1376,7 @@ export default function OfferCreation({ initialType="buy" }) {
                   count={multiCount}
                   onToggle={() => { setMultiEnabled(e => !e); setMultiResults(null); setRefundExpanded(false); }}
                   onCountChange={setMultiCount}
+                  onInfoClick={() => setOpenInfo("multi")}
                 />
               </div>
 

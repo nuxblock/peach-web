@@ -29,6 +29,7 @@ import { deriveDisplayStatus } from "../../data/statusConfig.js";
 import Avatar from "../../components/Avatar.jsx";
 import StatusChip from "../../components/StatusChip.jsx";
 import PeachRating from "../../components/PeachRating.jsx";
+import RepeatTraderBadge from "../../components/RepeatTraderBadge.jsx";
 import {
   IconBack,
   IconAlert,
@@ -96,7 +97,9 @@ const CSS = `
     width:32px;height:32px;border-radius:8px;border:1.5px solid var(--black-10);
     background:transparent;cursor:pointer;color:var(--black-65);flex-shrink:0;transition:all .15s}
   .trade-topbar-back:hover{border-color:var(--primary);color:var(--primary-dark);background:var(--primary-mild)}
-  .trade-topbar-id{font-family:monospace;font-size:.82rem;font-weight:700;color:var(--black-65)}
+  .trade-topbar-id{font-family:monospace;font-size:.82rem;font-weight:700;color:var(--black-65);cursor:pointer;text-decoration:underline;text-underline-offset:2px;user-select:none}
+  .trade-topbar-id:hover{color:var(--primary)}
+  .trade-topbar-id.is-copied{color:var(--success);text-decoration:none;cursor:default}
   .trade-topbar-sep{color:var(--black-10);font-size:1.2rem;flex-shrink:0}
   .trade-topbar-name{font-size:.9rem;font-weight:700}
   .trade-topbar-elapsed{font-size:.75rem;color:var(--black-65);display:flex;align-items:center;gap:4px}
@@ -150,7 +153,7 @@ const CSS = `
   /* ── Trade summary ── */
   .trade-summary{
     background:var(--surface);border:1px solid var(--black-10);border-radius:12px;
-    padding:14px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    padding:14px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
   .summary-item-label{font-size:.68rem;font-weight:700;text-transform:uppercase;
     letter-spacing:.05em;color:var(--black-65);margin-bottom:2px}
   .summary-item-val{font-size:.9rem;font-weight:700}
@@ -280,6 +283,7 @@ export default function TradeExecution() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState("details"); // "details" | "chat"
+  const [copiedId, setCopiedId] = useState(false);
   const [allPrices, setAllPrices] = useState(null);
   const [availableCurrencies, setAvailableCurrencies] = useState([
     "EUR",
@@ -1142,8 +1146,19 @@ export default function TradeExecution() {
               >
                 <IconBack />
               </button>
-              <span className="trade-topbar-id">
-                {formatTradeId(contract.id)}
+              <span
+                className={`trade-topbar-id${copiedId ? " is-copied" : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const text = formatTradeId(contract.id);
+                  try { navigator.clipboard.writeText(text); } catch {}
+                  setCopiedId(true);
+                  setTimeout(() => setCopiedId(false), 1500);
+                }}
+                title="Copy contract ID"
+                role="button"
+              >
+                {copiedId ? "✓ Copied" : formatTradeId(contract.id)}
               </span>
               <span className="trade-topbar-sep">·</span>
               <span className={role === "buyer" ? "dir-buy" : "dir-sell"}>
@@ -1225,6 +1240,7 @@ export default function TradeExecution() {
                     {counterparty.badges?.includes("fast") && (
                       <span className="badge-fast">⚡ Fast</span>
                     )}
+                    <RepeatTraderBadge userId={counterparty.id} />
                   </div>
                 </div>
 
@@ -1240,7 +1256,10 @@ export default function TradeExecution() {
                     <div className="summary-item-label">
                       You {role === "buyer" ? "pay" : "receive"}
                     </div>
-                    <div className="summary-item-val">
+                    <div
+                      className="summary-item-val"
+                      style={{ fontSize: "1.2rem", fontWeight: 800 }}
+                    >
                       {contract.currency === "CHF" ? "CHF " : "€"}
                       {contract.fiat}
                     </div>
@@ -1254,6 +1273,22 @@ export default function TradeExecution() {
                     >
                       {contract.premium > 0 ? "+" : ""}
                       {contract.premium.toFixed(1)}%
+                    </div>
+                  </div>
+                  <div>
+                    <div className="summary-item-label">Effective price</div>
+                    <div className="summary-item-val">
+                      {contract.fiat != null && contract.amount > 0 ? (
+                        <>
+                          {contract.currency === "CHF" ? "CHF " : "€"}
+                          {Math.round(
+                            (Number(contract.fiat) / contract.amount) *
+                              100_000_000
+                          ).toLocaleString("fr-FR")}
+                        </>
+                      ) : (
+                        "—"
+                      )}
                     </div>
                   </div>
                   <div>

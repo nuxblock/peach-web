@@ -7,11 +7,12 @@ import { useApi } from "../../hooks/useApi.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import PeachRating from "../../components/PeachRating.jsx";
 import Avatar from "../../components/Avatar.jsx";
+import RepeatTraderBadge from "../../components/RepeatTraderBadge.jsx";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtFiat, formatTradeId, toPeaches } from "../../utils/format.js";
 import { methodDisplayName } from "../../data/paymentMethodMeta.js";
 
 const CSS = `
-  .page-wrap{display:flex;flex-direction:column;flex:1}
+  .page-wrap{display:flex;flex-direction:column;flex:1;margin-top:var(--topbar);margin-left:68px}
   .content{padding:28px 28px 60px;display:flex;flex-direction:column;gap:20px;max-width:960px;margin:0 auto;width:100%}
 
   .ou-header{display:flex;align-items:center;gap:16px;background:var(--surface);
@@ -21,7 +22,8 @@ const CSS = `
     border:1.5px solid var(--black-10);border-radius:999px;padding:5px 12px;color:var(--black);
     font-family:monospace}
   .ou-since{font-size:.76rem;color:var(--black-65);margin-top:4px}
-  .ou-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .ou-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+  .ou-badges:empty{display:none}
   .ou-badge{font-size:.7rem;font-weight:700;color:var(--primary);border:1.5px solid var(--primary);
     border-radius:999px;padding:2px 10px}
   .ou-disabled{background:var(--error-bg);color:var(--error);border:1.5px solid var(--error);
@@ -55,7 +57,11 @@ const CSS = `
 
   .ou-offers-list{display:flex;flex-direction:column;gap:10px}
   .ou-offer{display:flex;align-items:center;gap:12px;padding:12px 14px;
-    background:var(--black-5);border-radius:10px;border:1px solid var(--black-10)}
+    background:var(--black-5);border-radius:10px;border:1px solid var(--black-10);
+    cursor:pointer;transition:background-color .12s,box-shadow .12s,border-color .12s}
+  .ou-offer:hover{background:var(--black-10);box-shadow:0 2px 12px rgba(43,25,17,.09)}
+  .ou-offer.ou-offer-disabled{cursor:default}
+  .ou-offer.ou-offer-disabled:hover{background:var(--black-5);box-shadow:none}
   .ou-offer-type{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
     padding:3px 10px;border-radius:999px;flex-shrink:0}
   .ou-offer-bid{background:var(--success-bg);color:var(--success)}
@@ -74,6 +80,7 @@ const CSS = `
   .ou-back-btn:hover{text-decoration:underline}
 
   @media(max-width:767px){
+    .page-wrap{margin-left:0}
     .content{padding:18px 14px 48px}
     .ou-header{flex-wrap:wrap}
     .ou-actions{margin-left:0;width:100%}
@@ -95,7 +102,7 @@ function normalizeDisputes(raw) {
   };
 }
 
-function OfferRow({ offer, type }) {
+function OfferRow({ offer, type, onClick, disabled }) {
   const amount = offer.amountSats ?? (Array.isArray(offer.amount) ? offer.amount[0] : (offer.amount ?? 0));
   const premium = offer.premium ?? 0;
   const currencies = offer.meansOfPayment ? Object.keys(offer.meansOfPayment) : [];
@@ -103,8 +110,21 @@ function OfferRow({ offer, type }) {
     ? [...new Set(Object.values(offer.meansOfPayment).flat())]
     : [];
   const premCls = premium === 0 ? "" : premium > 0 ? "prem-good" : "prem-bad";
+  const handleKeyDown = (e) => {
+    if (disabled || !onClick) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick();
+    }
+  };
   return (
-    <div className="ou-offer">
+    <div
+      className={`ou-offer${disabled ? " ou-offer-disabled" : ""}`}
+      onClick={disabled ? undefined : onClick}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      onKeyDown={handleKeyDown}
+    >
       <span className={`ou-offer-type ${type === "bid" ? "ou-offer-bid" : "ou-offer-ask"}`}>
         {type === "bid" ? "BUY" : "SELL"}
       </span>
@@ -233,6 +253,28 @@ export default function OtherUserPage() {
     })();
   }, [auth, userId, isSelf]);
 
+  function handleOpenOffer(offer, type) {
+    const amount = offer.amountSats ?? (Array.isArray(offer.amount) ? offer.amount[0] : (offer.amount ?? 0));
+    const currencies = offer.meansOfPayment ? Object.keys(offer.meansOfPayment) : [];
+    const methods = offer.meansOfPayment
+      ? [...new Set(Object.values(offer.meansOfPayment).flat())]
+      : [];
+    navigate("/market", {
+      state: {
+        openOfferId: String(offer.id),
+        openOfferType: type === "bid" ? "buyOffer" : "sellOffer",
+        openOfferData: {
+          id: String(offer.id),
+          tradeId: formatTradeId(offer.id, "offer"),
+          amount,
+          premium: offer.premium ?? 0,
+          methods,
+          currencies,
+        },
+      },
+    });
+  }
+
   async function handleToggleBlock() {
     if (!auth || isSelf) return;
     setBlockSubmitting(true);
@@ -291,7 +333,7 @@ export default function OtherUserPage() {
           onNavigate={navigate}
         />
 
-        <div className="page-wrap" style={{ marginTop:"var(--topbar)", marginLeft: 68, flex:1 }}>
+        <div className="page-wrap">
           <div className="content">
 
             <button className="ou-back-btn" onClick={() => navigate(-1)}>← Back</button>
@@ -312,11 +354,10 @@ export default function OtherUserPage() {
                       <span style={{fontSize:".78rem",color:"var(--black-65)"}}>({user?.ratingCount ?? 0} ratings)</span>
                     </div>
                     <div className="ou-since">Member since {creationDate ? creationDate.toLocaleDateString("en-US",{month:"long",year:"numeric"}) : "—"}</div>
-                    {badges.length > 0 && (
-                      <div className="ou-badges">
-                        {badges.map(b => <span key={b} className="ou-badge">{b}</span>)}
-                      </div>
-                    )}
+                    <div className="ou-badges">
+                      {badges.map(b => <span key={b} className="ou-badge">{b}</span>)}
+                      <RepeatTraderBadge userId={userId} />
+                    </div>
                   </div>
                   {isLoggedIn && !isSelf && (
                     <div className="ou-actions">
@@ -409,8 +450,24 @@ export default function OtherUserPage() {
                     <div className="ou-empty">No active offers.</div>
                   ) : (
                     <div className="ou-offers-list">
-                      {sellOffers.map(o => <OfferRow key={`ask-${o.id}`} offer={o} type="ask"/>)}
-                      {buyOffers.map(o => <OfferRow key={`bid-${o.id}`} offer={o} type="bid"/>)}
+                      {sellOffers.map(o => (
+                        <OfferRow
+                          key={`ask-${o.id}`}
+                          offer={o}
+                          type="ask"
+                          disabled={!isLoggedIn || isSelf}
+                          onClick={() => handleOpenOffer(o, "ask")}
+                        />
+                      ))}
+                      {buyOffers.map(o => (
+                        <OfferRow
+                          key={`bid-${o.id}`}
+                          offer={o}
+                          type="bid"
+                          disabled={!isLoggedIn || isSelf}
+                          onClick={() => handleOpenOffer(o, "bid")}
+                        />
+                      ))}
                     </div>
                   )}
                 </div>

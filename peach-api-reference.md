@@ -47,6 +47,7 @@ await fetch(`${v069Base}/selfUser`, {
 | Method | Endpoint | Used in | Description |
 |--------|----------|---------|-------------|
 | GET | `/user/:userId` | trades-dashboard | Get public user profile by public key. Used to fetch counterparty profile data. |
+| GET | `/user/:userId/status` | useUserStatus (RepeatTraderBadge) | Returns `{ isBlocked: boolean, trades: number, badExperience: boolean }` describing the relationship between the caller and `:userId`. `trades` = number of past trades **between the two users** (not the user's overall trade count). Powers the Repeat Trader badge in market view, profile, trade execution, and matches popup. |
 | GET | `/user/tradingLimit` | settings, trades-dashboard | Own trading limits. |
 | PATCH | `/user` | settings | Update own profile. Used for `payoutAddress`, `refundAddress`, `feeRate` (with signature). |
 | POST | `/user/batching` | settings | Join or leave GroupHug batching program. Body: `{ enableBatching: bool, riskAcknowledged?: bool }`. `riskAcknowledged` must be `true` when `enableBatching` is `false`. |
