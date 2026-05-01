@@ -5,8 +5,10 @@
 
 export const IS_PHONE =
   typeof navigator !== "undefined" &&
+  typeof window !== "undefined" &&
   (/iPhone|iPod/.test(navigator.userAgent) ||
-    /Android.*Mobile/i.test(navigator.userAgent));
+    /Android.*Mobile/i.test(navigator.userAgent)) &&
+  window.innerWidth <= 1024;
 
 // type ∈ "fundEscrow" | "fundEscrowContract" | "refundEscrow"
 //      | "refundEscrowContract" | "paymentMade" | "paymentConfirmed"
