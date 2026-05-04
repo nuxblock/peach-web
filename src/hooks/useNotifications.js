@@ -295,8 +295,17 @@ async function _poll(auth, base) {
       const sellerOv = isSeller ? SELLER_OVERRIDE[status] : null;
 
       if (prev) {
-        // Status changed
-        if (prev.tradeStatus !== status && STATUS_NOTIF[status]) {
+        // Seller granted more time after the buyer missed the payment window:
+        // status flips paymentTooLate → paymentRequired. Override the default
+        // "Payment required" notif with a buyer-specific message.
+        if (isBuyer && prev.tradeStatus === "paymentTooLate" && status === "paymentRequired") {
+          events.push(_makeNotif(
+            `c-${c.id}-extended-${now}`, "statusChange",
+            `Payment required: contract ${fmtId}`,
+            "the seller gave you more time to make the payment. Proceed as soon as possible.",
+            c.id, null
+          ));
+        } else if (prev.tradeStatus !== status && STATUS_NOTIF[status]) {
           const sn = STATUS_NOTIF[status];
           events.push(_makeNotif(
             `c-${c.id}-${status}-${now}`, sn.type,
