@@ -124,7 +124,9 @@ body{font-family:var(--font);background:var(--primary-bg);color:var(--black)}
   font-family:var(--font);font-size:.84rem;font-weight:700;
   box-shadow:0 4px 20px rgba(0,0,0,.25);z-index:9999;
   animation:toastIn .3s ease both;pointer-events:none;
-  white-space:nowrap;
+  max-width:calc(100vw - 32px);box-sizing:border-box;
+  white-space:normal;text-align:center;
+  overflow-wrap:anywhere;line-height:1.35;
 }
 .toast-bar--error{
   background:var(--error);

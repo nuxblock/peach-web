@@ -46,7 +46,8 @@ export default function PeachMarket() {
   const [selPaymentTypes,  setSelPaymentTypes]  = useState([]);   // [] = all
   const [searchQuery,      setSearchQuery]      = useState("");
 
-  const [showMyOffers,        setShowMyOffers]        = useState(false);
+  const [showMyOffers,        setShowMyOffers]        = useState(() => getCached("market-show-my-offers")?.data ?? false);
+  useEffect(() => { setCache("market-show-my-offers", showMyOffers); }, [showMyOffers]);
   const [showMyOffersInfo,    setShowMyOffersInfo]    = useState(false);
   const infoRef = useRef(null);
   const [allPrices,           setAllPrices]           = useState(null);
@@ -843,14 +844,15 @@ export default function PeachMarket() {
   useEffect(() => {
     if (highlightHandledRef.current) return;
     const navState = location.state;
+    const direction = navState?.highlightDirection;
     const ids = navState?.highlightOfferIds;
-    if (!Array.isArray(ids) || ids.length === 0) return;
+    const hasIds = Array.isArray(ids) && ids.length > 0;
+    if (!direction && !hasIds) return;
     highlightHandledRef.current = true;
-    const direction = navState.highlightDirection;
     if (direction === "buy")  setTab("sell");
     if (direction === "sell") setTab("buy");
     setShowMyOffers(true);
-    setHighlightedIds(new Set(ids.map(String)));
+    if (hasIds) setHighlightedIds(new Set(ids.map(String)));
     navigate(location.pathname, { replace: true, state: null });
   }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 

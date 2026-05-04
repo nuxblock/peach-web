@@ -612,7 +612,14 @@ export function MultiEscrowFunding({
         </p>
         <div style={{ display: "flex", gap: 12 }}>
           <button
-            onClick={() => navigate("/market")}
+            onClick={() => {
+              const ids = validResults
+                .filter(r => r.offerId)
+                .map(r => String(r.offerId));
+              navigate("/market", {
+                state: { highlightOfferIds: ids, highlightDirection: "sell" },
+              });
+            }}
             style={{
               padding: "10px 28px",
               borderRadius: 999,
