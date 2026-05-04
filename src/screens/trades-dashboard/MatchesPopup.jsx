@@ -773,7 +773,7 @@ export default function MatchesPopup({
               >
                 {m.user.name}
               </button>
-              <PeachRating rep={m.user.rep} size={20} />
+              <PeachRating rep={m.user.rep} size={20} trades={m.user.trades} />
               <span style={{ fontSize: ".82rem", color: "var(--black-65)" }}>
                 {m.user.trades} trades
               </span>
@@ -1326,7 +1326,7 @@ export default function MatchesPopup({
                       >
                         {m.user.name}
                       </button>
-                      <PeachRating rep={m.user.rep} />
+                      <PeachRating rep={m.user.rep} trades={m.user.trades} />
                       <span
                         style={{
                           fontSize: ".72rem",

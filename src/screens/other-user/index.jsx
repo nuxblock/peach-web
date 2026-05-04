@@ -350,7 +350,7 @@ export default function OtherUserPage() {
                   <div style={{flex:1,minWidth:0}}>
                     <div className="ou-id-row">
                       <span className="ou-id">{peachIdLabel}</span>
-                      <PeachRating rep={rating} size={14}/>
+                      <PeachRating rep={rating} size={14} trades={user?.trades}/>
                       <span style={{fontSize:".78rem",color:"var(--black-65)"}}>({user?.ratingCount ?? 0} ratings)</span>
                     </div>
                     <div className="ou-since">Member since {creationDate ? creationDate.toLocaleDateString("en-US",{month:"long",year:"numeric"}) : "—"}</div>

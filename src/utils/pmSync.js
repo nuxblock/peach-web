@@ -9,7 +9,7 @@ import { encryptPGPMessage, signPGPMessage } from "./pgp.js";
 import { fetchWithSessionCheck } from "./sessionGuard.js";
 
 // Convert internal PM array → API object-map format.
-// Internal shape: { id, methodId, name, label, currencies, details:{..., _payRefType, _payRefCustom} }
+// Internal shape: { id, methodId, name, label, currencies, details:{..., reference} }
 // API shape:      { [id]: { id, type, label, currencies, ...flatDetails } }
 // The `type` field is REQUIRED — the mobile app keys off it to recognise the
 // payment method (e.g. "sepa", "wise"). Without it, mobile silently drops the PM.

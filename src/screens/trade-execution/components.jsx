@@ -368,7 +368,7 @@ export function HorizontalStepper({ status, statusWithoutDispute }) {
 // ─── PAYMENT DETAILS CARD ────────────────────────────────────────────────────
 // Schema-driven: renders every real field present in the decrypted PM object,
 // using getFieldMeta() for labels so create-PM and show-PM stay consistent.
-// Skips envelope/meta keys (type, id, hashes, _payRef*, _variants, …).
+// Skips envelope/meta keys (type, id, hashes, _variants, …).
 const PM_META_KEYS = new Set([
   "type",
   "id",
@@ -380,8 +380,6 @@ const PM_META_KEYS = new Set([
   "name",
   "_variant",
   "_variants",
-  "_payRefType",
-  "_payRefCustom",
 ]);
 
 // Field ids that deserve monospace treatment (long alphanumeric strings).
@@ -399,7 +397,7 @@ const MONO_FIELDS = new Set([
   "receiveAddressEthereum",
 ]);
 
-export function PaymentDetailsCard({ details, tradeId, compact = false }) {
+export function PaymentDetailsCard({ details, compact = false }) {
   const [copied, setCopied] = useState(null);
 
   function copy(val, key) {
@@ -409,10 +407,10 @@ export function PaymentDetailsCard({ details, tradeId, compact = false }) {
   }
 
   // Derive rows from the raw decrypted PM object. Any non-meta key with a
-  // non-empty string value becomes a row, labelled via getFieldMeta().
-  const payRefType = details?._payRefType;
+  // non-empty string value becomes a row, labelled via getFieldMeta(). The
+  // reference row, when present, comes through this loop via details.reference
+  // — it's just a regular optional field.
   let rows = [];
-  const seen = new Set();
   for (const [k, v] of Object.entries(details || {})) {
     if (PM_META_KEYS.has(k) || k.startsWith("_")) continue;
     if (typeof v !== "string" || !v.trim()) continue;
@@ -422,20 +420,6 @@ export function PaymentDetailsCard({ details, tradeId, compact = false }) {
       label: meta.label || humanizeId(k),
       value: v,
       mono: MONO_FIELDS.has(k),
-    });
-    seen.add(k);
-  }
-  // Reference row honours the seller's payment-reference choice:
-  //  - custom with text → already emitted by the loop above via details.reference
-  //  - tradeID          → show the formatted trade id
-  //  - peachID          → TODO: needs buyer peach id threaded through; no row for now
-  //  - custom empty / no choice → no row at all
-  if (!seen.has("reference") && payRefType === "tradeID" && tradeId) {
-    rows.push({
-      fid: "reference",
-      label: getFieldMeta("reference").label || "Reference",
-      value: formatTradeId(tradeId),
-      mono: false,
     });
   }
 

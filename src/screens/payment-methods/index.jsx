@@ -338,8 +338,9 @@ export default function PeachPaymentMethods() {
                         </div>
                       </div>
                       <div className="pm-card-actions">
-                        <button className="pm-action-btn" title="Edit"
+                        <button className="pm-action-btn pm-action-edit" title="Edit"
                           onClick={() => setEditPM(pm)}>
+                          <span className="pm-action-label">edit</span>
                           <IconEdit/>
                         </button>
                         <button className="pm-action-btn pm-action-delete" title="Delete"
@@ -347,6 +348,9 @@ export default function PeachPaymentMethods() {
                           <IconTrash/>
                         </button>
                       </div>
+                      <span className="pm-card-reference">
+                        Reference : {pm.details?.reference || "-"}
+                      </span>
                     </div>
                     );
                   })}

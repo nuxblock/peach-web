@@ -642,7 +642,7 @@ export default function PeachHome() {
                   {/* Row 1: Rating · Disputes · Blocked by */}
                   <div className="profile-stats">
                     <div className="profile-stat">
-                      <div className="profile-stat-val"><PeachRating rep={user.rating} size={14}/></div>
+                      <div className="profile-stat-val"><PeachRating rep={user.rating} size={14} trades={user.trades}/></div>
                       <div className="profile-stat-lbl">Rating</div>
                     </div>
                     <div className="profile-stat">

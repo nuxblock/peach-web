@@ -1220,7 +1220,7 @@ export default function TradeExecution() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="cp-name">{counterparty.name}</div>
                     <div className="cp-meta">
-                      <PeachRating rep={counterparty.rep ?? 0} size={14} />
+                      <PeachRating rep={counterparty.rep ?? 0} size={14} trades={counterparty.trades} />
                       <span>·</span>
                       <span>{counterparty.trades} trades</span>
                     </div>
@@ -2112,7 +2112,6 @@ export default function TradeExecution() {
                       )}
                       <PaymentDetailsCard
                         details={paymentDetails}
-                        tradeId={liveContract?.id}
                         compact={status === "tradeCompleted"}
                       />
                       {ownPaymentDetails && (
@@ -2125,7 +2124,6 @@ export default function TradeExecution() {
                           </div>
                           <PaymentDetailsCard
                             details={ownPaymentDetails}
-                            tradeId={liveContract?.id}
                             compact={status === "tradeCompleted"}
                           />
                         </>

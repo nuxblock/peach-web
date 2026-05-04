@@ -247,7 +247,7 @@ export function TradeCard({ trade, onSelect, layout = "grid" }) {
               <div style={{ display:"flex", flexDirection:"column", gap:3, minWidth:0 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
                   <span style={{ fontSize:".85rem", fontWeight:700 }}>{trade.counterparty.name}</span>
-                  <PeachRating rep={trade.counterparty.rep}/>
+                  <PeachRating rep={trade.counterparty.rep} trades={trade.counterparty.trades}/>
                 </div>
                 <span style={{ fontSize:".72rem", color:"var(--black-65)" }}>
                   {trade.counterparty.trades} trades

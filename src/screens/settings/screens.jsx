@@ -72,7 +72,7 @@ export function ProfileSubScreen({ onBack }) {
           </span>
           <CopyBtn text={peachId}/>
         </div>
-        <PeachRating rep={rating} size={15}/>
+        <PeachRating rep={rating} size={15} trades={trades}/>
       </div>
 
       {/* Badges */}
@@ -272,9 +272,15 @@ export function BackupsSubScreen({ onBack }) {
 
 export function NetworkFeesSubScreen({ onBack }) {
   const { get, patch, auth } = useApi();
+  const savedFeeRate = auth?.profile?.feeRate;
+  const tierFromSaved = { fastestFee:"fast", halfHourFee:"medium", hourFee:"slow" }[savedFeeRate];
   const [feeRates, setFeeRates] = useState({ fast:1, medium:1, slow:1 });
-  const [selected, setSelected] = useState("medium");
-  const [customVal, setCustomVal] = useState("");
+  const [selected, setSelected] = useState(
+    typeof savedFeeRate === "number" ? "custom" : (tierFromSaved ?? "medium")
+  );
+  const [customVal, setCustomVal] = useState(
+    typeof savedFeeRate === "number" ? String(savedFeeRate) : ""
+  );
   const [saved, setSaved] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -293,6 +299,31 @@ export function NetworkFeesSubScreen({ onBack }) {
       } catch {}
     }
     fetchFees();
+
+    async function refreshFeeRate() {
+      if (!auth) return;
+      try {
+        const res = await get('/user/me');
+        if (!res.ok) return;
+        const profile = await res.json();
+        const fresh = profile?.feeRate;
+        if (auth.profile) auth.profile.feeRate = fresh;
+        try { sessionStorage.setItem('peach_auth', JSON.stringify(window.__PEACH_AUTH__)); } catch {}
+        const tier = { fastestFee:"fast", halfHourFee:"medium", hourFee:"slow" }[fresh];
+        if (typeof fresh === "number") {
+          setSelected("custom");
+          setCustomVal(String(fresh));
+        } else if (tier) {
+          setSelected(tier);
+          setCustomVal("");
+        } else {
+          setSelected("medium");
+          setCustomVal("");
+        }
+        setSaved(true);
+      } catch {}
+    }
+    refreshFeeRate();
   }, []);
 
   const options = [
@@ -323,6 +354,8 @@ export function NetworkFeesSubScreen({ onBack }) {
           setSubmitting(false);
           return;
         }
+        if (auth.profile) auth.profile.feeRate = feeRate;
+        try { sessionStorage.setItem('peach_auth', JSON.stringify(window.__PEACH_AUTH__)); } catch {}
       } else {
         await new Promise(r => setTimeout(r, 600));
       }
@@ -369,7 +402,7 @@ export function NetworkFeesSubScreen({ onBack }) {
         {errors.fee && <FieldError error={errors.fee}/>}
       </div>
       {errors.save && <div style={{ marginBottom:12 }}><FieldError error={errors.save}/></div>}
-      <PrimaryBtn label={submitting ? "SAVING…" : "SET FEE RATE"} onClick={handleSave} disabled={!canSave}/>
+      <PrimaryBtn label={submitting ? "SAVING…" : (saved ? "FEE RATE SET" : "SET FEE RATE")} onClick={handleSave} disabled={!canSave}/>
     </SubScreenWrapper>
   );
 }
@@ -377,15 +410,58 @@ export function NetworkFeesSubScreen({ onBack }) {
 // ── TxBatchingSubScreen ──────────────────────────────────────────────────────
 
 export function TxBatchingSubScreen({ onBack }) {
-  const { post, auth } = useApi();
-  const [batching, setBatching] = useState(false);
+  const { get, post, auth } = useApi();
+  const [batching, setBatching] = useState(
+    auth?.profile?.isBatchingEnabled ?? false
+  );
+
+  useEffect(() => {
+    if (!auth) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await get('/user/me');
+        if (!res.ok) return;
+        const profile = await res.json();
+        if (cancelled) return;
+        if (window.__PEACH_AUTH__) window.__PEACH_AUTH__.profile = profile;
+        setBatching(!!profile.isBatchingEnabled);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   async function handleBatchingChange(value) {
+    if (!auth) { setBatching(value); return; }
+
+    if (value === false) {
+      let hasPending = false;
+      try {
+        const res = await get('/contracts/summary');
+        if (res.ok) {
+          const list = await res.json();
+          hasPending = Array.isArray(list)
+            && list.some(c => c.tradeStatus === 'payoutPending');
+        }
+      } catch {}
+      if (hasPending) {
+        const ok = window.confirm(
+          "You have payouts queued in the batching program. " +
+          "Turning off batching will trigger an immediate payout at higher fees. Continue?"
+        );
+        if (!ok) return;
+      }
+    }
+
     setBatching(value);
-    if (!auth) return;
-    const body = value ? { enableBatching: true } : { enableBatching: false, riskAcknowledged: true };
+    const body = value
+      ? { enableBatching: true }
+      : { enableBatching: false, riskAcknowledged: true };
     try {
       await post('/user/batching', body);
+      if (window.__PEACH_AUTH__?.profile) {
+        window.__PEACH_AUTH__.profile.isBatchingEnabled = value;
+      }
     } catch {}
   }
 

@@ -165,7 +165,7 @@ export function RepCell({ offer }) {
         <div className="rep-info">
           <span className="user-peach-id">{offer.peachId}</span>
           <div className="rep-row">
-            <PeachRating rep={offer.rep} size={14}/>
+            <PeachRating rep={offer.rep} size={14} trades={offer.trades}/>
             <span className="rep-trades">({offer.trades})</span>
           </div>
           {offer.badges.length > 0 && (

@@ -192,6 +192,7 @@ export function Topbar({
   onCurrencyChange,
   showPrice = true,
   pricesLoaded = true,
+  hideLoginCta = false,
 }) {
   const { total: unreadTotal } = useUnread();
   const { notifications, unreadCount: unreadNotifs, readIds, markAllRead, markRead } = useNotifications();
@@ -330,6 +331,10 @@ export function Topbar({
                 </button>
               </div>
             )}
+          </div>
+        ) : hideLoginCta ? (
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Avatar size={34} />
           </div>
         ) : (
           <div className="avatar-login-btn" onClick={handleLogin}>

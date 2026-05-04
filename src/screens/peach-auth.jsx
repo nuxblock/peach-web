@@ -445,6 +445,7 @@ export default function PeachAuth() {
           selectedCurrency={selectedCurrency}
           availableCurrencies={availableCurrencies}
           onCurrencyChange={(c) => setSelectedCurrency(c)}
+          hideLoginCta
         />
         <SideNav
           mobileOpen={sidebarMobileOpen}
@@ -1149,6 +1150,7 @@ export default function PeachAuth() {
         selectedCurrency={selectedCurrency}
         availableCurrencies={availableCurrencies}
         onCurrencyChange={(c) => setSelectedCurrency(c)}
+        hideLoginCta
       />
       <SideNav
         mobileOpen={sidebarMobileOpen}

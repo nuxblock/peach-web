@@ -1187,7 +1187,7 @@ export default function PeachMarket() {
                   </div>
                 )}
                 <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
-                  <PeachRating rep={offer.rep} size={16}/>
+                  <PeachRating rep={offer.rep} size={16} trades={offer.trades}/>
                   <span className="rep-trades">({offer.trades} trades)</span>
                   {isOwn && <span className="own-label" style={{marginLeft:6}}>Your offer</span>}
                 </div>
@@ -1734,7 +1734,7 @@ export default function PeachMarket() {
                     <>
                       <Avatar peachId={offer.userId} size={32} online={offer.online} />
                       <div style={{flex:1,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
-                        <PeachRating rep={offer.rep} size={14}/>
+                        <PeachRating rep={offer.rep} size={14} trades={offer.trades}/>
                         <span className="rep-trades">({offer.trades})</span>
                         {offer.badges.includes("supertrader")&&<span className="badge badge-super">🏆</span>}
                         {offer.badges.includes("fast")&&<span className="badge badge-fast">⚡</span>}

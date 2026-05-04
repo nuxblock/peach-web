@@ -33,7 +33,7 @@ export const CSS = `
   .pm-group-count{background:var(--black-10);color:var(--black-65);font-size:.62rem;font-weight:800;
     padding:1px 7px;border-radius:999px}
 
-  .pm-card{display:flex;align-items:center;gap:14px;background:var(--surface);
+  .pm-card{position:relative;display:flex;align-items:center;gap:14px;background:var(--surface);
     border:1.5px solid var(--black-10);border-radius:14px;padding:14px 16px;
     transition:border-color .15s,box-shadow .15s}
   .pm-card:hover{border-color:var(--primary);box-shadow:0 2px 12px rgba(245,101,34,.08)}
@@ -48,9 +48,12 @@ export const CSS = `
   .pm-card-custom-name{font-size:.76rem;font-weight:600;color:var(--black-65);margin-bottom:4px}
   .pm-card-detail{font-size:.78rem;color:var(--black-65);font-family:monospace;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px}
-  .pm-card-currencies{display:flex;gap:4px;flex-wrap:wrap}
+  .pm-card-currencies{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
   .pm-card-curr-tag{padding:1px 7px;border-radius:5px;font-size:.62rem;font-weight:800;
     background:var(--primary-mild);color:var(--primary-dark)}
+  .pm-card-reference{position:absolute;bottom:14px;right:16px;font-size:.76rem;font-weight:500;
+    color:var(--black-65);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    max-width:calc(100% - 110px)}
 
   .pm-card-actions{display:flex;gap:6px;flex-shrink:0}
   .pm-action-btn{width:32px;height:32px;border-radius:8px;border:1.5px solid var(--black-10);
@@ -58,6 +61,8 @@ export const CSS = `
     color:var(--black-65);transition:all .15s}
   .pm-action-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-mild)}
   .pm-action-delete:hover{border-color:var(--error);color:var(--error);background:var(--error-bg)}
+  .pm-action-edit{width:auto;padding:0 10px;gap:6px;font-family:inherit}
+  .pm-action-label{font-size:.76rem;font-weight:600;line-height:1}
 
   /* ── Info box ── */
   .pm-info-box{display:flex;gap:10px;align-items:flex-start;background:var(--surface);
@@ -186,31 +191,4 @@ export const CSS = `
 
   /* Animations */
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-
-  /* ── Payment reference ── */
-  .payref-row{display:flex;gap:8px;align-items:center}
-  .payref-input{flex:1}
-  .payref-type-btn{display:flex;align-items:center;gap:5px;background:var(--black-5);
-    border:1.5px solid var(--black-10);border-radius:8px;padding:8px 12px;
-    font-family:var(--font);font-size:.75rem;font-weight:700;color:var(--primary-dark);
-    cursor:pointer;white-space:nowrap;flex-shrink:0;transition:border-color .15s}
-  .payref-type-btn:hover{border-color:var(--primary)}
-
-  .payref-picker-overlay{position:fixed;inset:0;z-index:600;background:rgba(43,25,17,.3);
-    display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .15s ease}
-  .payref-picker{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;
-    padding-bottom:env(safe-area-inset-bottom,12px);animation:slideUp .25s ease}
-  .payref-picker-header{display:flex;align-items:center;justify-content:space-between;
-    padding:18px 22px 12px}
-  .payref-picker-title{font-size:1.05rem;font-weight:800;color:var(--black)}
-  .payref-option{display:flex;align-items:center;justify-content:space-between;width:100%;
-    padding:14px 22px;border:none;background:none;cursor:pointer;font-family:var(--font);
-    font-size:.88rem;font-weight:600;color:var(--black-75);transition:background .12s;text-align:left}
-  .payref-option:hover{background:var(--black-5)}
-  .payref-option.selected{color:var(--primary)}
-  .payref-option-label{flex:1}
-  .payref-radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--black-10);
-    display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .15s}
-  .payref-radio.on{border-color:var(--primary)}
-  .payref-radio-dot{width:12px;height:12px;border-radius:50%;background:var(--primary)}
 `;

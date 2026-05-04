@@ -2,7 +2,7 @@
 // Full 4-step Add-PM modal (region → category → method → details) used by
 // both the Payment Methods screen and the Offer Creation screen.
 // Produces PMs in the canonical shape:
-//   { id, methodId, name, currencies, details:{..., _payRefType, _payRefCustom} }
+//   { id, methodId, name, currencies, details:{..., reference} }
 // CSS is injected via <style> inside the component so the modal is fully
 // self-contained — screens just import and render it.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,9 +109,7 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
   // User-editable nickname ("label"). Optional; falls back to the method name
   // at save time so the serialized blob always has a non-empty label.
   const [pmLabel, setPmLabel] = useState(editData?.label || "");
-  const [payRefType, setPayRefType] = useState(editData?.details?._payRefType || "custom");
-  const [payRefCustom, setPayRefCustom] = useState(editData?.details?._payRefCustom || "");
-  const [showPayRefPicker, setShowPayRefPicker] = useState(false);
+  const [payRefCustom, setPayRefCustom] = useState(editData?.details?.reference ?? "");
   const [errors, setErrors] = useState({});
   const handleBlur = makeBlurHandler(setErrors);
   const [selRegion, setSelRegion] = useState("Europe");
@@ -260,10 +258,10 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
           : { valid: true };
       if (!r.valid) newErrors[fid] = r.error;
     }
-    // Custom payment reference: forbidden-words check (empty is allowed).
-    if (payRefType === "custom" && payRefCustom.trim()) {
+    // Payment reference: forbidden-words check (empty is allowed).
+    if (payRefCustom.trim()) {
       const r = validatePaymentReference(payRefCustom);
-      if (!r.valid) newErrors._payRefCustom = r.error;
+      if (!r.valid) newErrors.reference = r.error;
     }
     if (Object.keys(newErrors).length > 0) {
       setErrors((prev) => ({ ...prev, ...newErrors }));
@@ -271,21 +269,17 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
     }
 
     // Only persist fields that belong to the active tab or the optional set,
-    // plus the payment-reference metadata and the variant index.
+    // plus the payment-reference value and the variant index.
     const allowedKeys = new Set([...mandatoryFields, ...optionalFields]);
     const cleanDetails = {};
     for (const [k, v] of Object.entries(details)) {
       if (allowedKeys.has(k)) cleanDetails[k] = v;
     }
-    // Mirror the payment-reference widget's custom value into details.reference
-    // for methods that list `reference` as an API-optional field, so the wire
-    // format matches what mobile writes. peachID/tradeID modes are auto-filled
-    // downstream and do not populate details.reference at save time.
-    if (methodHasReference && payRefType === "custom" && payRefCustom.trim()) {
+    // Wire the payment-reference widget's value into details.reference for
+    // methods that list `reference` as an API-optional field — same shape mobile uses.
+    if (methodHasReference && payRefCustom.trim()) {
       cleanDetails.reference = payRefCustom.trim();
     }
-    cleanDetails._payRefType = payRefType;
-    cleanDetails._payRefCustom = payRefCustom;
     if (hasAnyTabs) {
       const variants = {};
       for (const s of resolvedSections) {
@@ -547,65 +541,21 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
                 {/* Payment reference */}
                 <div style={{ marginBottom:14 }}>
                   <label className="field-label">Payment reference</label>
-                  <div className="payref-row">
-                    <input className="modal-input payref-input"
-                      placeholder={payRefType === "custom" ? "don't mention peach or bitcoin !" : ""}
-                      value={
-                        payRefType === "custom" ? payRefCustom :
-                        payRefType === "peachID" ? "eg: 02v6764d" :
-                        "eg: PC-F4D-1245"
-                      }
-                      disabled={payRefType !== "custom"}
-                      onChange={e => {
-                        setPayRefCustom(e.target.value);
-                        if (errors._payRefCustom) setErrors(p => ({ ...p, _payRefCustom: null }));
-                      }}
-                      onBlur={payRefType === "custom" ? () => handleBlur("_payRefCustom", payRefCustom, validatePaymentReference) : undefined}
-                      style={{
-                        ...(payRefType !== "custom" ? { background:"var(--black-5)", color:"var(--black-25)", cursor:"not-allowed" } : {}),
-                        ...(errors._payRefCustom ? { borderColor:"var(--error)" } : {}),
-                      }}
-                    />
-                    <button className="payref-type-btn" onClick={() => setShowPayRefPicker(true)}>
-                      {payRefType === "custom" ? "custom" : payRefType === "peachID" ? "buyer peach ID" : "trade ID"}
-                      <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><polyline points="1,1 5,5 9,1"/></svg>
-                    </button>
-                  </div>
-                  <FieldError error={errors._payRefCustom}/>
-                  {payRefType === "custom" && !errors._payRefCustom && (
+                  <input className="modal-input"
+                    placeholder="don't mention peach or bitcoin !"
+                    value={payRefCustom}
+                    onChange={e => {
+                      setPayRefCustom(e.target.value);
+                      if (errors.reference) setErrors(p => ({ ...p, reference: null }));
+                    }}
+                    onBlur={() => handleBlur("reference", payRefCustom, validatePaymentReference)}
+                    style={errors.reference ? { borderColor:"var(--error)" } : undefined}
+                  />
+                  <FieldError error={errors.reference}/>
+                  {!errors.reference && (
                     <div style={{ fontSize:".66rem", color:"var(--black-25)", fontWeight:500, marginTop:4 }}>(optional)</div>
                   )}
-                  {payRefType !== "custom" && (
-                    <div style={{ fontSize:".66rem", color:"var(--black-65)", fontWeight:500, marginTop:4 }}>
-                      Auto-filled by Peach at trade time — cannot be edited
-                    </div>
-                  )}
                 </div>
-
-                {showPayRefPicker && (
-                  <div className="payref-picker-overlay" onClick={e => { if (e.target === e.currentTarget) setShowPayRefPicker(false); }}>
-                    <div className="payref-picker">
-                      <div className="payref-picker-header">
-                        <span className="payref-picker-title">Payment reference</span>
-                        <button className="modal-close" onClick={() => setShowPayRefPicker(false)}>✕</button>
-                      </div>
-                      {[
-                        { id:"custom",  label:"custom (can be empty)" },
-                        { id:"peachID", label:"buyers' peachID (eg: 02v6764d)" },
-                        { id:"tradeID", label:"trade ID (eg: PC-F4D-1245)" },
-                      ].map(opt => (
-                        <button key={opt.id}
-                          className={`payref-option${payRefType === opt.id ? " selected" : ""}`}
-                          onClick={() => { setPayRefType(opt.id); setShowPayRefPicker(false); }}>
-                          <span className="payref-option-label">{opt.label}</span>
-                          <span className={`payref-radio${payRefType === opt.id ? " on" : ""}`}>
-                            {payRefType === opt.id && <span className="payref-radio-dot"/>}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 <div className="pm-summary-box">
                   <div className="pm-summary-row">
@@ -625,8 +575,7 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
                   <div className="pm-summary-row">
                     <span className="pm-summary-label">Payment reference</span>
                     <span className="pm-summary-value">
-                      {payRefType === "custom" ? (payRefCustom || "empty (custom)") :
-                       payRefType === "peachID" ? "Buyer's Peach ID" : "Trade ID"}
+                      {payRefCustom || "empty"}
                     </span>
                   </div>
                 </div>
@@ -770,30 +719,4 @@ const ADD_PM_CSS = `
   .btn-save-pm:hover{transform:translateY(-1px)}
   .btn-save-pm:disabled{opacity:.4;cursor:not-allowed;transform:none}
 
-  /* Payment reference */
-  .payref-row{display:flex;gap:8px;align-items:center}
-  .payref-input{flex:1}
-  .payref-type-btn{display:flex;align-items:center;gap:5px;background:var(--black-5);
-    border:1.5px solid var(--black-10);border-radius:8px;padding:8px 12px;
-    font-family:var(--font);font-size:.75rem;font-weight:700;color:var(--primary-dark);
-    cursor:pointer;white-space:nowrap;flex-shrink:0;transition:border-color .15s}
-  .payref-type-btn:hover{border-color:var(--primary)}
-
-  .payref-picker-overlay{position:fixed;inset:0;z-index:600;background:rgba(43,25,17,.3);
-    display:flex;align-items:flex-end;justify-content:center;animation:addpm-fadeIn .15s ease}
-  .payref-picker{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;
-    padding-bottom:env(safe-area-inset-bottom,12px);animation:addpm-slideUp .25s ease}
-  .payref-picker-header{display:flex;align-items:center;justify-content:space-between;
-    padding:18px 22px 12px}
-  .payref-picker-title{font-size:1.05rem;font-weight:800;color:var(--black)}
-  .payref-option{display:flex;align-items:center;justify-content:space-between;width:100%;
-    padding:14px 22px;border:none;background:none;cursor:pointer;font-family:var(--font);
-    font-size:.88rem;font-weight:600;color:var(--black-75);transition:background .12s;text-align:left}
-  .payref-option:hover{background:var(--black-5)}
-  .payref-option.selected{color:var(--primary)}
-  .payref-option-label{flex:1}
-  .payref-radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--black-10);
-    display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .15s}
-  .payref-radio.on{border-color:var(--primary)}
-  .payref-radio-dot{width:12px;height:12px;border-radius:50%;background:var(--primary)}
 `;

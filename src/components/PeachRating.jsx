@@ -1,13 +1,32 @@
 // ─── PEACH RATING — 5-peach proportional fill ───────────────────────────────
 // Shared component. Renders 5 peach icons filled proportionally to `rep` (0–5).
+// When `trades === 0` the rating is replaced by a "new user" pill — a brand-new
+// user has no reputation yet, so the default 2.5-peach display would mislead.
 // Used by: market-view, trades-dashboard, MatchesPopup, settings, home,
 //          trade-execution, peach-status-cards
 // ─────────────────────────────────────────────────────────────────────────────
 import { useId } from "react";
 
-export default function PeachRating({ rep, size = 16 }) {
+export default function PeachRating({ rep, size = 16, trades }) {
   const uid = useId();
   const safeRep = typeof rep === "number" ? rep : 0;
+  if (trades === 0) {
+    return (
+      <span style={{
+        display: "inline-block",
+        fontSize: ".72rem",
+        fontWeight: 700,
+        color: "var(--success)",
+        border: "1.5px solid var(--success)",
+        borderRadius: 999,
+        padding: "2px 9px",
+        letterSpacing: ".02em",
+        whiteSpace: "nowrap",
+      }}>
+        new user
+      </span>
+    );
+  }
   return (
     <span style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
       <span style={{ display:"inline-flex", alignItems:"center", gap:1 }}>
