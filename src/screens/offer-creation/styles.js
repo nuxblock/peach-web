@@ -241,6 +241,13 @@ export const CSS = `
     cursor:pointer;transition:all .12s;flex-shrink:0}
   .btn-add-pm:hover{background:var(--primary);color:white}
 
+  /* Warning pill — section header (e.g. "Select a payment method") */
+  .pm-warn-pill{display:inline-flex;align-items:center;gap:5px;
+    padding:4px 12px;border-radius:999px;
+    border:1.5px solid var(--warning);background:var(--warning-soft);
+    color:var(--warning);font-family:var(--font);font-size:.72rem;font-weight:700;
+    margin-left:auto;flex-shrink:0;letter-spacing:.01em;line-height:1.2}
+
   .prem-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;
     border-radius:3px;outline:none;cursor:pointer}
   .prem-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;

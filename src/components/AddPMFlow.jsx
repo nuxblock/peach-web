@@ -43,6 +43,43 @@ export const CATEGORY_META = {
   national:      { label: "National Option",      icon: IconFlag,     description: "Country-specific methods" },
 };
 
+// Country → method list, mirroring mobile's NATIONALOPTIONS
+// (peach-app/src/views/addPaymentMethod/SelectPaymentMethod.tsx).
+export const NATIONAL_OPTIONS = {
+  EUR: {
+    BE: ["wero"],
+    LU: ["wero"],
+    IT: ["satispay", "postePay"],
+    PT: ["mbWay"],
+    ES: ["bizum", "rebellion"],
+    FI: ["mobilePay"],
+    HR: ["keksPay"],
+    FR: ["wero", "lydia", "satispay"],
+    DE: ["satispay", "wero"],
+    GR: ["iris"],
+    DK: ["mobilePay"],
+  },
+};
+
+const COUNTRY_NAMES = {
+  BE: "Belgium", LU: "Luxembourg", IT: "Italy", PT: "Portugal",
+  ES: "Spain",   FI: "Finland",    HR: "Croatia", FR: "France",
+  DE: "Germany", GR: "Greece",     DK: "Denmark",
+};
+
+// ISO-3166-1 alpha-2 → flag emoji via regional indicator codepoints.
+function countryFlag(code) {
+  return code.toUpperCase().replace(/./g, c =>
+    String.fromCodePoint(0x1F1A5 + c.charCodeAt(0))
+  );
+}
+
+// Currently only EUR has a national-options country group; returns null
+// otherwise so the wizard transparently skips the country step.
+function nationalGroupFor(currency) {
+  return currency === "EUR" ? "EUR" : null;
+}
+
 export const CURRENCY_REGIONS = {
   Europe:        ["EUR","CHF","GBP","SEK","NOK","DKK","PLN","CZK","HUF","ISK","RON","BGN","HRK"],
   Global:        ["USD","DOC","LNURL","USDT","USDC"],
@@ -75,18 +112,29 @@ export function methodLabel(pm) {
 
 // ── ProgressBar ──────────────────────────────────────────────────────────────
 
-const STEP_LABELS = ["Currency", "Category", "Method", "Details"];
+const STEP_LABELS_FULL = ["Currency", "Category", "Country", "Method", "Details"];
 
-function ProgressBar({ step, total = 4 }) {
+function ProgressBar({ step, showCountryStep }) {
+  // Country step (index 2) is hidden when showCountryStep is false. We collapse
+  // the visible labels accordingly and renumber for display so users see a
+  // continuous 4- or 5-step bar.
+  const visibleLabels = showCountryStep
+    ? STEP_LABELS_FULL
+    : STEP_LABELS_FULL.filter((_, i) => i !== 2);
+  // Index of the current step within the visible list:
+  //   - if country step is hidden, step 3 (Method) becomes visible index 2
+  //     and step 4 (Details) becomes visible index 3.
+  const visibleStep = showCountryStep ? step : (step >= 3 ? step - 1 : step);
+  const total = visibleLabels.length;
   return (
     <div className="pm-progress">
       <div className="pm-progress-track">
-        <div className="pm-progress-fill" style={{ width: `${((step + 1) / total) * 100}%` }}/>
+        <div className="pm-progress-fill" style={{ width: `${((visibleStep + 1) / total) * 100}%` }}/>
       </div>
       <div className="pm-progress-labels">
-        {STEP_LABELS.map((label, i) => (
-          <span key={i} className={`pm-progress-label${i <= step ? " active" : ""}${i === step ? " current" : ""}`}>
-            {i < step ? <IconCheck/> : <span className="pm-step-num">{i + 1}</span>}
+        {visibleLabels.map((label, i) => (
+          <span key={i} className={`pm-progress-label${i <= visibleStep ? " active" : ""}${i === visibleStep ? " current" : ""}`}>
+            {i < visibleStep ? <IconCheck/> : <span className="pm-step-num">{i + 1}</span>}
             <span className="pm-step-text">{label}</span>
           </span>
         ))}
@@ -99,10 +147,11 @@ function ProgressBar({ step, total = 4 }) {
 
 export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }) {
   const isEdit = !!editData;
-  const [step, setStep] = useState(isEdit ? 3 : 0);
+  const [step, setStep] = useState(isEdit ? 4 : 0);
 
   const [selCurrency, setSelCurrency] = useState(editData?.currencies?.[0] || "");
   const [selCategory, setSelCategory] = useState(editData ? (methods[editData.methodId]?.category || "") : "");
+  const [selCountry, setSelCountry] = useState("");
   const [selMethodId, setSelMethodId] = useState(editData?.methodId || "");
   const [details, setDetails] = useState(editData?.details || {});
   const [selCurrencies, setSelCurrencies] = useState(editData?.currencies || []);
@@ -160,9 +209,22 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
     ? [...new Set(Object.values(methods).filter(m => m.currencies.includes(selCurrency)).map(m => m.category))]
     : [];
 
-  const methodsForCatCurrency = Object.entries(methods)
-    .filter(([, m]) => m.category === selCategory && m.currencies.includes(selCurrency))
-    .sort((a, b) => a[1].name.localeCompare(b[1].name));
+  const showCountryStep = selCategory === "national" && !!nationalGroupFor(selCurrency);
+  const countryGroup = nationalGroupFor(selCurrency);
+  const countryMap = showCountryStep ? NATIONAL_OPTIONS[countryGroup] : null;
+
+  const methodsForStep = (() => {
+    const allowed = showCountryStep && selCountry && countryMap
+      ? new Set(countryMap[selCountry] || [])
+      : null;
+    return Object.entries(methods)
+      .filter(([id, m]) =>
+        m.category === selCategory &&
+        m.currencies.includes(selCurrency) &&
+        (!allowed || allowed.has(id))
+      )
+      .sort((a, b) => a[1].name.localeCompare(b[1].name));
+  })();
 
   const selMethod = methods[selMethodId] || null;
   const methodCurrencies = selMethod?.currencies || [];
@@ -193,6 +255,7 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
   function handleSelectCurrency(c) {
     setSelCurrency(c);
     setSelCategory("");
+    setSelCountry("");
     setSelMethodId("");
     setDetails({});
     setSelCurrencies([]);
@@ -202,11 +265,21 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
 
   function handleSelectCategory(cat) {
     setSelCategory(cat);
+    setSelCountry("");
     setSelMethodId("");
     setDetails({});
     setSelCurrencies([]);
     setErrors({});
-    setStep(2);
+    const goCountry = cat === "national" && !!nationalGroupFor(selCurrency);
+    setStep(goCountry ? 2 : 3);
+  }
+
+  function handleSelectCountry(code) {
+    setSelCountry(code);
+    setSelMethodId("");
+    setDetails({});
+    setErrors({});
+    setStep(3);
   }
 
   function handleSelectMethod(id) {
@@ -217,7 +290,16 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
     if (m) {
       setSelCurrencies(m.currencies.includes(selCurrency) ? [selCurrency] : [m.currencies[0]]);
     }
-    setStep(3);
+    setStep(4);
+  }
+
+  // Back-button routing: skip the country step on non-national flows.
+  function prevStep(s) {
+    if (s === 4) return 3;
+    if (s === 3) return showCountryStep ? 2 : 1;
+    if (s === 2) return 1;
+    if (s === 1) return 0;
+    return 0;
   }
 
   function toggleCurrency(c) {
@@ -313,7 +395,7 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
           <div className="modal-header">
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               {step > 0 && !isEdit && (
-                <button className="modal-back" onClick={() => setStep(s => s - 1)}>
+                <button className="modal-back" onClick={() => setStep(prevStep(step))}>
                   <IconBack/>
                 </button>
               )}
@@ -321,7 +403,8 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
                 {isEdit ? `Edit ${editData.name}` :
                  step === 0 ? "Select currency" :
                  step === 1 ? "Select category" :
-                 step === 2 ? "Select method" : "Enter details"}
+                 step === 2 ? "Select country" :
+                 step === 3 ? "Select method" : "Enter details"}
               </span>
             </div>
             <button className="modal-close" onClick={onClose}>
@@ -331,7 +414,7 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
 
           {/* Progress bar */}
           <div style={{ padding:"12px 22px 0" }}>
-            <ProgressBar step={step}/>
+            <ProgressBar step={step} showCountryStep={showCountryStep}/>
           </div>
 
           {/* Body */}
@@ -407,10 +490,35 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
               </div>
             )}
 
-            {/* ── STEP 2: Method ── */}
-            {step === 2 && (
+            {/* ── STEP 2: Country (national options only) ── */}
+            {step === 2 && countryMap && (
               <div className="pm-cat-list">
-                {methodsForCatCurrency.map(([id, m]) => (
+                {Object.keys(countryMap)
+                  .sort((a, b) => (COUNTRY_NAMES[a] || a).localeCompare(COUNTRY_NAMES[b] || b))
+                  .map(code => {
+                    const methodCount = countryMap[code].length;
+                    return (
+                      <button key={code}
+                        className={`pm-cat-card${selCountry === code ? " selected" : ""}`}
+                        onClick={() => handleSelectCountry(code)}>
+                        <span className="pm-country-flag">{countryFlag(code)}</span>
+                        <div className="pm-cat-text">
+                          <span className="pm-cat-label">{COUNTRY_NAMES[code] || code}</span>
+                          <span className="pm-cat-desc">
+                            {methodCount} method{methodCount !== 1 ? "s" : ""} available
+                          </span>
+                        </div>
+                        <span className="pm-cat-arrow">→</span>
+                      </button>
+                    );
+                  })}
+              </div>
+            )}
+
+            {/* ── STEP 3: Method ── */}
+            {step === 3 && (
+              <div className="pm-cat-list">
+                {methodsForStep.map(([id, m]) => (
                   <button key={id}
                     className={`pm-cat-card${selMethodId === id ? " selected" : ""}`}
                     onClick={() => handleSelectMethod(id)}>
@@ -422,14 +530,14 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
                     <span className="pm-cat-arrow">→</span>
                   </button>
                 ))}
-                {methodsForCatCurrency.length === 0 && (
+                {methodsForStep.length === 0 && (
                   <div className="pm-empty-msg">No methods in this category for {selCurrency}</div>
                 )}
               </div>
             )}
 
-            {/* ── STEP 3: Details ── */}
-            {step === 3 && selMethod && (
+            {/* ── STEP 4: Details ── */}
+            {step === 4 && selMethod && (
               <>
                 <div className="pm-detail-header">
                   <span className="pm-detail-tag">{selMethod.name}</span>
@@ -665,6 +773,9 @@ const ADD_PM_CSS = `
     display:flex;align-items:center;justify-content:center;color:var(--primary-dark);flex-shrink:0}
   .pm-method-logo{width:40px;height:40px;border-radius:10px;background:var(--black-5);
     padding:5px;object-fit:contain;flex-shrink:0}
+  .pm-country-flag{width:40px;height:40px;border-radius:10px;background:var(--black-5);
+    display:flex;align-items:center;justify-content:center;font-size:1.5rem;line-height:1;
+    flex-shrink:0}
   .pm-cat-text{flex:1;min-width:0}
   .pm-cat-label{display:block;font-size:.88rem;font-weight:700;color:var(--black)}
   .pm-cat-desc{display:block;font-size:.72rem;font-weight:500;color:var(--black-65);margin-top:1px}

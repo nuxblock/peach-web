@@ -77,6 +77,18 @@ const INFO_COPY = {
 };
 
 
+// ─── PM SELECTION PERSISTENCE ───────────────────────────────────────────────
+// Selected PMs survive Buy↔Sell tab switches and screen navigation within the
+// same browser tab. sessionStorage clears on tab close.
+const PM_SELECTION_KEY = "peach_offer_creation_pm_selection";
+function readPersistedPMSelection() {
+  try {
+    const raw = sessionStorage.getItem(PM_SELECTION_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? parsed.filter(x => typeof x === "string") : [];
+  } catch { return []; }
+}
+
 // ─── MAIN ───────────────────────────────────────────────────────────────────
 export default function OfferCreation({ initialType="buy" }) {
   const navigate = useNavigate();
@@ -152,8 +164,9 @@ export default function OfferCreation({ initialType="buy" }) {
           }
           return swept;
         }
+        let fetched = [];
         if (Array.isArray(pms) && pms.length > 0) {
-          setSavedMethods(pms.map((pm, i) => {
+          fetched = pms.map((pm, i) => {
             const rawId = pm.methodId || pm.type || pm.id || "unknown";
             const mid = shortId(rawId);
             return {
@@ -163,9 +176,9 @@ export default function OfferCreation({ initialType="buy" }) {
               currencies: pm.currencies ?? [],
               details:    sweepFields(pm),
             };
-          }));
+          });
         } else if (pms && typeof pms === "object") {
-          setSavedMethods(Object.entries(pms).map(([key, val]) => {
+          fetched = Object.entries(pms).map(([key, val]) => {
             const mid = shortId(key);
             return {
               id:         val?.id || key,
@@ -174,8 +187,22 @@ export default function OfferCreation({ initialType="buy" }) {
               currencies: val?.currencies ?? [],
               details:    sweepFields(val || {}),
             };
-          }));
+          });
         }
+        setSavedMethods(fetched);
+        // Reconcile persisted selection against fetched PMs, then auto-select
+        // the only PM if exactly one exists and nothing is currently selected.
+        // First-mount only — this useEffect runs once.
+        const validIds = new Set(fetched.map(m => m.id));
+        setForm(f => {
+          const cleaned = f.selectedMethodIds.filter(id => validIds.has(id));
+          if (cleaned.length === 0 && fetched.length === 1) {
+            return { ...f, selectedMethodIds: [fetched[0].id] };
+          }
+          return cleaned.length === f.selectedMethodIds.length
+            ? f
+            : { ...f, selectedMethodIds: cleaned };
+        });
       })
       .catch((err) => {
         console.warn("[OfferCreation] PM fetch failed:", err.message);
@@ -194,13 +221,21 @@ export default function OfferCreation({ initialType="buy" }) {
     return () => document.removeEventListener("click", close);
   }, [showAvatarMenu]);
 
-  const initForm = ()=>({amtFixed:MIN_SATS,
-    selectedMethodIds:[],premium:"0",instantMatch:false,noNewUsers:false,
+  const initForm = (selectedMethodIds=[])=>({amtFixed:MIN_SATS,
+    selectedMethodIds,premium:"0",instantMatch:false,noNewUsers:false,
     minReputation:false,instantMatchBadges:[],experienceLevel:"",
     refundChoices:[{ mode:"peach", address:"" }]});
-  const [form, setForm] = useState(initForm());
+  const [form, setForm] = useState(()=>initForm(readPersistedPMSelection()));
   const [refundErrors, setRefundErrors] = useState({});
   const [refundExpanded, setRefundExpanded] = useState(false);
+
+  // Persist PM selection so it survives Buy↔Sell tab switches and screen
+  // navigation within the same browser tab.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(PM_SELECTION_KEY, JSON.stringify(form.selectedMethodIds));
+    } catch {}
+  }, [form.selectedMethodIds]);
 
   const isSell = type==="sell";
   const STEPS  = getSteps(type);
@@ -375,7 +410,9 @@ export default function OfferCreation({ initialType="buy" }) {
   const updateRefund = (i, patch) =>
     setForm(f => ({ ...f, refundChoices: f.refundChoices.map((c, j) => j === i ? { ...c, ...patch } : c) }));
   function reset(){
-    setStep(0);setDone(false);setEscrowFunded(false);setFundingStatus(null);setFundingAmounts(null);setPublishError(null);setEscrowAddress(null);setSellOfferId(null);setForm(initForm());
+    setStep(0);setDone(false);setEscrowFunded(false);setFundingStatus(null);setFundingAmounts(null);setPublishError(null);setEscrowAddress(null);setSellOfferId(null);
+    // Preserve PM selection across resets so Buy↔Sell tab switches don't lose it.
+    setForm(f=>initForm(f.selectedMethodIds));
     setMultiEnabled(false);setMultiCount(2);setMultiResults(null);setSelectedEscrowIdx(0);setMultiPublishProgress(null);
     setFundMobileLoading(false);setFundMobileActionId(null);setFundMobileError(null);
     setRefundErrors({});
@@ -1096,6 +1133,12 @@ export default function OfferCreation({ initialType="buy" }) {
                   <button className="btn-add-pm" onClick={()=>setShowAddModal(true)}>
                     + Add
                   </button>
+                  {!pmError && savedMethods.length >= 2 && form.selectedMethodIds.length === 0 && (
+                    <span className="pm-warn-pill">
+                      <span aria-hidden style={{fontSize:".72rem"}}>⚠</span>
+                      Select a payment method
+                    </span>
+                  )}
                 </div>
 
                 {pmError ? (
