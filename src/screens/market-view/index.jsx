@@ -120,6 +120,7 @@ export default function PeachMarket() {
 
   // ── Popup helpers ──
   function openPopup(offer) {
+    if (!isLoggedIn) { navigate("/"); return; }
     setSelectedPM(null);
     setPopupCurrency(offer.currencies.length === 1 ? offer.currencies[0] : null);
     setEditingPremium(false); setEditError(null);
@@ -1710,7 +1711,7 @@ export default function PeachMarket() {
                         undoAnim===offer.id?"undo-row":"",
                         highlightedIds.has(offer.id)?"new-offer-row":""
                       ].filter(Boolean).join(" ")}
-                      style={{cursor: isLoggedIn ? "pointer" : "default"}} onClick={() => isLoggedIn && openPopup(offer)}>
+                      style={{cursor: "pointer"}} onClick={() => openPopup(offer)}>
                       <td><RepCell offer={offer}/></td>
                       <td><AmountCell offer={offer} btcPrice={btcPrice} currency={selectedCurrency}/></td>
                       <td><PriceCell offer={offer} btcPrice={btcPrice} currency={selectedCurrency} isSellTab={isSellTab}/></td>
@@ -1768,7 +1769,7 @@ export default function PeachMarket() {
               </div>
             ) : displayOffers.map(offer => (
             <div key={offer.id} className={`offer-card${offer.isOwn?" own-card":""}${effectiveRequested.has(offer.id)&&!offer.auto&&!offer.isOwn?" requested-card":""}${undoAnim===offer.id?" undo-card":""}${highlightedIds.has(offer.id)?" new-offer-card":""}`}
-              style={{cursor: isLoggedIn ? "pointer" : "default"}} onClick={() => isLoggedIn && openPopup(offer)}>
+              style={{cursor: "pointer"}} onClick={() => openPopup(offer)}>
                 {/* Row 1: PeachID + avatar · rep/badges (left) | offer ID + action (right) */}
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
                   <span className="user-peach-id">{offer.peachId}</span>

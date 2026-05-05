@@ -94,7 +94,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<PeachAuth />} />
           <Route path="/home" element={<ProtectedRoute><PeachHome /></ProtectedRoute>} />
-          <Route path="/market" element={<ProtectedRoute><PeachMarket /></ProtectedRoute>} />
+          <Route path="/market" element={<PeachMarket />} />
           <Route path="/offer/new" element={<ProtectedRoute><OfferCreation /></ProtectedRoute>} />
           <Route path="/trades" element={<ProtectedRoute><TradesDashboard /></ProtectedRoute>} />
           <Route path="/trade/:id" element={<ProtectedRoute><TradeExecution /></ProtectedRoute>} />

@@ -1121,7 +1121,6 @@ export default function OfferCreation({ initialType="buy" }) {
                       onClick={()=>setOpenInfo("amount")}
                     />
                   </span>
-                  {amtOk&&<span className="section-done">✓</span>}
                 </div>
 
                 <AmountSlider form={form} setF={setF} btcPrice={btcPrice}/>
@@ -1132,7 +1131,6 @@ export default function OfferCreation({ initialType="buy" }) {
                 <div className="section-header">
                   <div className={`section-num${payOk?" filled":""}`}>2</div>
                   <span className="section-title">Payment methods</span>
-                  {payOk&&<span className="section-done" style={{marginLeft:0}}>✓</span>}
                   <button className="btn-add-pm" onClick={()=>setShowAddModal(true)}>
                     + Add
                   </button>
@@ -1431,7 +1429,6 @@ export default function OfferCreation({ initialType="buy" }) {
                   <div className="section-header">
                     <div className={`section-num${refundOk?" filled":""}`}>5</div>
                     <span className="section-title">Refund</span>
-                    {refundOk && <span className="section-done">✓</span>}
                   </div>
                   {(() => {
                   const externalDupes = new Map();
