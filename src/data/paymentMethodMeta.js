@@ -380,11 +380,13 @@ export const PM_FIELD_META = {
     label: "Phone number",
     placeholder: "+34 612 345 678",
     validatorWithPrefix: true,
+    requireAllowedCountry: true,
   },
   phoneNumber: {
     label: "Phone number",
     placeholder: "+34 612 345 678",
     validatorWithPrefix: true,
+    requireAllowedCountry: true,
   },
   mpesa_phone: {
     label: "M-Pesa number",

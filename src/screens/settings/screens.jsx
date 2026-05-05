@@ -467,15 +467,34 @@ export function TxBatchingSubScreen({ onBack }) {
 
   return (
     <SubScreenWrapper title="Transaction Batching" onBack={onBack}>
-      <p style={{ fontSize:".9rem", color:"var(--black)", marginBottom:16, lineHeight:1.6 }}>
-        Escrow payouts are instant
-      </p>
-      <div style={{ background:"var(--primary-mild)", border:"1.5px solid var(--primary)", borderRadius:12, padding:"14px 16px", marginBottom:24 }}>
-        <span style={{ fontWeight:800, color:"var(--primary)" }}>Caution!</span>
-        <span style={{ fontSize:".82rem", color:"var(--black-75)", marginLeft:4, lineHeight:1.6 }}>
-          You cover Peach's additional costs. Costs are dynamic and can spike. Ensure you understand this!
-        </span>
-      </div>
+      {batching ? (
+        <>
+          <p style={{ fontSize:".9rem", color:"var(--black)", marginBottom:8, lineHeight:1.6 }}>
+            Escrow payouts are delayed. Free Trades pay instantly.
+          </p>
+          <p style={{ fontSize:".9rem", color:"var(--black)", marginBottom:16, lineHeight:1.6 }}>
+            You'll be warned if mining fees exceed 10%.
+          </p>
+          <div style={{ background:"var(--primary-mild)", border:"1.5px solid var(--primary)", borderRadius:12, padding:"14px 16px", marginBottom:24 }}>
+            <span style={{ fontWeight:800, color:"var(--primary)" }}>Save up to 23%</span>
+            <span style={{ fontSize:".82rem", color:"var(--black-75)", marginLeft:4, lineHeight:1.6 }}>
+              in network fees
+            </span>
+          </div>
+        </>
+      ) : (
+        <>
+          <p style={{ fontSize:".9rem", color:"var(--black)", marginBottom:16, lineHeight:1.6 }}>
+            Escrow payouts are instant
+          </p>
+          <div style={{ background:"var(--primary-mild)", border:"1.5px solid var(--primary)", borderRadius:12, padding:"14px 16px", marginBottom:24 }}>
+            <span style={{ fontWeight:800, color:"var(--primary)" }}>Caution!</span>
+            <span style={{ fontSize:".82rem", color:"var(--black-75)", marginLeft:4, lineHeight:1.6 }}>
+              You cover Peach's additional costs. Costs are dynamic and can spike. Ensure you understand this!
+            </span>
+          </div>
+        </>
+      )}
       <div style={{ background:"var(--surface)", border:"1px solid var(--black-10)", borderRadius:12, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
         <span style={{ fontSize:".9rem", fontWeight:700, color:"var(--black)" }}>transaction batching</span>
         <Toggle checked={batching} onChange={handleBatchingChange}/>

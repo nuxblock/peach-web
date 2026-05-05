@@ -228,6 +228,7 @@ body{font-family:var(--font);background:var(--primary-bg);color:var(--black)}
 .avatar-login-label{font-size:.78rem;font-weight:700;color:var(--primary);white-space:nowrap}
 .avatar-menu-peachid{display:none;padding:6px 12px 2px;font-size:.7rem;font-weight:800;letter-spacing:.06em;color:var(--black-25);font-family:var(--font);white-space:nowrap}
 @media(max-width:767px){.avatar-menu-peachid{display:block}}
+.avatar-menu-divider{height:1px;background:var(--black-10);margin:4px 6px}
 
 /* ── NOTIFICATION BELL + PANEL ── */
 .notif-bell-btn{

@@ -4,6 +4,8 @@
 // For GitHub build: import { validateBtcAddress, ... } from "./peach-validators.js";
 // ──────────────────────────────────────────────────────────────────────────────
 
+import { COUNTRY_MAP } from "./data/countryDialCodes.js";
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // BITCOIN ADDRESS — FULL CHECKSUM VERIFICATION (all 4 formats)
@@ -467,6 +469,59 @@ export function validatePhone(raw, expectedPrefix) {
     return { valid: false, error: `Expected country prefix ${expectedPrefix}` };
   }
 
+  return { valid: true, error: null };
+}
+
+
+/**
+ * Country lookup by phone (mirrors mobile's getCountryCodeByPhone).
+ *
+ * Heuristic match: any country whose dialCode appears as a substring of the
+ * cleaned phone is a candidate. When multiple candidates match (e.g. +1 ↔
+ * US/CA/Caribbean), disambiguate using `phoneAreaCodes` if present, otherwise
+ * fall back to the candidate that has no area-code list (covers shared-prefix
+ * cases like +1 → US default), then the first match.
+ */
+export function getCountryCodeByPhone(phone) {
+  if (!phone) return undefined;
+  const clean = phone.replace(/[\s\-().]/g, "");
+  const codes = Object.keys(COUNTRY_MAP);
+  const candidates = codes.filter((c) => clean.includes(COUNTRY_MAP[c].dialCode));
+
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length === 0) return undefined;
+
+  // Multiple candidates: prefer one whose area code matches.
+  const areaMatch = candidates.find((c) => {
+    const data = COUNTRY_MAP[c];
+    if (!Array.isArray(data.phoneAreaCodes)) return false;
+    return data.phoneAreaCodes.some((area) => clean.includes(data.dialCode + area));
+  });
+  if (areaMatch) return areaMatch;
+
+  // Fall back to a candidate without an area-code list (e.g. US for shared +1).
+  const noAreaList = candidates.find((c) => !Array.isArray(COUNTRY_MAP[c].phoneAreaCodes));
+  return noAreaList || candidates[0];
+}
+
+
+/**
+ * isPhoneAllowed — applied on top of `validatePhone` for `phone`/`phoneNumber`
+ * fields. Mirrors mobile's check: rejects US, high-risk countries (Iran, North
+ * Korea, Myanmar), and any phone whose dial code isn't in COUNTRY_MAP.
+ *
+ * Mobile parity: `mpesa_phone` does NOT run this — that field is Kenya-locked
+ * by other means and mobile's validators.ts doesn't stack `isPhoneAllowed`
+ * onto it.
+ *
+ * Error string is verbatim from mobile's i18n key `form.phone.highRisk`.
+ */
+export function isPhoneAllowed(raw) {
+  if (!raw || !raw.trim()) return { valid: false, error: "Phone number is required" };
+  const country = getCountryCodeByPhone(raw);
+  if (!country || country === "US" || COUNTRY_MAP[country]?.highRisk) {
+    return { valid: false, error: "numbers from this country are not allowed" };
+  }
   return { valid: true, error: null };
 }
 

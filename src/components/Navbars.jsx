@@ -325,6 +325,21 @@ export function Topbar({
             {showAvatarMenu && (
               <div className="avatar-menu">
                 <div className="avatar-menu-peachid">{getTopbarPeachId()}</div>
+                <button
+                  className="avatar-menu-item"
+                  onClick={() => { setShowAvatarMenu(false); navigate("/settings", { state: { openProfile: true } }); }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="5.5" r="2.6"/><path d="M2.8 13.4c.7-2.6 2.8-4 5.2-4s4.5 1.4 5.2 4"/></svg>
+                  Profile
+                </button>
+                <button
+                  className="avatar-menu-item"
+                  onClick={() => { setShowAvatarMenu(false); navigate("/settings"); }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="8" r="2.1"/><path d="M13 8a5 5 0 0 0-.08-.9l1.2-.93-1-1.73-1.4.5a5 5 0 0 0-1.55-.9L9.9 2.5h-2l-.27 1.55a5 5 0 0 0-1.55.9l-1.4-.5-1 1.73 1.2.93A5 5 0 0 0 5 8a5 5 0 0 0 .08.9l-1.2.93 1 1.73 1.4-.5a5 5 0 0 0 1.55.9L8.1 13.5h2l.27-1.55a5 5 0 0 0 1.55-.9l1.4.5 1-1.73-1.2-.93A5 5 0 0 0 13 8z"/></svg>
+                  Settings
+                </button>
+                <div className="avatar-menu-divider" />
                 <button className="avatar-menu-item danger" onClick={handleLogout}>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 2H3.5A1.5 1.5 0 002 3.5v9A1.5 1.5 0 003.5 14H6"/><path d="M10.5 11.5L14 8l-3.5-3.5"/><path d="M14 8H6"/></svg>
                   Log out

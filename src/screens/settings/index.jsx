@@ -25,8 +25,11 @@ export default function SettingsScreen() {
   const [currentView, setCurrentView] = useState("main");
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
-  // Reset to main view when sidenav "Settings" is clicked (same-route navigation)
-  useEffect(() => { setCurrentView("main"); }, [location.key]);
+  // Reset to main view when sidenav "Settings" is clicked (same-route navigation).
+  // When the avatar's "Profile" shortcut sets state.openProfile, jump straight to that sub-view.
+  useEffect(() => {
+    setCurrentView(location.state?.openProfile ? "profile" : "main");
+  }, [location.key]);
 
   // ── AUTH STATE ──
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();

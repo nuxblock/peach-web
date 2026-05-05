@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from "react";
-import { validatePhone, validatePaymentReference, makeBlurHandler } from "../peach-validators.js";
+import { validatePhone, validatePaymentReference, isPhoneAllowed, makeBlurHandler } from "../peach-validators.js";
 import {
   PHONE_PREFIX_MAP, getFieldMeta, getTabLabel, fieldsForTab, parseSections,
   normalizeApiPaymentMethods,
@@ -326,7 +326,11 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
         : meta.validator
           ? meta.validator(val)
           : { valid: true };
-      if (!r.valid) newErrors[fid] = r.error;
+      if (!r.valid) { newErrors[fid] = r.error; continue; }
+      if (meta.requireAllowedCountry) {
+        const r2 = isPhoneAllowed(val);
+        if (!r2.valid) newErrors[fid] = r2.error;
+      }
     }
     // Optional fields: only validate if non-empty.
     for (const fid of optionalFields) {
@@ -338,7 +342,11 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
         : meta.validator
           ? meta.validator(val)
           : { valid: true };
-      if (!r.valid) newErrors[fid] = r.error;
+      if (!r.valid) { newErrors[fid] = r.error; continue; }
+      if (meta.requireAllowedCountry) {
+        const r2 = isPhoneAllowed(val);
+        if (!r2.valid) newErrors[fid] = r2.error;
+      }
     }
     // Payment reference: forbidden-words check (empty is allowed).
     if (payRefCustom.trim()) {
@@ -585,8 +593,12 @@ export function AddPMFlow({ methods, onSave, onClose, editData, error, onRetry }
                     function handleFieldBlur() {
                       const val = (details[fid] || "").trim();
                       if (!val && isOptional) { setErrors((p) => ({ ...p, [fid]: null })); return; }
-                      if (meta.validatorWithPrefix) handleBlur(fid, details[fid], validatePhone, phonePrefix);
-                      else if (meta.validator) handleBlur(fid, details[fid], meta.validator);
+                      let primaryOk = true;
+                      if (meta.validatorWithPrefix) primaryOk = handleBlur(fid, details[fid], validatePhone, phonePrefix);
+                      else if (meta.validator) primaryOk = handleBlur(fid, details[fid], meta.validator);
+                      if (primaryOk && meta.requireAllowedCountry) {
+                        handleBlur(fid, details[fid], isPhoneAllowed);
+                      }
                     }
 
                     return (
