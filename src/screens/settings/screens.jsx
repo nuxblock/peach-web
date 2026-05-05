@@ -432,7 +432,10 @@ export function TxBatchingSubScreen({ onBack }) {
   }, []);
 
   async function handleBatchingChange(value) {
-    if (!auth) { setBatching(value); return; }
+    const previous = batching;
+    setBatching(value);
+
+    if (!auth) return;
 
     if (value === false) {
       let hasPending = false;
@@ -449,11 +452,10 @@ export function TxBatchingSubScreen({ onBack }) {
           "You have payouts queued in the batching program. " +
           "Turning off batching will trigger an immediate payout at higher fees. Continue?"
         );
-        if (!ok) return;
+        if (!ok) { setBatching(previous); return; }
       }
     }
 
-    setBatching(value);
     const body = value
       ? { enableBatching: true }
       : { enableBatching: false, riskAcknowledged: true };

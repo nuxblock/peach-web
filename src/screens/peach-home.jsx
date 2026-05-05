@@ -608,7 +608,7 @@ export default function PeachHome() {
                 <div className="card" style={{flexShrink:0,minWidth:260}}>
                   <div className="card-header">
                     <span className="card-title">My Profile</span>
-                    <span className="card-link" onClick={() => navigate("/settings")}>Edit →</span>
+                    <span className="card-link" onClick={() => navigate("/settings", { state: { openProfile: true } })}>View →</span>
                   </div>
                   <div className="profile-top">
                     <Avatar peachId={auth?.peachId} size={52} />
