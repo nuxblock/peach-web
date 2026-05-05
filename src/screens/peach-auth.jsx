@@ -50,47 +50,92 @@ const QRDisplay = ({ qrPayload, size = 189 }) => {
   );
 };
 
-// ─── COUNTDOWN RING ───────────────────────────────────────────────────────────
-const CountdownRing = ({ secondsLeft, total = 30, size = 220 }) => {
-  const r = size / 2 - 5,
-    circ = 2 * Math.PI * r,
-    off = circ * (1 - secondsLeft / total);
+// ─── COUNTDOWN BORDER ─────────────────────────────────────────────────────────
+// Rounded-rectangle countdown outline that wraps a card. Two render modes:
+//  - Fixed mode: pass `width` + `height` (used for the desktop QR card).
+//  - Fill mode:  omit `width`/`height` — the SVG fills its `position: relative`
+//    parent via 100%/100% and inset (used for cards whose width depends on
+//    viewport, like the mobile Connection Payload card).
+// `inset` is the gap between the wrapped card's edge and the timer line; the
+// timer's effective corner radius is `radius + inset` so corners stay parallel.
+const CountdownBorder = ({
+  secondsLeft,
+  total = 30,
+  width,
+  height,
+  radius = 14,
+  inset = 6,
+  gradientId = "cb-grad",
+}) => {
   const urgent = secondsLeft <= 10;
+  const offset = 100 * (1 - secondsLeft / total);
+  const fixed = width != null && height != null;
+  const w = fixed ? width + inset * 2 : null;
+  const h = fixed ? height + inset * 2 : null;
+  const cornerR = radius + inset;
+
+  const svgProps = fixed
+    ? {
+        width: w,
+        height: h,
+        style: {
+          position: "absolute",
+          top: -inset,
+          left: -inset,
+          pointerEvents: "none",
+        },
+      }
+    : {
+        style: {
+          position: "absolute",
+          top: -inset,
+          left: -inset,
+          width: `calc(100% + ${inset * 2}px)`,
+          height: `calc(100% + ${inset * 2}px)`,
+          pointerEvents: "none",
+          overflow: "visible",
+        },
+        preserveAspectRatio: "none",
+      };
+
   return (
-    <svg
-      width={size}
-      height={size}
-      style={{ position: "absolute", top: -8, left: -8, pointerEvents: "none" }}
-    >
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
+    <svg {...svgProps}>
+      <rect
+        x="2"
+        y="2"
+        width={fixed ? w - 4 : "calc(100% - 4px)"}
+        height={fixed ? h - 4 : "calc(100% - 4px)"}
+        rx={cornerR}
+        ry={cornerR}
         fill="none"
         stroke="var(--black-10)"
         strokeWidth="3.5"
+        pathLength="100"
       />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
+      <rect
+        x="2"
+        y="2"
+        width={fixed ? w - 4 : "calc(100% - 4px)"}
+        height={fixed ? h - 4 : "calc(100% - 4px)"}
+        rx={cornerR}
+        ry={cornerR}
         fill="none"
-        stroke={urgent ? "var(--error)" : "url(#rg)"}
+        stroke={urgent ? "var(--error)" : `url(#${gradientId})`}
         strokeWidth="3.5"
-        strokeDasharray={circ}
-        strokeDashoffset={off}
         strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        pathLength="100"
+        strokeDasharray="100"
+        strokeDashoffset={offset}
         style={{ transition: "stroke-dashoffset 1s linear, stroke .4s" }}
       />
       <defs>
         <linearGradient
-          id="rg"
+          id={gradientId}
           x1="0"
           y1="0"
-          x2={size}
-          y2={size}
-          gradientUnits="userSpaceOnUse"
+          x2="1"
+          y2="1"
+          gradientUnits="objectBoundingBox"
         >
           <stop stopColor="#FFA24C" />
           <stop offset="1" stopColor="#FF4D42" />
@@ -272,7 +317,7 @@ export default function PeachAuth() {
     error: qrError,
     profile: qrProfile,
     restart: qrRestart,
-  } = useQRAuth({ baseUrl: regtestBase, auto: !isPhone });
+  } = useQRAuth({ baseUrl: regtestBase, auto: true });
 
   // Map hook phases to UI display
   const phase =
@@ -651,8 +696,23 @@ export default function PeachAuth() {
                         lineHeight: 1.5,
                       }}
                     >
-                      Looks like the Peach app isn't installed on this device.
-                      Download it below ↓
+                      Looks like the Peach app isn't installed on this device.{" "}
+                      <a
+                        href="#peach-download"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const el = document.getElementById("peach-download");
+                          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                        style={{
+                          color: "var(--primary)",
+                          fontWeight: 700,
+                          textDecoration: "underline",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Download now ↓
+                      </a>
                     </span>
                   </div>
                 )}
@@ -711,8 +771,17 @@ export default function PeachAuth() {
                         background: "var(--black-5)",
                         border: "1.5px solid var(--black-10)",
                         gap: 10,
+                        position: "relative",
                       }}
                     >
+                      {qrPhase !== "error" && phase !== "success" && (
+                        <CountdownBorder
+                          secondsLeft={secsLeft}
+                          total={TOTAL}
+                          radius={12}
+                          gradientId="cb-grad-mcp"
+                        />
+                      )}
                       <span
                         style={{
                           fontFamily: "monospace",
@@ -745,6 +814,7 @@ export default function PeachAuth() {
                           display: "flex",
                           alignItems: "center",
                           gap: 6,
+                          position: "relative",
                         }}
                       >
                         {connIdCopied ? "✓ Copied" : "Copy"}
@@ -814,8 +884,17 @@ export default function PeachAuth() {
                           display: "flex",
                           justifyContent: "center",
                           animation: "fadeIn .2s ease both",
+                          position: "relative",
                         }}
                       >
+                        {qrPhase !== "error" && phase !== "success" && (
+                          <CountdownBorder
+                            secondsLeft={secsLeft}
+                            total={TOTAL}
+                            radius={14}
+                            gradientId="cb-grad-mqr"
+                          />
+                        )}
                         <QRDisplay qrPayload={qrPayload} size={mobileQrSize} />
                       </div>
                     )}
@@ -898,9 +977,11 @@ export default function PeachAuth() {
 
                 {/* New to Peach — mobile */}
                 <div
+                  id="peach-download"
                   style={{
                     borderTop: "1px solid var(--black-10)",
                     paddingTop: 18,
+                    scrollMarginTop: 80,
                   }}
                 >
                   <div
@@ -1716,10 +1797,13 @@ export default function PeachAuth() {
                   </div>
                 ) : (
                   <div style={{ position: "relative" }}>
-                    <CountdownRing
+                    <CountdownBorder
                       secondsLeft={secsLeft}
                       total={TOTAL}
-                      size={320}
+                      width={304}
+                      height={304}
+                      radius={14}
+                      gradientId="cb-grad-desktop"
                     />
                     <div
                       style={{
