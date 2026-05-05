@@ -7,6 +7,7 @@
  * (deriving the public key from the same private key).
  */
 import * as openpgp from "openpgp";
+import { dispatchTamperDetected } from "./tamperGuard.js";
 
 const PGP_HEADER = "-----BEGIN PGP MESSAGE-----";
 
@@ -519,8 +520,13 @@ export async function extractPMsFromProfile(profile, armoredPrivKey) {
     // Log all profile keys so we can see the response shape
 
     // Collect all PGP-encrypted fields — top-level and one level deep
-    // Skip signature fields — they are PGP signed messages, not encrypted data
-    const SKIP_FIELDS = new Set(["encryptedPaymentDataSignature"]);
+    // Skip signature fields (PGP signed messages, not encrypted data) and the
+    // refund-address fields (handled separately by customRefundAddressSync).
+    const SKIP_FIELDS = new Set([
+      "encryptedPaymentDataSignature",
+      "encryptedCustomRefundAddress",
+      "encryptedCustomRefundAddressSignature",
+    ]);
     const encryptedEntries = [];
     for (const [key, val] of Object.entries(profile)) {
       if (SKIP_FIELDS.has(key)) continue;
@@ -541,18 +547,42 @@ export async function extractPMsFromProfile(profile, armoredPrivKey) {
       return null;
     }
 
-    // Decrypt each encrypted field
+    // Decrypt each encrypted field, verifying its detached signature when one
+    // is present on the profile (e.g. encryptedPaymentData / encryptedPaymentDataSignature).
+    // Fail closed: if a signature is present but invalid, drop the field — the
+    // server may have tampered with the encrypted blob.
+    let armoredPubKey = null;
     const decrypted = {};
     for (const [key, val] of encryptedEntries) {
       const plaintext = await decryptPGPMessage(val, armoredPrivKey);
-      if (plaintext) {
-        try {
-          decrypted[key] = JSON.parse(plaintext);
-        } catch {
-          decrypted[key] = plaintext;
-        }
-      } else {
+      if (!plaintext) {
         console.warn(`[PGP] Failed to decrypt field "${key}"`);
+        continue;
+      }
+      const sig = key.includes(".") ? null : profile[`${key}Signature`];
+      if (typeof sig === "string" && sig.length > 0) {
+        if (!armoredPubKey) armoredPubKey = await derivePublicKeyArmored(armoredPrivKey);
+        const valid = await verifyDetachedSignature(plaintext, sig, armoredPubKey);
+        if (!valid) {
+          console.warn(`[PGP] Signature verification failed for "${key}" — discarding`);
+          const label = key === "encryptedPaymentData" ? "payment methods" : key;
+          dispatchTamperDetected(label);
+          // Self-heal: overwrite the tampered blob with a freshly-signed empty
+          // payload so a malicious server can't keep replaying the bad
+          // ciphertext into the user's flows. Fire-and-forget; dynamic import
+          // avoids a circular dependency between pgp.js and pmSync.js.
+          if (key === "encryptedPaymentData") {
+            import("./pmSync.js")
+              .then(m => m.syncPMsToServer([], window.__PEACH_AUTH__))
+              .catch(err => console.warn("[PGP] PM wipe failed:", err.message));
+          }
+          continue;
+        }
+      }
+      try {
+        decrypted[key] = JSON.parse(plaintext);
+      } catch {
+        decrypted[key] = plaintext;
       }
     }
 

@@ -1,6 +1,7 @@
 import { Component, useState, useEffect } from 'react'
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import SessionExpiredModal from './components/SessionExpiredModal.jsx'
+import TamperDetectedModal from './components/TamperDetectedModal.jsx'
 import { clearCache } from './hooks/useApi.js'
 import { resetSessionExpiredFlag, isTokenExpired } from './utils/sessionGuard.js'
 import PeachAuth from './screens/peach-auth.jsx'
@@ -55,11 +56,26 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [tamperedFields, setTamperedFields] = useState(null);
 
   useEffect(() => {
     const handleExpired = () => setSessionExpired(true);
     window.addEventListener('peach:session-expired', handleExpired);
     return () => window.removeEventListener('peach:session-expired', handleExpired);
+  }, []);
+
+  useEffect(() => {
+    const handleTamper = (e) => {
+      const field = e?.detail?.field;
+      if (!field) return;
+      setTamperedFields(prev => {
+        const next = new Set(prev || []);
+        next.add(field);
+        return next;
+      });
+    };
+    window.addEventListener('peach:tamper-detected', handleTamper);
+    return () => window.removeEventListener('peach:tamper-detected', handleTamper);
   }, []);
 
   function handleReauth() {
@@ -89,6 +105,12 @@ export default function App() {
         </Routes>
       </HashRouter>
       {sessionExpired && <SessionExpiredModal onReauth={handleReauth} />}
+      {tamperedFields && (
+        <TamperDetectedModal
+          fields={tamperedFields}
+          onClose={() => setTamperedFields(null)}
+        />
+      )}
     </ErrorBoundary>
   )
 }

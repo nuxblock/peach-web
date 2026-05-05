@@ -8,6 +8,10 @@ import { useNavigate } from "react-router-dom";
 import { formatPeachId, PeachIcon } from "../../components/Navbars.jsx";
 import { useApi } from "../../hooks/useApi.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
+import {
+  syncCustomRefundAddressToServer,
+  extractCustomRefundAddressFromProfile,
+} from "../../utils/customRefundAddressSync.js";
 import { validateBtcAddress, validateBIP322Signature, validateFeeRate } from "../../peach-validators.js";
 import {
   IconCopy, IconTrash, IconCamera, IconExternalLink, IconShield,
@@ -513,7 +517,7 @@ export function TxBatchingSubScreen({ onBack }) {
 // ── RefundAddressSubScreen ───────────────────────────────────────────────────
 
 export function RefundAddressSubScreen({ onBack }) {
-  const { patch, auth } = useApi();
+  const { auth } = useApi();
   const btcNetwork = auth?.xpub?.startsWith("tpub") ? "regtest" : "mainnet";
   const [label, setLabel] = useState("");
   const [address, setAddress] = useState("");
@@ -522,6 +526,33 @@ export function RefundAddressSubScreen({ onBack }) {
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const handleBlur = makeBlurHandler(setErrors);
+
+  // Load the existing encrypted refund address from /v069/selfUser on mount.
+  useEffect(() => {
+    if (!auth?.token || !auth?.pgpPrivKey) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const v069Base = auth.baseUrl.replace(/\/v1$/, "/v069");
+        const res = await fetchWithSessionCheck(`${v069Base}/selfUser`, {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const profile = data.user ?? data;
+        const saved = await extractCustomRefundAddressFromProfile(profile, auth.pgpPrivKey);
+        if (cancelled || !saved) return;
+        setLabel(saved.label || "");
+        setAddress(saved.address || "");
+        if (saved.address && validateBtcAddress(saved.address, btcNetwork).valid) {
+          setAddressSet(true);
+        }
+      } catch (err) {
+        console.warn("[RefundAddress] Failed to load:", err.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [auth?.token, auth?.pgpPrivKey, auth?.baseUrl, btcNetwork]);
 
   function handleLabelBlur() {
     if (!label.trim()) setErrors(p => ({ ...p, label: "Label is required" }));
@@ -532,17 +563,42 @@ export function RefundAddressSubScreen({ onBack }) {
     const valid = handleBlur("address", address, validateBtcAddress, btcNetwork);
     setAddressSet(valid);
   }
-  function handleRemove() { setLabel(""); setAddress(""); setAddressSet(false); setErrors({}); }
+  async function handleRemove() {
+    setErrors({});
+    setSubmitting(true);
+    try {
+      if (auth) {
+        const ok = await syncCustomRefundAddressToServer(
+          { address: null, label: null },
+          auth,
+        );
+        if (!ok) {
+          setErrors(p => ({ ...p, form: "Server error — try again" }));
+          setSubmitting(false);
+          return;
+        }
+      }
+      setLabel("");
+      setAddress("");
+      setAddressSet(false);
+    } catch {
+      setErrors(p => ({ ...p, form: "Network error — check your connection" }));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function handleSave() {
     setErrors(p => ({ ...p, form: null }));
     setSubmitting(true);
     try {
       if (auth) {
-        const res = await patch('/user', { refundAddress: address, refundAddressLabel: label.trim() });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          setErrors(p => ({ ...p, form: err.message || "Server error — try again" }));
+        const ok = await syncCustomRefundAddressToServer(
+          { address, label: label.trim() },
+          auth,
+        );
+        if (!ok) {
+          setErrors(p => ({ ...p, form: "Server error — try again" }));
           setSubmitting(false);
           return;
         }
@@ -593,8 +649,8 @@ export function RefundAddressSubScreen({ onBack }) {
       {addressSet && (
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, marginBottom:20 }}>
           <span style={{ fontSize:".8rem", fontWeight:800, color:"var(--success)", letterSpacing:".04em" }}>ADDRESS SET ✓</span>
-          <button onClick={handleRemove} style={{ display:"flex", alignItems:"center", gap:5, border:"none", background:"transparent", cursor:"pointer", color:"var(--black)", fontFamily:"'Baloo 2',cursive", fontSize:".78rem", fontWeight:700, textDecoration:"underline", textTransform:"uppercase", letterSpacing:".04em" }}>
-            REMOVE WALLET <IconTrash size={14}/>
+          <button onClick={handleRemove} disabled={submitting} style={{ display:"flex", alignItems:"center", gap:5, border:"none", background:"transparent", cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.5 : 1, color:"var(--black)", fontFamily:"'Baloo 2',cursive", fontSize:".78rem", fontWeight:700, textDecoration:"underline", textTransform:"uppercase", letterSpacing:".04em" }}>
+            {submitting ? "REMOVING…" : <>REMOVE WALLET <IconTrash size={14}/></>}
           </button>
         </div>
       )}
