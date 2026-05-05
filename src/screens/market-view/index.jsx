@@ -965,6 +965,53 @@ export default function PeachMarket() {
   const ptAllowed = new Set([...paymentTypeOptions, ...selPaymentTypes]);
   paymentTypeOptions = Object.values(CATEGORY_META).map(m => m.label).filter(l => ptAllowed.has(l));
 
+  // Reactive offer counts per filter option. Each option's count reflects the
+  // number of current-tab offers that would match if this option were the only
+  // value in its dimension — i.e. all OTHER active filters still apply. This
+  // lets the user see liquidity for the option they're considering, narrowed
+  // by any context they've already set.
+  const tabOffers = marketOffers.filter(o => o.type === offerType && (showMyOffers || !o.isOwn));
+  function offerMatchesExcept(o, skip) {
+    if (skip !== "currency" && selCurrencies.length > 0 &&
+        !selCurrencies.some(c => o.currencies.includes(c))) return false;
+    if (skip !== "method" && selMethodIds.length > 0 &&
+        !selMethodIds.some(m => o.methods.includes(m))) return false;
+    if (skip !== "category" && selCatIds.length > 0) {
+      const offerCats = o.methods.map(m => PM_CATEGORIES[m] || "onlineWallet");
+      if (!selCatIds.some(c => offerCats.includes(c))) return false;
+    }
+    return true;
+  }
+  const currencyCounts = {};
+  for (const o of tabOffers) {
+    if (!offerMatchesExcept(o, "currency")) continue;
+    for (const c of o.currencies) currencyCounts[c] = (currencyCounts[c] || 0) + 1;
+  }
+  const methodCounts = {};
+  for (const o of tabOffers) {
+    if (!offerMatchesExcept(o, "method")) continue;
+    const seen = new Set();
+    for (const m of o.methods) {
+      const dn = methodDisplayName(m);
+      if (seen.has(dn)) continue;
+      seen.add(dn);
+      methodCounts[dn] = (methodCounts[dn] || 0) + 1;
+    }
+  }
+  const typeCounts = {};
+  for (const o of tabOffers) {
+    if (!offerMatchesExcept(o, "category")) continue;
+    const cats = new Set(o.methods.map(m => PM_CATEGORIES[m] || "onlineWallet"));
+    for (const catId of cats) {
+      const label = CATEGORY_META[catId]?.label;
+      if (label) typeCounts[label] = (typeCounts[label] || 0) + 1;
+    }
+  }
+  const byCountDesc = (a, b) => (b.count - a.count) || a.value.localeCompare(b.value);
+  currencyOptions    = currencyOptions.map(v   => ({ value: v,   count: currencyCounts[v]   || 0 })).sort(byCountDesc);
+  methodOptions      = methodOptions.map(v     => ({ value: v,   count: methodCounts[v]     || 0 })).sort(byCountDesc);
+  paymentTypeOptions = paymentTypeOptions.map(v => ({ value: v,  count: typeCounts[v]       || 0 })).sort(byCountDesc);
+
   const filtered = marketOffers
     .filter(o => o.type === offerType)
     .filter(o => showMyOffers || !o.isOwn)

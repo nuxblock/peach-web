@@ -1,4 +1,4 @@
-import { relTime } from "../utils/format.js";
+import { relTime, formatTradeId } from "../utils/format.js";
 
 // ── Icons per notification type (stroke-based, 16×16) ────────────────────────
 const IcoMessage = () => (
@@ -76,33 +76,47 @@ export default function NotificationPanel({ notifications, readIds, onMarkAllRea
             const Icon = TYPE_ICON[n.type] || IcoStatus;
             const color = TYPE_COLOR[n.type] || "var(--black-50)";
             const isUnread = !readIds.has(n.id);
+            const idLabel = n.contractId
+              ? `contract ${formatTradeId(n.contractId)}`
+              : n.offerId
+                ? `offer ${formatTradeId(n.offerId, "offer")}`
+                : null;
+            const markReadBtn = isUnread && (
+              <button
+                className="notif-mark-one"
+                aria-label="Mark as read"
+                title="Mark as read"
+                onClick={e => { e.stopPropagation(); onMarkRead(n.id); }}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3,9 6.5,12.5 13,4"/>
+                </svg>
+                <span>mark as read</span>
+              </button>
+            );
             return (
               <div
                 key={n.id}
                 className={`notif-item${isUnread ? " notif-unread" : ""}`}
                 onClick={() => onNavigate(n)}
               >
-                <div className="notif-item-icon" style={{ color, background: color + "14" }}>
-                  <Icon/>
-                </div>
-                <div className="notif-item-body">
-                  <div className="notif-item-title">{n.title}</div>
-                  {n.body && <div className="notif-item-desc">{n.body}</div>}
-                  <div className="notif-item-time">{relTime(n.createdAt)}</div>
-                </div>
-                {isUnread && (
-                  <button
-                    className="notif-mark-one"
-                    aria-label="Mark as read"
-                    title="Mark as read"
-                    onClick={e => { e.stopPropagation(); onMarkRead(n.id); }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3,9 6.5,12.5 13,4"/>
-                    </svg>
-                    <span>mark as read</span>
-                  </button>
+                {idLabel && (
+                  <div className="notif-item-header-row">
+                    <span className="notif-item-id">{idLabel}:</span>
+                    {markReadBtn}
+                  </div>
                 )}
+                <div className="notif-item-main">
+                  <div className="notif-item-icon" style={{ color, background: color + "14" }}>
+                    <Icon/>
+                  </div>
+                  <div className="notif-item-body">
+                    <div className="notif-item-title">{n.title}</div>
+                    {n.body && <div className="notif-item-desc">{n.body}</div>}
+                  </div>
+                  {!idLabel && markReadBtn}
+                </div>
+                <div className="notif-item-time">{relTime(n.createdAt)}</div>
               </div>
             );
           })

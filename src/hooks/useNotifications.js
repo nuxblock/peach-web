@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { STATUS_CONFIG } from "../data/statusConfig.js";
-import { formatTradeId } from "../utils/format.js";
 import { fetchWithSessionCheck } from "../utils/sessionGuard.js";
 
 // ── Seller-specific overrides (keyed by status) ─────────────────────────────
@@ -8,7 +7,7 @@ const SELLER_OVERRIDE = {
   fundEscrow:             { title: "Fund escrow",              body: "Trade accepted — fund the escrow now." },
   waitingForFunding:      { title: "Fund escrow",              body: "Waiting for you to fund the escrow." },
   paymentRequired:        { title: "Trade initiated ! Awaiting payment",         body: "Waiting for the buyer to send payment." },
-  confirmPaymentRequired: { title: "Payment marked as sent",   body: "Check yourbank  account and confirm receipt." },
+  confirmPaymentRequired: { title: "The buyer made the payment",   body: "Check your bank  account and confirm receipt." },
   releaseEscrow:          { title: "Confirm payment receipt",  body: "Check your account and release escrow from mobile." },
 };
 
@@ -53,10 +52,27 @@ const keyNotifs   = (id) => id ? `${LS_NOTIFS_PREFIX}:${id}`   : null;
 const keyReadIds  = (id) => id ? `${LS_READ_IDS_PREFIX}:${id}` : null;
 const keyBaseline = (id) => id ? `${LS_BASELINE_PREFIX}:${id}` : null;
 
+// Strip legacy ": contract <id>" / ": offer <id>" suffix from titles persisted
+// before the ID was promoted to its own header row in NotificationPanel.
+const LEGACY_TITLE_SUFFIX = /: (?:contract|offer) [\w\-‑]+$/;
 function loadNotifs(peachId) {
   const k = keyNotifs(peachId);
   if (!k) return [];
-  try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; }
+  try {
+    const list = JSON.parse(localStorage.getItem(k)) || [];
+    let migrated = false;
+    const cleaned = list.map(n => {
+      if (typeof n?.title === "string" && LEGACY_TITLE_SUFFIX.test(n.title)) {
+        migrated = true;
+        return { ...n, title: n.title.replace(LEGACY_TITLE_SUFFIX, "") };
+      }
+      return n;
+    });
+    if (migrated) {
+      try { localStorage.setItem(k, JSON.stringify(cleaned.slice(0, MAX_NOTIFS))); } catch { /* ignore */ }
+    }
+    return cleaned;
+  } catch { return []; }
 }
 function saveNotifs(list) {
   const k = keyNotifs(_peachId());
@@ -288,7 +304,6 @@ async function _poll(auth, base) {
       const prev = _prevContracts.get(c.id);
       const status = c.tradeStatus;
       const unread = c.unreadMessages ?? 0;
-      const fmtId = formatTradeId(c.id);
       const rawType  = (c.type ?? "").toLowerCase();
       const isBuyer  = rawType === "bid" || rawType === "buy" || (c.buyer?.id ?? c.buyerId) === peachId;
       const isSeller = !isBuyer;
@@ -301,7 +316,7 @@ async function _poll(auth, base) {
         if (isBuyer && prev.tradeStatus === "paymentTooLate" && status === "paymentRequired") {
           events.push(_makeNotif(
             `c-${c.id}-extended-${now}`, "statusChange",
-            `Payment required: contract ${fmtId}`,
+            "Payment required",
             "the seller gave you more time to make the payment. Proceed as soon as possible.",
             c.id, null
           ));
@@ -309,7 +324,7 @@ async function _poll(auth, base) {
           const sn = STATUS_NOTIF[status];
           events.push(_makeNotif(
             `c-${c.id}-${status}-${now}`, sn.type,
-            `${sellerOv?.title ?? sn.title}: contract ${fmtId}`, sellerOv?.body ?? sn.body, c.id, null
+            sellerOv?.title ?? sn.title, sellerOv?.body ?? sn.body, c.id, null
           ));
         }
         // New unread messages
@@ -317,7 +332,7 @@ async function _poll(auth, base) {
           const diff = unread - prev.unreadMessages;
           events.push(_makeNotif(
             `c-${c.id}-msg-${now}`, "message",
-            diff === 1 ? `New message: contract ${fmtId}` : `${diff} new messages: contract ${fmtId}`,
+            diff === 1 ? "New message" : `${diff} new messages`,
             "", c.id, null
           ));
         }
@@ -327,7 +342,7 @@ async function _poll(auth, base) {
           const sn = STATUS_NOTIF[status];
           events.push(_makeNotif(
             `c-${c.id}-${status}-${now}`, sn.type,
-            `${sellerOv?.title ?? sn.title}: contract ${fmtId}`, sellerOv?.body ?? sn.body, c.id, null
+            sellerOv?.title ?? sn.title, sellerOv?.body ?? sn.body, c.id, null
           ));
         }
       }
@@ -339,7 +354,6 @@ async function _poll(auth, base) {
     for (const o of allOffers) {
       const status = o.tradeStatus ?? o.tradeStatusNew ?? "";
       const prev = _prevOffers.get(o.id);
-      const fmtId = formatTradeId(o.id, "offer");
 
       if (prev && prev !== status && STATUS_NOTIF[status]) {
         const sn = STATUS_NOTIF[status];
@@ -348,7 +362,7 @@ async function _poll(auth, base) {
           : sn.body;
         events.push(_makeNotif(
           `o-${o.id}-${status}-${now}`, sn.type,
-          `${sn.title}: offer ${fmtId}`, body, null, o.id
+          sn.title, body, null, o.id
         ));
       } else if (!prev && STATUS_NOTIF[status]) {
         // New offer appeared — skip, it's the user's own action
@@ -378,10 +392,9 @@ async function _poll(auth, base) {
       }
       const newIds = [...currentIds].filter(id => !prevIds.has(id));
       if (newIds.length > 0) {
-        const fmtId = formatTradeId(offerId, "offer");
         const title = newIds.length === 1
-          ? `Trade request received: offer ${fmtId}`
-          : `${newIds.length} trade requests received: offer ${fmtId}`;
+          ? "Trade request received"
+          : `${newIds.length} trade requests received`;
         events.push(_makeNotif(
           `o-${offerId}-tradeReq-${now}`, "tradeRequest",
           title, "Review and accept or decline.", null, offerId
@@ -420,10 +433,9 @@ async function _poll(auth, base) {
       }
       const delta = current - prev;
       if (delta > 0) {
-        const fmtId = formatTradeId(offerId, "offer");
         const title = delta === 1
-          ? `1 new match: offer ${fmtId}`
-          : `${delta} new matches: offer ${fmtId}`;
+          ? "1 new match"
+          : `${delta} new matches`;
         events.push(_makeNotif(
           `o-${offerId}-moreMatches-${now}`, "match",
           title, "Review and select a match.", null, offerId
@@ -472,13 +484,12 @@ async function _poll(auth, base) {
         for (const [offerId] of _prevSentRequests) {
           if (currentSent.has(offerId)) continue;
           if (offerIdsWithContract.has(offerId)) continue;
-          const fmtId = formatTradeId(offerId, "offer");
           events.push({
             ..._makeNotif(
               `o-${offerId}-tradeReqRejected-${now}`, "tradeRequest",
-              `Trade request declined: offer ${fmtId}`,
+              "Trade request declined",
               "The offer owner rejected your request.",
-              null, null
+              null, offerId
             ),
             noNavigate: true,
           });
@@ -539,10 +550,9 @@ async function _poll(auth, base) {
         }
         const newIds = [...currentIds].filter(id => !prevIds.has(id));
         if (newIds.length > 0) {
-          const fmtId = formatTradeId(ref.offerId, "offer");
           const title = newIds.length === 1
-            ? `New message: offer ${fmtId}`
-            : `${newIds.length} new messages: offer ${fmtId}`;
+            ? "New message"
+            : `${newIds.length} new messages`;
           events.push(_makeNotif(
             `chat-${ref.offerType}-${ref.offerId}-${ref.userId}-${now}`, "message",
             title, "", null, ref.offerId

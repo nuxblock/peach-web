@@ -38,6 +38,11 @@ export function MultiSelect({ label, options, value, onChange, searchable = fals
   const ref = useRef(null);
   const searchRef = useRef(null);
 
+  // Normalize options: accept both ["EUR", ...] and [{value:"EUR", count:12}, ...]
+  const normOptions = options.map(o =>
+    typeof o === "string" ? { value: o, count: undefined } : o
+  );
+
   // Close on outside click
   useEffect(() => {
     function handler(e) {
@@ -57,9 +62,9 @@ export function MultiSelect({ label, options, value, onChange, searchable = fals
     }
   }, [open, searchable]);
 
-  function toggle(opt) {
-    if (value.includes(opt)) onChange(value.filter(v => v !== opt));
-    else onChange([...value, opt]);
+  function toggle(v) {
+    if (value.includes(v)) onChange(value.filter(x => x !== v));
+    else onChange([...value, v]);
   }
 
   const allSelected = value.length === 0;
@@ -71,8 +76,8 @@ export function MultiSelect({ label, options, value, onChange, searchable = fals
 
   const q = query.trim().toLowerCase();
   const visibleOptions = searchable && q
-    ? options.filter(opt => opt.toLowerCase().includes(q))
-    : options;
+    ? normOptions.filter(o => o.value.toLowerCase().includes(q))
+    : normOptions;
 
   return (
     <div className="ms-wrap" ref={ref}>
@@ -102,17 +107,20 @@ export function MultiSelect({ label, options, value, onChange, searchable = fals
             <div className="ms-empty">No results</div>
           ) : (
             visibleOptions.map(opt => {
-              const checked = value.includes(opt);
+              const checked = value.includes(opt.value);
               return (
                 <div
-                  key={opt}
+                  key={opt.value}
                   className={`ms-option${checked ? " selected" : ""}`}
-                  onClick={() => toggle(opt)}
+                  onClick={() => toggle(opt.value)}
                 >
                   <div className={`ms-checkbox${checked ? " checked" : ""}`}>
                     {checked && "✓"}
                   </div>
-                  {opt}
+                  <span className="ms-option-label">{opt.value}</span>
+                  {opt.count !== undefined && (
+                    <span className="ms-option-count">({opt.count})</span>
+                  )}
                 </div>
               );
             })

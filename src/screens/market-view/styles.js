@@ -55,6 +55,9 @@ export const CSS = `
   }
   .ms-option:hover{background:var(--black-5)}
   .ms-option.selected{color:var(--primary-dark)}
+  .ms-option-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ms-option-count{font-size:.74rem;font-weight:600;color:var(--black-65);
+    font-variant-numeric:tabular-nums;flex-shrink:0}
   .ms-checkbox{
     width:15px;height:15px;border-radius:4px;flex-shrink:0;
     border:1.5px solid var(--black-25);background:var(--surface);
