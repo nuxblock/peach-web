@@ -114,7 +114,7 @@ export const CSS = `
   /* Section inside card */
   .card-section{padding:22px 24px;border-bottom:1px solid var(--black-5)}
   .card-section:last-child{border-bottom:none}
-  .section-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .section-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;position:relative}
   .section-num{width:22px;height:22px;border-radius:50%;background:var(--black-5);
     border:1.5px solid var(--black-10);display:flex;align-items:center;
     justify-content:center;font-size:.65rem;font-weight:800;color:var(--black-65);flex-shrink:0}
@@ -242,11 +242,13 @@ export const CSS = `
   .btn-add-pm:hover{background:var(--primary);color:white}
 
   /* Warning pill — section header (e.g. "Select a payment method") */
+  .pm-warn-wrap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    display:inline-flex;align-items:center;flex-shrink:0}
   .pm-warn-pill{display:inline-flex;align-items:center;gap:5px;
     padding:4px 12px;border-radius:999px;
     border:1.5px solid var(--warning);background:var(--warning-soft);
     color:var(--warning);font-family:var(--font);font-size:.72rem;font-weight:700;
-    margin-left:auto;flex-shrink:0;letter-spacing:.01em;line-height:1.2}
+    flex-shrink:0;letter-spacing:.01em;line-height:1.2}
 
   .prem-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;
     border-radius:3px;outline:none;cursor:pointer}
@@ -493,5 +495,14 @@ export const CSS = `
     .price-pill{display:none}
     .sidenav-price-slot{display:block}
     .layout{margin-left:0!important}
+  }
+  @media(max-width:600px){
+    .section-header{flex-wrap:wrap}
+    .pm-warn-wrap{
+      position:static;transform:none;
+      flex-basis:100%;width:100%;
+      display:flex;justify-content:center;
+      margin-top:8px;
+    }
   }
 `;

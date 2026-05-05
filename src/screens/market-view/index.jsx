@@ -1431,7 +1431,7 @@ export default function PeachMarket() {
                     </button>
                     <button className="popup-btn popup-btn-withdraw"
                       onClick={() => { setWithdrawConfirm(true); setWithdrawError(null); }}>
-                      Withdraw
+                      {offer.type === "ask" ? "Cancel and refund offer" : "Withdraw"}
                     </button>
                   </div>
                 )}
@@ -1461,7 +1461,9 @@ export default function PeachMarket() {
                   </button>
                   <button className="popup-btn popup-btn-withdraw" style={{background:"var(--error)",color:"white",borderColor:"var(--error)"}}
                     onClick={() => handleWithdraw(offer)} disabled={withdrawing}>
-                    {withdrawing ? "Withdrawing…" : "Yes, withdraw"}
+                    {withdrawing
+                      ? "Withdrawing…"
+                      : (offer.type === "ask" ? "Refund (sign on mobile)" : "Yes, withdraw")}
                   </button>
                 </div>
               </div>

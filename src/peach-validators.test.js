@@ -57,6 +57,59 @@ describe("validateBtcAddress", () => {
     const result = validateBtcAddress("bc1qw508d6q");
     expect(result.valid).toBe(false);
   });
+
+  // Default arg = mainnet (regression — confirms backwards compatibility)
+  it("defaults to mainnet when network arg omitted", () => {
+    expect(validateBtcAddress("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4").valid).toBe(true);
+  });
+});
+
+// ── validateBtcAddress — regtest ─────────────────────────────────────────────
+
+describe("validateBtcAddress — regtest", () => {
+  // Real regtest vectors lifted from the Peach mobile app test suite
+  // (peach-app/src/utils/validation/rules.spec.ts).
+
+  it("accepts valid bcrt1q (P2WPKH, witness v0)", () => {
+    expect(
+      validateBtcAddress("bcrt1qm50khyunelhjzhckvgy3qj0hn7xjzzwljhfgd0", "regtest").valid
+    ).toBe(true);
+  });
+
+  it("accepts valid bcrt1p (Taproot, bech32m)", () => {
+    expect(
+      validateBtcAddress("bcrt1pvsl0uj3m2wew9fngpzqyga2jdsfngjkwcj5rg8qwpf9y6graadeqr7k9yu", "regtest").valid
+    ).toBe(true);
+  });
+
+  it("rejects mainnet bc1q when network is regtest", () => {
+    const result = validateBtcAddress("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", "regtest");
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("bcrt1");
+  });
+
+  it("rejects bcrt1 when network is mainnet (default)", () => {
+    const result = validateBtcAddress("bcrt1qm50khyunelhjzhckvgy3qj0hn7xjzzwljhfgd0");
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("must start with");
+  });
+
+  it("rejects legacy P2PKH (1…) when network is regtest", () => {
+    const result = validateBtcAddress("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", "regtest");
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("bcrt1");
+  });
+
+  it("rejects legacy P2SH (3…) when network is regtest", () => {
+    const result = validateBtcAddress("3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy", "regtest");
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("bcrt1");
+  });
+
+  it("rejects uppercase bcrt1", () => {
+    const result = validateBtcAddress("BCRT1QM50KHYUNELHJZHCKVGY3QJ0HN7XJZZWLJHFGD0", "regtest");
+    expect(result.valid).toBe(false);
+  });
 });
 
 // ── validateIBAN ─────────────────────────────────────────────────────────────

@@ -3490,13 +3490,18 @@ export default function TradesDashboard() {
                             setOdWithdrawError(null);
                           }}
                         >
-                          Cancel offer
+                          Cancel and refund offer
                         </button>
                       </div>
                     </div>
                   )}
 
-                {/* Footer — actions */}
+                {/* Footer — actions. Suppressed when the funded-sell inline button
+                    is showing and no edit/confirm/refund is in flight (the footer
+                    would be empty in that state and produce extra whitespace). */}
+                {(odEditingPremium ||
+                  odWithdrawConfirm ||
+                  !(!isBuy && fundingStage === "funded" && !odRefundActionId)) && (
                 <div className="offer-detail-footer">
                   {/* Funded sell offer with refund pending: greyed message
                     (or Open Peach App deeplink on mobile). */}
@@ -3899,12 +3904,17 @@ export default function TradesDashboard() {
                           onClick={() => handleWithdrawOffer(o)}
                           disabled={odWithdrawing}
                         >
-                          {odWithdrawing ? "Cancelling…" : "Yes, cancel"}
+                          {odWithdrawing
+                            ? "Cancelling…"
+                            : (o.direction === "sell" && fundingStage === "funded"
+                                ? "Refund (sign on mobile)"
+                                : "Yes, cancel")}
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
+                )}
               </div>
             </div>
           );

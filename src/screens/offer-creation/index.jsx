@@ -173,6 +173,7 @@ export default function OfferCreation({ initialType="buy" }) {
               id:         pm.id || `api-pm-${i}`,
               methodId:   mid,
               name:       pm.name || pm.label || mid,
+              label:      pm.label || pm.name || "",
               currencies: pm.currencies ?? [],
               details:    sweepFields(pm),
             };
@@ -184,6 +185,7 @@ export default function OfferCreation({ initialType="buy" }) {
               id:         val?.id || key,
               methodId:   mid,
               name:       val?.name || val?.label || mid,
+              label:      val?.label || val?.name || "",
               currencies: val?.currencies ?? [],
               details:    sweepFields(val || {}),
             };
@@ -214,6 +216,7 @@ export default function OfferCreation({ initialType="buy" }) {
   // ── AUTH STATE ──
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
   const { get, post, auth } = useApi();
+  const btcNetwork = auth?.xpub?.startsWith("tpub") ? "regtest" : "mainnet";
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
@@ -481,7 +484,7 @@ export default function OfferCreation({ initialType="buy" }) {
   const payOk  = form.selectedMethodIds.length > 0;
   const premOk = form.premium!=="";
   const refundOk = !isSell || form.refundChoices.every(c =>
-    c.mode === "peach" || validateBtcAddress((c.address ?? "").trim()).valid
+    c.mode === "peach" || validateBtcAddress((c.address ?? "").trim(), btcNetwork).valid
   );
   const configOk = amtOk&&payOk&&premOk&&refundOk;
 
@@ -1118,7 +1121,7 @@ export default function OfferCreation({ initialType="buy" }) {
                       onClick={()=>setOpenInfo("amount")}
                     />
                   </span>
-                  {amtOk&&<span className="section-done">✓ Done</span>}
+                  {amtOk&&<span className="section-done">✓</span>}
                 </div>
 
                 <AmountSlider form={form} setF={setF} btcPrice={btcPrice}/>
@@ -1129,14 +1132,13 @@ export default function OfferCreation({ initialType="buy" }) {
                 <div className="section-header">
                   <div className={`section-num${payOk?" filled":""}`}>2</div>
                   <span className="section-title">Payment methods</span>
-                  {payOk&&<span className="section-done" style={{marginLeft:0}}>✓ Done</span>}
+                  {payOk&&<span className="section-done" style={{marginLeft:0}}>✓</span>}
                   <button className="btn-add-pm" onClick={()=>setShowAddModal(true)}>
                     + Add
                   </button>
                   {!pmError && savedMethods.length >= 2 && form.selectedMethodIds.length === 0 && (
-                    <span className="pm-warn-pill">
-                      <span aria-hidden style={{fontSize:".72rem"}}>⚠</span>
-                      Select a payment method
+                    <span className="pm-warn-wrap">
+                      <span className="pm-warn-pill">Select a payment method</span>
                     </span>
                   )}
                 </div>
@@ -1429,7 +1431,7 @@ export default function OfferCreation({ initialType="buy" }) {
                   <div className="section-header">
                     <div className={`section-num${refundOk?" filled":""}`}>5</div>
                     <span className="section-title">Refund</span>
-                    {refundOk && <span className="section-done">✓ Done</span>}
+                    {refundOk && <span className="section-done">✓</span>}
                   </div>
                   {(() => {
                   const externalDupes = new Map();
@@ -1508,10 +1510,10 @@ export default function OfferCreation({ initialType="buy" }) {
                               onBlur={() => {
                                 const v = (choice.address ?? "").trim();
                                 if (!v) { setRefundErrors(p => { const n={...p}; delete n[i]; return n; }); return; }
-                                const r = validateBtcAddress(v);
+                                const r = validateBtcAddress(v, btcNetwork);
                                 setRefundErrors(p => ({ ...p, [i]: r.valid ? null : r.error }));
                               }}
-                              placeholder="bc1q… / 3… / 1…"
+                              placeholder={btcNetwork === "regtest" ? "bcrt1q…" : "bc1q… / 3… / 1…"}
                               style={{
                                 width:"100%",padding:"10px 14px",borderRadius:10,
                                 border: err ? "1.5px solid var(--error)" : "1.5px solid var(--black-25)",
@@ -1521,7 +1523,7 @@ export default function OfferCreation({ initialType="buy" }) {
                             {err && (
                               <div style={{fontSize:".72rem",color:"var(--error)",marginTop:6}}>{err}</div>
                             )}
-                            {!err && (choice.address ?? "").trim() && validateBtcAddress(choice.address.trim()).valid && (
+                            {!err && (choice.address ?? "").trim() && validateBtcAddress(choice.address.trim(), btcNetwork).valid && (
                               <div style={{fontSize:".72rem",color:"var(--success)",fontWeight:700,marginTop:6}}>✓ Valid address</div>
                             )}
                             {!err && dup != null && (

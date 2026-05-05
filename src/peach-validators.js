@@ -174,9 +174,10 @@ function convertBits(data, fromBits, toBits, pad) {
   return out;
 }
 
-function verifySegwitAddress(addr) {
+function verifySegwitAddress(addr, network = "mainnet") {
+  const expectedHrp = network === "regtest" ? "bcrt" : "bc";
   const dec = bech32Decode(addr);
-  if (!dec || dec.hrp !== "bc") return { ok: false, error: "Invalid bech32 encoding or checksum" };
+  if (!dec || dec.hrp !== expectedHrp) return { ok: false, error: "Invalid bech32 encoding or checksum" };
 
   const witnessVer = dec.data[0];
   if (witnessVer > 16) return { ok: false, error: "Witness version must be 0–16" };
@@ -200,9 +201,23 @@ function verifySegwitAddress(addr) {
 
 
 // ─── PUBLIC: validateBtcAddress ──────────────────────────────────────────────
-export function validateBtcAddress(addr) {
+export function validateBtcAddress(addr, network = "mainnet") {
   if (!addr || !addr.trim()) return { valid: false, error: "Address is required" };
   const a = addr.trim();
+
+  if (network === "regtest") {
+    // Peach mobile wallet derives bcrt1q… (P2WPKH) on regtest.
+    // Legacy regtest base58 (m/n/2…) intentionally not supported.
+    if (a.toLowerCase().startsWith("bcrt1")) {
+      if (a.toLowerCase() !== a)
+        return { valid: false, error: "Bech32 address must be lowercase" };
+      const result = verifySegwitAddress(a, "regtest");
+      if (!result.ok)
+        return { valid: false, error: result.error };
+      return { valid: true, error: null };
+    }
+    return { valid: false, error: "Address must start with bcrt1 (regtest)" };
+  }
 
   // P2PKH (version 0x00)
   if (a.startsWith("1")) {
@@ -226,7 +241,7 @@ export function validateBtcAddress(addr) {
   if (a.toLowerCase().startsWith("bc1")) {
     if (a.toLowerCase() !== a)
       return { valid: false, error: "Bech32 address must be lowercase" };
-    const result = verifySegwitAddress(a);
+    const result = verifySegwitAddress(a, "mainnet");
     if (!result.ok)
       return { valid: false, error: result.error };
     return { valid: true, error: null };

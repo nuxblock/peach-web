@@ -493,6 +493,7 @@ export function TxBatchingSubScreen({ onBack }) {
 
 export function RefundAddressSubScreen({ onBack }) {
   const { patch, auth } = useApi();
+  const btcNetwork = auth?.xpub?.startsWith("tpub") ? "regtest" : "mainnet";
   const [label, setLabel] = useState("");
   const [address, setAddress] = useState("");
   const [addressSet, setAddressSet] = useState(false);
@@ -507,7 +508,7 @@ export function RefundAddressSubScreen({ onBack }) {
   }
   function handleAddressBlur() {
     if (!address.trim()) { setErrors(p => ({ ...p, address: null })); setAddressSet(false); return; }
-    const valid = handleBlur("address", address, validateBtcAddress);
+    const valid = handleBlur("address", address, validateBtcAddress, btcNetwork);
     setAddressSet(valid);
   }
   function handleRemove() { setLabel(""); setAddress(""); setAddressSet(false); setErrors({}); }
@@ -557,10 +558,10 @@ export function RefundAddressSubScreen({ onBack }) {
 
       <div style={{ position:"relative", marginBottom: addressSet ? 8 : (errors.address ? 0 : 24) }}>
         <input value={address} onChange={e => { setAddress(e.target.value); setAddressSet(false); setErrors(p => ({ ...p, address: null })); }} onBlur={handleAddressBlur}
-          placeholder="bc1q …"
+          placeholder={btcNetwork === "regtest" ? "bcrt1q …" : "bc1q …"}
           style={{ width:"100%", padding:"10px 44px 10px 14px", borderRadius:10, border: errors.address ? "2px solid var(--error)" : addressSet ? "2px solid var(--primary)" : "1.5px solid var(--black-25)", background:"var(--surface)", fontFamily:"monospace", fontSize:".85rem", color:"var(--black)", outline:"none" }}/>
         <div style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", display:"flex", gap:4 }}>
-          <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setAddress(t); setErrors(p => ({ ...p, address: null })); const r = validateBtcAddress(t); if(r.valid) setAddressSet(true); else { setAddressSet(false); setErrors(p => ({ ...p, address: r.error })); } } catch {} }}
+          <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setAddress(t); setErrors(p => ({ ...p, address: null })); const r = validateBtcAddress(t, btcNetwork); if(r.valid) setAddressSet(true); else { setAddressSet(false); setErrors(p => ({ ...p, address: r.error })); } } catch {} }}
             style={{ border:"none", background:"transparent", cursor:"pointer", color:"var(--primary)", padding:4 }}>
             <IconCopy size={16}/>
           </button>
@@ -601,6 +602,7 @@ export function RefundAddressSubScreen({ onBack }) {
 
 export function PayoutWalletSubScreen({ onBack }) {
   const { patch, auth } = useApi();
+  const btcNetwork = auth?.xpub?.startsWith("tpub") ? "regtest" : "mainnet";
   const [step, setStep] = useState(1);
   const [label, setLabel] = useState("");
   const [address, setAddress] = useState("");
@@ -615,7 +617,7 @@ export function PayoutWalletSubScreen({ onBack }) {
 
   function handleAddressBlur() {
     if (!address.trim()) { setErrors(p => ({ ...p, address: null })); setAddressSet(false); return; }
-    const valid = handleBlur("address", address, validateBtcAddress);
+    const valid = handleBlur("address", address, validateBtcAddress, btcNetwork);
     setAddressSet(valid);
   }
   function handleRemove() { setLabel(""); setAddress(""); setAddressSet(false); setErrors(p => ({ ...p, address: null })); }
@@ -734,10 +736,10 @@ export function PayoutWalletSubScreen({ onBack }) {
 
       <div style={{ position:"relative", marginBottom: addressSet ? 8 : (errors.address ? 0 : 24) }}>
         <input value={address} onChange={e => { setAddress(e.target.value); setAddressSet(false); setErrors(p => ({ ...p, address: null })); }} onBlur={handleAddressBlur}
-          placeholder="bc1q …"
+          placeholder={btcNetwork === "regtest" ? "bcrt1q …" : "bc1q …"}
           style={{ width:"100%", padding:"10px 72px 10px 14px", borderRadius:10, border: errors.address ? "2px solid var(--error)" : addressSet ? "2px solid var(--primary)" : "1.5px solid var(--black-25)", background:"var(--surface)", fontFamily:"monospace", fontSize:".85rem", color:"var(--black)", outline:"none" }}/>
         <div style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", display:"flex", gap:4 }}>
-          <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setAddress(t); setErrors(p => ({ ...p, address: null })); const r = validateBtcAddress(t); if(r.valid) setAddressSet(true); else { setAddressSet(false); setErrors(p => ({ ...p, address: r.error })); } } catch {} }}
+          <button onClick={async () => { try { const t = await navigator.clipboard.readText(); setAddress(t); setErrors(p => ({ ...p, address: null })); const r = validateBtcAddress(t, btcNetwork); if(r.valid) setAddressSet(true); else { setAddressSet(false); setErrors(p => ({ ...p, address: r.error })); } } catch {} }}
             style={{ border:"none", background:"transparent", cursor:"pointer", color:"var(--primary)", padding:4 }}>
             <IconCopy size={16}/>
           </button>
