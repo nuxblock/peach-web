@@ -360,6 +360,18 @@ export default function PeachMarket() {
     setPendingRequest(null);
   }
 
+  function sendNowPendingRequest() {
+    if (!pendingRequest) return;
+    if (pendingTimerRef.current) {
+      clearTimeout(pendingTimerRef.current);
+      pendingTimerRef.current = null;
+    }
+    const { offer, kind } = pendingRequest;
+    setPendingRequest(null);
+    if (kind === "instant") executeInstantTrade(offer);
+    else executeRequestTrade(offer);
+  }
+
   async function executeRequestTrade(offer) {
     if (!auth?.pgpPrivKey || !selectedPM || !popupCurrency || tradeLoading) return;
     setTradeLoading(true);
@@ -1425,8 +1437,16 @@ export default function PeachMarket() {
             {!isOwn && !isReq && (
               pendingRequest && pendingRequest.offer.id === offer.id ? (
                 <div className="popup-pending-row">
-                  <div className="popup-pending-copy">
-                    Sending in 5s — tap Undo to cancel
+                  <div className="popup-pending-top">
+                    <div className="popup-pending-copy">
+                      Sending in 5s — tap Undo to cancel
+                    </div>
+                    <button
+                      type="button"
+                      className="popup-pending-sendnow"
+                      onClick={sendNowPendingRequest}>
+                      send now →
+                    </button>
                   </div>
                   <button
                     className={`popup-pending-btn${pendingRequest.kind === "instant" ? " popup-pending-btn-instant" : ""}`}

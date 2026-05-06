@@ -486,9 +486,16 @@ export const CSS = `
 
   /* 5s cancel-window confirmation row (mirrors mobile UndoButton) */
   .popup-pending-row{display:flex;flex-direction:column;gap:10px;align-items:stretch;width:100%}
+  .popup-pending-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .popup-pending-copy{
-    font-size:.82rem;color:var(--black-65);text-align:center;font-weight:500;
+    font-size:.82rem;color:var(--black-65);text-align:left;font-weight:500;
   }
+  .popup-pending-sendnow{
+    background:none;border:none;padding:0;cursor:pointer;
+    font-family:var(--font);font-weight:700;font-size:.82rem;
+    color:var(--primary);text-decoration:underline;flex:none;
+  }
+  .popup-pending-sendnow:hover{opacity:.85}
   .popup-pending-btn{
     position:relative;overflow:hidden;border:none;cursor:pointer;
     border-radius:999px;padding:12px;font-family:var(--font);
