@@ -17,6 +17,7 @@ import {
   humanizeId,
 } from "../../data/paymentMethodMeta.js";
 import ConfirmModal from "../../components/ConfirmModal.jsx";
+import InfoPopup, { InfoDot } from "../../components/InfoPopup.jsx";
 import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
@@ -247,6 +248,290 @@ const IconChevronUp = () => (
     <polyline points="3,9 7,5 11,9" />
   </svg>
 );
+
+// ─── BUYER: RECEIVE ADDRESS SELECTOR ─────────────────────────────────────────
+// Shown above the "I've sent the payment" slider. Visual-only: the actual
+// address used at release time is decided by the mobile app (saved
+// payoutAddress if set, else freshly derived). This widget mirrors that
+// reality without changing the API call.
+export function BuyerReceiveAddressSelector({ onGoToSettings }) {
+  const profile = (typeof window !== "undefined" && window.__PEACH_AUTH__?.profile) || null;
+  const payoutAddress = profile?.payoutAddress ?? null;
+  const payoutAddressLabel = profile?.payoutAddressLabel ?? null;
+  const [choice, setChoice] = useState("peach");
+  const [showNoAddressPopup, setShowNoAddressPopup] = useState(false);
+
+  function handleCustomClick() {
+    if (payoutAddress) {
+      setChoice("custom");
+    } else {
+      setShowNoAddressPopup(true);
+    }
+  }
+
+  function closePopup() {
+    setShowNoAddressPopup(false);
+    setChoice("peach");
+  }
+
+  const truncated = payoutAddress
+    ? payoutAddress.length > 24
+      ? `${payoutAddress.slice(0, 12)}…${payoutAddress.slice(-8)}`
+      : payoutAddress
+    : null;
+
+  return (
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--black-10)",
+        borderRadius: 12,
+        padding: "12px 14px",
+        marginBottom: 12,
+      }}
+    >
+      <div
+        style={{
+          fontSize: ".72rem",
+          fontWeight: 700,
+          color: "var(--black-65)",
+          textTransform: "uppercase",
+          letterSpacing: ".05em",
+          marginBottom: 8,
+        }}
+      >
+        Receive address
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          type="button"
+          onClick={() => setChoice("peach")}
+          style={{
+            flex: 1,
+            border: choice === "peach" ? "1.5px solid var(--primary)" : "1.5px solid var(--black-10)",
+            background: choice === "peach" ? "var(--primary-mild)" : "var(--surface)",
+            color: choice === "peach" ? "var(--primary-dark)" : "var(--black-65)",
+            borderRadius: 999,
+            padding: "8px 12px",
+            fontFamily: "var(--font)",
+            fontWeight: 700,
+            fontSize: ".82rem",
+            cursor: "pointer",
+            transition: "all .12s",
+          }}
+        >
+          Peach wallet
+        </button>
+        <button
+          type="button"
+          onClick={handleCustomClick}
+          style={{
+            flex: 1,
+            border: choice === "custom" ? "1.5px solid var(--primary)" : "1.5px solid var(--black-10)",
+            background: choice === "custom" ? "var(--primary-mild)" : "var(--surface)",
+            color: choice === "custom" ? "var(--primary-dark)" : "var(--black-65)",
+            borderRadius: 999,
+            padding: "8px 12px",
+            fontFamily: "var(--font)",
+            fontWeight: 700,
+            fontSize: ".82rem",
+            cursor: "pointer",
+            transition: "all .12s",
+          }}
+        >
+          custom address
+        </button>
+      </div>
+      {choice === "custom" && payoutAddress && (
+        <div
+          style={{
+            marginTop: 10,
+            padding: "8px 10px",
+            background: "var(--black-5)",
+            borderRadius: 8,
+            fontSize: ".78rem",
+            color: "var(--black-75)",
+            lineHeight: 1.5,
+            wordBreak: "break-all",
+          }}
+        >
+          {payoutAddressLabel && (
+            <div style={{ fontWeight: 700, color: "var(--black)", marginBottom: 2 }}>
+              {payoutAddressLabel}
+            </div>
+          )}
+          <div style={{ fontFamily: "monospace" }}>{truncated}</div>
+        </div>
+      )}
+
+      {showNoAddressPopup && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 600,
+            background: "rgba(43,25,17,.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={closePopup}
+        >
+          <div
+            style={{
+              background: "var(--surface)",
+              borderRadius: 16,
+              padding: "24px 22px",
+              maxWidth: 360,
+              width: "100%",
+              boxShadow: "0 20px 60px rgba(0,0,0,.25)",
+              animation: "modalIn .18s ease",
+              textAlign: "center",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: "1rem",
+                color: "var(--black)",
+                marginBottom: 18,
+                lineHeight: 1.4,
+              }}
+            >
+              no custom payout address set.
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowNoAddressPopup(false);
+                setChoice("peach");
+                onGoToSettings?.();
+              }}
+              style={{
+                width: "100%",
+                border: "none",
+                background: "var(--primary)",
+                color: "#fff",
+                borderRadius: 999,
+                padding: "11px",
+                fontFamily: "var(--font)",
+                fontWeight: 800,
+                fontSize: ".9rem",
+                cursor: "pointer",
+              }}
+            >
+              set one in the setting
+            </button>
+            <button
+              type="button"
+              onClick={closePopup}
+              style={{
+                marginTop: 10,
+                width: "100%",
+                border: "none",
+                background: "transparent",
+                color: "var(--black-65)",
+                fontFamily: "var(--font)",
+                fontWeight: 700,
+                fontSize: ".82rem",
+                cursor: "pointer",
+                padding: "6px",
+              }}
+            >
+              close
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── BUYER: GROUPHUG (read-only batching mirror) ─────────────────────────────
+// Greyed-out toggle that mirrors the user's batching setting from Settings.
+// Not editable here.
+export function BuyerGroupHugDisplay() {
+  const profile = (typeof window !== "undefined" && window.__PEACH_AUTH__?.profile) || null;
+  const isOn = !!profile?.isBatchingEnabled;
+  const [showInfo, setShowInfo] = useState(false);
+
+  return (
+    <>
+      {showInfo && (
+        <InfoPopup title="How Group Hug works" onClose={() => setShowInfo(false)}>
+          <p className="ip-text">
+            Transaction batching, or Group Hug, means your payout will be batched with other transactions, which allows to reduce transaction fees.
+          </p>
+          <p className="ip-text">
+            Currently there is only one GH per day, which means your payout might take a little longer (up to 24h).
+          </p>
+          <p className="ip-text">
+            You can change this on the Settings page.
+          </p>
+        </InfoPopup>
+      )}
+      <div
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--black-10)",
+          borderRadius: 12,
+          padding: "12px 14px",
+          marginBottom: 12,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          opacity: 0.65,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
+          <span
+            style={{
+              fontSize: ".88rem",
+              fontWeight: 700,
+              color: "var(--black)",
+            }}
+          >
+            GroupHug
+          </span>
+          <InfoDot ariaLabel="About Group Hug" onClick={() => setShowInfo(true)} />
+        </div>
+      <div
+        aria-disabled="true"
+        role="switch"
+        aria-checked={isOn}
+        title="edit in the settings"
+        style={{
+          width: 38,
+          height: 22,
+          borderRadius: 999,
+          background: isOn ? "var(--primary)" : "var(--black-25)",
+          position: "relative",
+          flexShrink: 0,
+          cursor: "not-allowed",
+          transition: "background .15s",
+        }}
+      >
+        <span
+          style={{
+            position: "absolute",
+            top: 2,
+            left: isOn ? 18 : 2,
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            background: "#fff",
+            boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+            transition: "left .15s",
+          }}
+        />
+      </div>
+      </div>
+    </>
+  );
+}
 
 // ─── HORIZONTAL STEPPER (bottom bar) ─────────────────────────────────────────
 export function HorizontalStepper({ status, statusWithoutDispute }) {

@@ -20,6 +20,7 @@ import {
 } from "./components.jsx";
 import PeachRating from "../../components/PeachRating.jsx";
 import { toPeaches } from "../../utils/format.js";
+import InfoPopup, { InfoDot } from "../../components/InfoPopup.jsx";
 
 // ── ProfileSubScreen ─────────────────────────────────────────────────────────
 
@@ -418,6 +419,7 @@ export function TxBatchingSubScreen({ onBack }) {
   const [batching, setBatching] = useState(
     auth?.profile?.isBatchingEnabled ?? false
   );
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     if (!auth) return;
@@ -472,7 +474,25 @@ export function TxBatchingSubScreen({ onBack }) {
   }
 
   return (
-    <SubScreenWrapper title="Transaction Batching" onBack={onBack}>
+    <SubScreenWrapper
+      title={
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          Transaction Batching
+          <InfoDot ariaLabel="About transaction batching" onClick={() => setShowInfo(true)} />
+        </span>
+      }
+      onBack={onBack}
+    >
+      {showInfo && (
+        <InfoPopup title="Payout fees" onClose={() => setShowInfo(false)}>
+          <p className="ip-text">
+            Escrows are paid in batched transactions with a half-hour fee by default. You can opt out, but understand the risks.
+          </p>
+          <p className="ip-text">
+            Peach incurs additional consolidation costs, which the user covers. Calculated as 30-minute fee × 68. Since fees are dynamic, costs can become a significant part of the trade.
+          </p>
+        </InfoPopup>
+      )}
       {batching ? (
         <>
           <p style={{ fontSize:".9rem", color:"var(--black)", marginBottom:8, lineHeight:1.6 }}>

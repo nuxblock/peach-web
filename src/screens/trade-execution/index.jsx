@@ -43,6 +43,8 @@ import {
   RatingPanel,
   ChatPanel,
   DisputeFlow,
+  BuyerReceiveAddressSelector,
+  BuyerGroupHugDisplay,
 } from "./components.jsx";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -1801,6 +1803,26 @@ export default function TradeExecution() {
                       <span>{actionError}</span>
                     </div>
                   )}
+
+                  {/* Buyer-only: receive address + GroupHug widgets, just above the
+                      "I've sent the payment" slider. Visual-only — they do not
+                      change the API call (mobile picks the release address). */}
+                  {status === "paymentRequired" &&
+                    role === "buyer" &&
+                    !scenario.paymentTimedOut &&
+                    !scenario.cancelationRequested &&
+                    pendingTaskType !== "confirmPayment" && (
+                      <>
+                        <BuyerReceiveAddressSelector
+                          onGoToSettings={() =>
+                            navigate("/settings", {
+                              state: { openSection: "payout" },
+                            })
+                          }
+                        />
+                        <BuyerGroupHugDisplay />
+                      </>
+                    )}
 
                   {/* All other action states */}
                   {status !== "tradeCompleted" &&
