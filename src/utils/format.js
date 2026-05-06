@@ -66,3 +66,10 @@ export function formatTradeId(id, kind = "contract") {
   const parts = s.split("-").map(n => parseInt(n, 10).toString(16).toUpperCase());
   return prefix + "\u2011" + parts.join("\u2011");
 }
+
+/** Truncate a BTC address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh" \u2192 "bc1qxy\u20260wlh" */
+export function truncateAddress(addr, head = 6, tail = 4) {
+  if (!addr || typeof addr !== "string") return "";
+  if (addr.length <= head + tail + 1) return addr;
+  return `${addr.slice(0, head)}\u2026${addr.slice(-tail)}`;
+}

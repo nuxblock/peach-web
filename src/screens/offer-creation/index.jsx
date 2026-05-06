@@ -2,7 +2,7 @@
 // Split from peach-offer-creation.jsx
 // Sub-components in: ./components.jsx, CSS in: ./styles.js
 // ─────────────────────────────────────────────────────────────────────────────
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
@@ -14,7 +14,8 @@ import { deriveEscrowPubKey, deriveReturnAddress, isReturnAddressFromXpub } from
 import { validateBtcAddress } from "../../peach-validators.js";
 import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js";
 import { QRCodeSVG } from "qrcode.react";
-import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE_INIT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur, formatTradeId } from "../../utils/format.js";
+import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE_INIT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur, formatTradeId, truncateAddress } from "../../utils/format.js";
+import { extractCustomRefundAddressFromProfile } from "../../utils/customRefundAddressSync.js";
 import { CSS } from "./styles.js";
 import {
   MIN_SATS, maxSatsAtPrice,
@@ -231,6 +232,35 @@ export default function OfferCreation({ initialType="buy" }) {
   const [form, setForm] = useState(()=>initForm(readPersistedPMSelection()));
   const [refundErrors, setRefundErrors] = useState({});
   const [refundExpanded, setRefundExpanded] = useState(false);
+  const [savedRefund, setSavedRefund] = useState(null); // { address, label } or null
+  const userTouchedRefundRef = useRef(false);
+
+  // Fetch the user's saved refund address from /v069/selfUser on mount.
+  // If absent, decryption fails, signature is invalid, or the address is on
+  // the wrong network for this session, savedRefund stays null and the
+  // third pill button is hidden.
+  useEffect(() => {
+    if (!auth?.token || !auth?.pgpPrivKey || !auth?.baseUrl) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const v069Base = auth.baseUrl.replace(/\/v1$/, "/v069");
+        const res = await fetchWithSessionCheck(`${v069Base}/selfUser`, {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const profile = data.user ?? data;
+        const saved = await extractCustomRefundAddressFromProfile(profile, auth.pgpPrivKey);
+        if (cancelled || !saved?.address) return;
+        if (!validateBtcAddress(saved.address, btcNetwork).valid) return;
+        setSavedRefund({ address: saved.address, label: saved.label || "" });
+      } catch (err) {
+        console.warn("[OfferCreation] Saved refund fetch failed:", err.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [auth?.token, auth?.pgpPrivKey, auth?.baseUrl, btcNetwork]);
 
   // Persist PM selection so it survives Buy↔Sell tab switches and screen
   // navigation within the same browser tab.
@@ -412,6 +442,22 @@ export default function OfferCreation({ initialType="buy" }) {
 
   const updateRefund = (i, patch) =>
     setForm(f => ({ ...f, refundChoices: f.refundChoices.map((c, j) => j === i ? { ...c, ...patch } : c) }));
+
+  // Default offer 0 to "saved" once the saved address loads, but only if
+  // the user hasn't touched the refund pickers yet — avoids clobbering a
+  // manual choice if the fetch resolves after the user has already started.
+  useEffect(() => {
+    if (!isSell) return;
+    if (!savedRefund?.address) return;
+    if (userTouchedRefundRef.current) return;
+    setForm(f => {
+      const cur = f.refundChoices ?? [];
+      if (!cur[0] || cur[0].mode !== "peach" || cur[0].address) return f;
+      const next = [...cur];
+      next[0] = { mode: "saved", address: "" };
+      return { ...f, refundChoices: next };
+    });
+  }, [savedRefund?.address, isSell]);
   function reset(){
     setStep(0);setDone(false);setEscrowFunded(false);setFundingStatus(null);setFundingAmounts(null);setPublishError(null);setEscrowAddress(null);setSellOfferId(null);
     // Preserve PM selection across resets so Buy↔Sell tab switches don't lose it.
@@ -420,6 +466,7 @@ export default function OfferCreation({ initialType="buy" }) {
     setFundMobileLoading(false);setFundMobileActionId(null);setFundMobileError(null);
     setRefundErrors({});
     setRefundExpanded(false);
+    userTouchedRefundRef.current = false;
   }
   function switchType(t){ setType(t); reset(); }
 
@@ -484,7 +531,9 @@ export default function OfferCreation({ initialType="buy" }) {
   const payOk  = form.selectedMethodIds.length > 0;
   const premOk = form.premium!=="";
   const refundOk = !isSell || form.refundChoices.every(c =>
-    c.mode === "peach" || validateBtcAddress((c.address ?? "").trim(), btcNetwork).valid
+    c.mode === "peach" ||
+    (c.mode === "saved" && !!savedRefund?.address) ||
+    validateBtcAddress((c.address ?? "").trim(), btcNetwork).valid
   );
   const configOk = amtOk&&payOk&&premOk&&refundOk;
 
@@ -615,11 +664,16 @@ export default function OfferCreation({ initialType="buy" }) {
 
           const count = multiEnabled ? multiCount : 1;
 
-          // resolveReturnAddress: per offer, returns either the user's typed external address
-          // or the next derived xpub address — counter advances only for Peach rows.
+          // resolveReturnAddress: per offer, returns either the user's saved
+          // refund address, the typed external address, or the next derived
+          // xpub address — counter advances only for Peach rows (saved and
+          // external don't consume a derivation slot).
           let peachIdxOffset = 0;
           const resolveReturnAddress = (i) => {
             const choice = form.refundChoices[i] ?? { mode:"peach", address:"" };
+            if (choice.mode === "saved" && savedRefund?.address) {
+              return savedRefund.address;
+            }
             if (choice.mode === "external" && (choice.address ?? "").trim()) {
               return choice.address.trim();
             }
@@ -1447,13 +1501,20 @@ export default function OfferCreation({ initialType="buy" }) {
                     return list.find(j => j !== i);
                   };
                   const externalCount = form.refundChoices.filter(c => c.mode === "external").length;
-                  const peachCount = form.refundChoices.length - externalCount;
-                  const summaryLabel =
-                    externalCount === 0
-                      ? "Peach Wallet (default)"
-                      : peachCount === 0
-                        ? `${externalCount} external address${externalCount === 1 ? "" : "es"}`
-                        : `${externalCount} external, ${peachCount} Peach Wallet`;
+                  const savedCount    = form.refundChoices.filter(c => c.mode === "saved").length;
+                  const peachCount    = form.refundChoices.length - externalCount - savedCount;
+                  const summaryLabel = (() => {
+                    if (peachCount === form.refundChoices.length) return "Peach Wallet (default)";
+                    if (savedCount === form.refundChoices.length)
+                      return `Saved address${savedCount === 1 ? "" : ` (×${savedCount})`}`;
+                    if (externalCount === form.refundChoices.length)
+                      return `${externalCount} external address${externalCount === 1 ? "" : "es"}`;
+                    const parts = [];
+                    if (savedCount)    parts.push(`${savedCount} saved`);
+                    if (externalCount) parts.push(`${externalCount} external`);
+                    if (peachCount)    parts.push(`${peachCount} Peach Wallet`);
+                    return parts.join(", ");
+                  })();
                   const showExpanded = !multiEnabled || refundExpanded || !refundOk;
 
                   const renderChoiceRow = (choice, i) => {
@@ -1471,13 +1532,20 @@ export default function OfferCreation({ initialType="buy" }) {
                           </div>
                         )}
                         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                          {[["peach","Peach Wallet"],["external","Add external address"]].map(([val,label])=>{
+                          {[
+                            ...(savedRefund?.address
+                              ? [["saved", `${savedRefund.label || "Saved address"} — ${truncateAddress(savedRefund.address)}`]]
+                              : []),
+                            ["peach","Peach Wallet"],
+                            ["external","Add external address"],
+                          ].map(([val,label])=>{
                             const selected = choice.mode === val;
                             return (
                               <button key={val} type="button"
                                 onClick={()=>{
+                                  userTouchedRefundRef.current = true;
                                   updateRefund(i, { mode: val });
-                                  if (val === "peach") setRefundErrors(p => { const n={...p}; delete n[i]; return n; });
+                                  if (val !== "external") setRefundErrors(p => { const n={...p}; delete n[i]; return n; });
                                 }}
                                 style={{
                                   border:"1.5px solid var(--primary)",
@@ -1501,6 +1569,7 @@ export default function OfferCreation({ initialType="buy" }) {
                             <input
                               value={choice.address}
                               onChange={e => {
+                                userTouchedRefundRef.current = true;
                                 updateRefund(i, { address: e.target.value });
                                 setRefundErrors(p => { const n={...p}; delete n[i]; return n; });
                               }}
