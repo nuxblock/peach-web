@@ -1979,8 +1979,14 @@ export default function TradeExecution() {
                           } else if (action === "payment_sent") {
                             setActionError(null);
                             try {
+                              // Fast path: when the buyer's release address is
+                              // already on file, the server can finalize the
+                              // payment-made step without a mobile-app signature.
+                              const fastPath = !!liveContract?.releaseAddress;
                               const res = await post(
-                                `/contract/${contract.id}/payment/createPaymentMadePendingAction`,
+                                fastPath
+                                  ? `/contract/${contract.id}/payment/confirm`
+                                  : `/contract/${contract.id}/payment/createPaymentMadePendingAction`,
                               );
                               if (!res.ok) {
                                 const err = await res.json().catch(() => null);
@@ -1990,8 +1996,10 @@ export default function TradeExecution() {
                                     `HTTP ${res.status}`,
                                 );
                               }
-                              savePendingTask(routeId, "confirmPayment");
-                              setPendingTaskType("confirmPayment");
+                              if (!fastPath) {
+                                savePendingTask(routeId, "confirmPayment");
+                                setPendingTaskType("confirmPayment");
+                              }
                               await refreshContractMobileActions();
                             } catch (e) {
                               setActionError(
