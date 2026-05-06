@@ -2594,6 +2594,7 @@ export function ActionPanel({
   onAction,
   pendingTask = null,
   onPendingClick = null,
+  paymentSliderKey = 0,
 }) {
   const { tradeStatus: status, role } = scenario;
   const [showConfirm, setShowConfirm] = useState(false);
@@ -2823,6 +2824,7 @@ export function ActionPanel({
               />
             ) : (
               <SlideToConfirm
+                key={paymentSliderKey}
                 label="I've sent the payment"
                 onConfirm={() => onAction("payment_sent")}
               />

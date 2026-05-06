@@ -337,6 +337,13 @@ export default function TradeExecution() {
   const [pendingTaskType, setPendingTaskType] = useState(null); // "release" | "refund" | "rate" | "fundEscrow" | "confirmPayment" | null
   const [fundEscrowLoading, setFundEscrowLoading] = useState(false);
   const [fundEscrowError, setFundEscrowError] = useState(null);
+  // Payout-choice modal: shown when the buyer slides "I've sent the payment"
+  // and the contract has no releaseAddress yet but the user has a saved
+  // custom payout address. `null` means closed.
+  const [payoutChoice, setPayoutChoice] = useState(null); // null | { address, signature }
+  // Bumped to remount the buyer's "I've sent the payment" slider so it
+  // returns to its un-slid state when the choice modal is dismissed.
+  const [paymentSliderKey, setPaymentSliderKey] = useState(0);
 
   // Re-fetch the contract and merge the mobileAction* pending-action ids into
   // liveContract so the deep-link button picks up the new id immediately
@@ -1807,6 +1814,7 @@ export default function TradeExecution() {
                       <ActionPanel
                         scenario={scenario}
                         pendingTask={pendingTaskType}
+                        paymentSliderKey={paymentSliderKey}
                         onPendingClick={() => {
                           // refund / fund-escrow / confirm-payment / release — inline pending state only, no modal.
                           if (
@@ -1979,14 +1987,52 @@ export default function TradeExecution() {
                           } else if (action === "payment_sent") {
                             setActionError(null);
                             try {
-                              // Fast path: when the buyer's release address is
-                              // already on file, the server can finalize the
-                              // payment-made step without a mobile-app signature.
-                              const fastPath = !!liveContract?.releaseAddress;
+                              // (1) Fast path: contract already has a release
+                              // address — server finalizes without a signature.
+                              if (liveContract?.releaseAddress) {
+                                const res = await post(
+                                  `/contract/${contract.id}/payment/confirm`,
+                                );
+                                if (!res.ok) {
+                                  const err = await res
+                                    .json()
+                                    .catch(() => null);
+                                  throw new Error(
+                                    err?.error ||
+                                      err?.message ||
+                                      `HTTP ${res.status}`,
+                                  );
+                                }
+                                await refreshContractMobileActions();
+                                return;
+                              }
+                              // (2) No release address on contract — see if the
+                              // user has a saved custom payout address. If so,
+                              // let them choose between Peach wallet (mobile
+                              // signing) and that saved address.
+                              let savedPayout = null;
+                              try {
+                                const meRes = await get("/user/me");
+                                if (meRes.ok) {
+                                  const me = await meRes.json();
+                                  if (
+                                    me?.payoutAddress &&
+                                    me?.payoutAddressSignature
+                                  ) {
+                                    savedPayout = {
+                                      address: me.payoutAddress,
+                                      signature: me.payoutAddressSignature,
+                                    };
+                                  }
+                                }
+                              } catch {}
+                              if (savedPayout) {
+                                setPayoutChoice(savedPayout);
+                                return;
+                              }
+                              // (3) Fallback: original mobile-action flow.
                               const res = await post(
-                                fastPath
-                                  ? `/contract/${contract.id}/payment/confirm`
-                                  : `/contract/${contract.id}/payment/createPaymentMadePendingAction`,
+                                `/contract/${contract.id}/payment/createPaymentMadePendingAction`,
                               );
                               if (!res.ok) {
                                 const err = await res.json().catch(() => null);
@@ -1996,10 +2042,8 @@ export default function TradeExecution() {
                                     `HTTP ${res.status}`,
                                 );
                               }
-                              if (!fastPath) {
-                                savePendingTask(routeId, "confirmPayment");
-                                setPendingTaskType("confirmPayment");
-                              }
+                              savePendingTask(routeId, "confirmPayment");
+                              setPendingTaskType("confirmPayment");
                               await refreshContractMobileActions();
                             } catch (e) {
                               setActionError(
@@ -2350,6 +2394,172 @@ export default function TradeExecution() {
         description={signingModal?.description}
         onCancel={() => setSigningModal(null)}
       />
+
+      {/* ── PAYOUT-CHOICE MODAL (buyer: payment_sent w/ saved address) ── */}
+      {payoutChoice && contract && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 700,
+            background: "rgba(0,0,0,.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: "var(--surface)",
+              borderRadius: 16,
+              padding: "28px 24px",
+              maxWidth: 380,
+              width: "100%",
+              boxShadow: "0 20px 60px rgba(0,0,0,.25)",
+              animation: "modalIn .18s ease",
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: "1.05rem",
+                marginBottom: 8,
+                color: "var(--text)",
+              }}
+            >
+              Choose payout address
+            </div>
+            <div
+              style={{
+                fontSize: ".88rem",
+                color: "var(--black-65)",
+                lineHeight: 1.6,
+                marginBottom: 20,
+              }}
+            >
+              Where would you like to receive the bitcoin from this trade?
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                style={{
+                  border: "none",
+                  background: "var(--grad)",
+                  borderRadius: 999,
+                  fontFamily: "Baloo 2, cursive",
+                  fontWeight: 800,
+                  fontSize: ".87rem",
+                  color: "white",
+                  padding: "12px",
+                  cursor: "pointer",
+                  boxShadow: "0 2px 10px rgba(245,101,34,.3)",
+                }}
+                onClick={async () => {
+                  setPayoutChoice(null);
+                  setActionError(null);
+                  try {
+                    const res = await post(
+                      `/contract/${contract.id}/payment/createPaymentMadePendingAction`,
+                    );
+                    if (!res.ok) {
+                      const err = await res.json().catch(() => null);
+                      throw new Error(
+                        err?.error || err?.message || `HTTP ${res.status}`,
+                      );
+                    }
+                    savePendingTask(routeId, "confirmPayment");
+                    setPendingTaskType("confirmPayment");
+                    await refreshContractMobileActions();
+                  } catch (e) {
+                    setActionError(
+                      "Failed to request confirmation: " + e.message,
+                    );
+                    setPaymentSliderKey((k) => k + 1);
+                  }
+                }}
+              >
+                Use Peach wallet
+              </button>
+              <button
+                style={{
+                  border: "1.5px solid var(--primary)",
+                  background: "var(--primary-mild)",
+                  borderRadius: 999,
+                  fontFamily: "Baloo 2, cursive",
+                  fontWeight: 800,
+                  fontSize: ".87rem",
+                  color: "var(--primary)",
+                  padding: "12px",
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                  alignItems: "center",
+                }}
+                onClick={async () => {
+                  const choice = payoutChoice;
+                  setPayoutChoice(null);
+                  setActionError(null);
+                  try {
+                    const res = await post(
+                      `/contract/${contract.id}/payment/confirm`,
+                      {
+                        releaseAddress: choice.address,
+                        releaseAddressMessageSignature: choice.signature,
+                      },
+                    );
+                    if (!res.ok) {
+                      const err = await res.json().catch(() => null);
+                      throw new Error(
+                        err?.error || err?.message || `HTTP ${res.status}`,
+                      );
+                    }
+                    await refreshContractMobileActions();
+                  } catch (e) {
+                    setActionError(
+                      "Failed to request confirmation: " + e.message,
+                    );
+                    setPaymentSliderKey((k) => k + 1);
+                  }
+                }}
+              >
+                <span>Use saved payout address</span>
+                <span
+                  style={{
+                    fontSize: ".72rem",
+                    fontWeight: 600,
+                    color: "var(--black-65)",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {payoutChoice.address.length > 14
+                    ? `${payoutChoice.address.slice(0, 8)}…${payoutChoice.address.slice(-6)}`
+                    : payoutChoice.address}
+                </span>
+              </button>
+              <button
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--black-65)",
+                  fontFamily: "Baloo 2, cursive",
+                  fontWeight: 700,
+                  fontSize: ".82rem",
+                  padding: "8px",
+                  cursor: "pointer",
+                  marginTop: 4,
+                }}
+                onClick={() => {
+                  setPayoutChoice(null);
+                  setPaymentSliderKey((k) => k + 1);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── DISPUTE FLOW ── */}
       {showDispute && contract && (
