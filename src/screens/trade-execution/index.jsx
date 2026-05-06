@@ -283,6 +283,30 @@ export default function TradeExecution() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState("details"); // "details" | "chat"
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width:900px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width:900px)");
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  const chatVisible = !isMobile || mobileTab === "chat";
+  const chatVisibleRef = useRef(chatVisible);
+  chatVisibleRef.current = chatVisible;
+  // Optimistic clear: when chat becomes visible, zero the badge locally.
+  // Server-side mark-as-read happens via the chat GET fired by the polling
+  // effect; the next contract poll will then return unreadMessages: 0.
+  useEffect(() => {
+    if (!chatVisible) return;
+    setLiveContract((prev) =>
+      prev && (prev.unreadMessages ?? 0) > 0
+        ? { ...prev, unreadMessages: 0 }
+        : prev,
+    );
+  }, [chatVisible]);
   const [copiedId, setCopiedId] = useState(false);
   const [allPrices, setAllPrices] = useState(null);
   const [availableCurrencies, setAvailableCurrencies] = useState([
@@ -552,6 +576,15 @@ export default function TradeExecution() {
           direction: isBuyer ? "buy" : "sell",
           escrowFundingTimeLimitExpired: c.escrowFundingTimeLimitExpired,
         });
+        // Always sync unreadMessages — independent of status change
+        if (
+          c.unreadMessages != null &&
+          c.unreadMessages !== liveContract.unreadMessages
+        ) {
+          setLiveContract((prev) =>
+            prev ? { ...prev, unreadMessages: c.unreadMessages } : prev,
+          );
+        }
         if (!newStatus || newStatus === liveContract.tradeStatus) return;
         setLiveContract((prev) =>
           prev
@@ -773,6 +806,7 @@ export default function TradeExecution() {
           revived: !!c.newOfferId || !!meta?.newTradeId,
           refunded: !!c.refunded || !!meta?.refunded,
           newOfferId: c.newOfferId ?? meta?.newTradeId ?? null,
+          unreadMessages: c.unreadMessages ?? 0,
         });
 
         // Decrypt payment data if available
@@ -904,16 +938,25 @@ export default function TradeExecution() {
     }
 
     setContractLoading(true);
-    fetchContract().then((symKey) => fetchChat(symKey));
+    fetchContract().then((symKey) => {
+      // Skip initial chat fetch when chat is hidden — GET auto-marks-as-read
+      // server-side, which would zero unreadMessages before the user views chat.
+      if (chatVisibleRef.current) fetchChat(symKey);
+    });
   }, [routeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Chat polling: fetch page 0 every 5s to pick up new messages ──
+  // Gated on chatVisible: GET /chat auto-marks-as-read server-side, so we only
+  // poll while the chat is actually visible to the user. Fires immediately on
+  // (re-)activation so switching to the chat tab on mobile doesn't wait 5s.
   useEffect(() => {
-    if (!chatSymKey || !routeId || !auth) return;
-    const interval = setInterval(async () => {
+    if (!chatSymKey || !routeId || !auth || !chatVisible) return;
+    let cancelled = false;
+    async function fetchPage0() {
+      if (cancelled) return;
       try {
         const res = await get(`/contract/${routeId}/chat?page=0`);
-        if (!res.ok) return;
+        if (!res.ok || cancelled) return;
         const data = await res.json();
         const msgs = Array.isArray(data) ? data : (data?.messages ?? []);
         const parsed = await Promise.all(
@@ -942,9 +985,15 @@ export default function TradeExecution() {
             };
           }),
         );
+        if (cancelled) return;
         // Merge: deduplicate by id, keep older pages, sort chronologically
         setLiveMessages((prev) => {
-          if (!prev) return parsed.sort((a, b) => a.ts - b.ts);
+          const wasInitial = prev === null;
+          if (wasInitial) {
+            // First load via polling — seed pagination state
+            setChatHasMore(msgs.length >= 22);
+            return parsed.sort((a, b) => a.ts - b.ts);
+          }
           const byId = new Map();
           for (const m of prev) byId.set(m.id, m);
           for (const m of parsed) byId.set(m.id, m);
@@ -961,9 +1010,14 @@ export default function TradeExecution() {
           }).catch(() => {});
         }
       } catch {}
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [chatSymKey, routeId]); // eslint-disable-line react-hooks/exhaustive-deps
+    }
+    fetchPage0(); // immediate on (re-)activation
+    const interval = setInterval(fetchPage0, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [chatSymKey, routeId, chatVisible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load older chat messages ──
   const loadOlderChatRef = useRef(null);
@@ -1050,7 +1104,7 @@ export default function TradeExecution() {
         ? "var(--success)"
         : "var(--error)";
 
-  const unreadCount = messages.filter((m) => m.from !== "me").length;
+  const unreadCount = liveContract?.unreadMessages ?? 0;
 
   return (
     <>
