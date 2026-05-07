@@ -27,8 +27,11 @@ export default function SettingsScreen() {
 
   // Reset to main view when sidenav "Settings" is clicked (same-route navigation).
   // When the avatar's "Profile" shortcut sets state.openProfile, jump straight to that sub-view.
+  // state.openSection ("payout", "refund", etc.) is a generic deep-link into any sub-view.
   useEffect(() => {
-    setCurrentView(location.state?.openProfile ? "profile" : "main");
+    if (location.state?.openProfile) setCurrentView("profile");
+    else if (location.state?.openSection) setCurrentView(location.state.openSection);
+    else setCurrentView("main");
   }, [location.key]);
 
   // ── AUTH STATE ──

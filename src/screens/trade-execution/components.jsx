@@ -5,7 +5,6 @@
 import { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { SatsAmount } from "../../components/BitcoinAmount.jsx";
-import { LIFECYCLE } from "../../data/statusConfig.js";
 import {
   isSystemMessageKey,
   resolveSystemMessage,
@@ -333,8 +332,120 @@ export function BuyerGroupHugDisplay() {
   );
 }
 
+// ─── BUYER: CUSTOM PAYOUT ADDRESS TOGGLE ─────────────────────────────────────
+// Active toggle that controls whether the buyer is offered the choice of using
+// their saved custom payout address when sliding "I've sent the payment".
+// Default state mirrors whether the user has an address saved in Settings;
+// state is held in the parent and ephemeral per-trade. If the user tries to
+// flip ON without a saved address, the parent shows a setup popup instead.
+export function BuyerCustomAddressToggle({
+  isOn,
+  hasSavedAddress,
+  onToggle,
+  onRequestSetup,
+}) {
+  const [showInfo, setShowInfo] = useState(false);
+
+  const handleClick = () => {
+    if (hasSavedAddress) onToggle?.();
+    else onRequestSetup?.();
+  };
+
+  return (
+    <>
+      {showInfo && (
+        <InfoPopup title="Receive to a custom address" onClose={() => setShowInfo(false)}>
+          <p className="ip-text">
+            When ON, the bitcoin from this trade is paid out to the external address you saved in Settings instead of your Peach wallet.
+          </p>
+          <p className="ip-text">
+            You can add or change the address from Settings → Custom Payout Address.
+          </p>
+        </InfoPopup>
+      )}
+      <div
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--black-10)",
+          borderRadius: 12,
+          padding: "12px 14px",
+          marginBottom: 12,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
+          <span
+            style={{
+              fontSize: ".88rem",
+              fontWeight: 700,
+              color: "var(--black)",
+            }}
+          >
+            receive to custom address
+          </span>
+          <InfoDot ariaLabel="About custom payout address" onClick={() => setShowInfo(true)} />
+        </div>
+        <div
+          role="switch"
+          aria-checked={isOn}
+          tabIndex={0}
+          onClick={handleClick}
+          onKeyDown={(e) => {
+            if (e.key === " " || e.key === "Enter") {
+              e.preventDefault();
+              handleClick();
+            }
+          }}
+          style={{
+            width: 38,
+            height: 22,
+            borderRadius: 999,
+            background: isOn ? "var(--primary)" : "var(--black-25)",
+            position: "relative",
+            flexShrink: 0,
+            cursor: "pointer",
+            transition: "background .15s",
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: 2,
+              left: isOn ? 18 : 2,
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: "#fff",
+              boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+              transition: "left .15s",
+            }}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── HORIZONTAL STEPPER (bottom bar) ─────────────────────────────────────────
-export function HorizontalStepper({ status, statusWithoutDispute }) {
+const STEPS_BY_ORIGIN = {
+  buy: [
+    { id: "fundEscrow",             label: "Accepted",      activeLabel: "Accepted" },
+    { id: "paymentRequired",        label: "Escrow Funded", activeLabel: "Funding Escrow" },
+    { id: "confirmPaymentRequired", label: "Payment Sent",  activeLabel: "Sending Payment" },
+    { id: "tradeCompleted",         label: "Completed",     activeLabel: "Completed" },
+  ],
+  sell: [
+    { id: "paymentRequired",        label: "Escrow Funded", activeLabel: "Funding Escrow" },
+    { id: "fundEscrow",             label: "Accepted",      activeLabel: "Accepted" },
+    { id: "confirmPaymentRequired", label: "Payment Sent",  activeLabel: "Sending Payment" },
+    { id: "tradeCompleted",         label: "Completed",     activeLabel: "Completed" },
+  ],
+};
+
+export function HorizontalStepper({ status, statusWithoutDispute, originOfferType = "buy" }) {
   const stepMap = {
     createEscrow: 0,
     fundEscrow: 0,
@@ -372,12 +483,15 @@ export function HorizontalStepper({ status, statusWithoutDispute }) {
     status === "tradeCanceled" ||
     status === "confirmCancelation" ||
     status === "offerCanceled";
+  const steps = STEPS_BY_ORIGIN[originOfferType] ?? STEPS_BY_ORIGIN.buy;
 
   return (
     <div className="h-stepper">
-      {LIFECYCLE.map((s, i) => {
-        const isDone = i < activeStep;
-        const isActive = i === activeStep && !isAborted;
+      {steps.map((s, i) => {
+        const isFinalDone =
+          i === steps.length - 1 && status === "tradeCompleted";
+        const isDone = i < activeStep || isFinalDone;
+        const isActive = i === activeStep && !isAborted && !isFinalDone;
         const isAbortedStep = isAborted && i === activeStep;
         const dotColor = isDone
           ? "var(--success)"
@@ -393,13 +507,29 @@ export function HorizontalStepper({ status, statusWithoutDispute }) {
             : isAbortedStep
               ? "var(--error)"
               : "var(--black-25)";
-        const lineColor = isDone ? "var(--success)" : "var(--black-10)";
+        const lineColor =
+          i <= activeStep && !isAborted ? "var(--success)" : "var(--black-10)";
 
         return (
           <div key={s.id} className="h-step">
             {/* Left connector */}
             {i > 0 && (
               <div className="h-step-line" style={{ background: lineColor }} />
+            )}
+            {/* Tail to dot center on final-done step (connectors only reach the
+                step's left edge; without this, the line stops half a step short
+                of the Completed dot when trade is fully finalized). */}
+            {isFinalDone && (
+              <div
+                className="h-step-line"
+                style={{
+                  background: "var(--success)",
+                  right: "auto",
+                  left: 0,
+                  width: "50%",
+                  transform: "none",
+                }}
+              />
             )}
             {/* Dot */}
             <div
@@ -427,9 +557,12 @@ export function HorizontalStepper({ status, statusWithoutDispute }) {
             {/* Label */}
             <div
               className="h-step-label"
-              style={{ color: labelColor, fontWeight: isActive ? 700 : 500 }}
+              style={{
+                color: labelColor,
+                fontWeight: isActive || isFinalDone ? 700 : 500,
+              }}
             >
-              {s.label}
+              {isActive ? s.activeLabel : s.label}
             </div>
           </div>
         );

@@ -44,6 +44,7 @@ import {
   ChatPanel,
   DisputeFlow,
   BuyerGroupHugDisplay,
+  BuyerCustomAddressToggle,
 } from "./components.jsx";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -345,6 +346,14 @@ export default function TradeExecution() {
   // Bumped to remount the buyer's "I've sent the payment" slider so it
   // returns to its un-slid state when the choice modal is dismissed.
   const [paymentSliderKey, setPaymentSliderKey] = useState(0);
+  // Buyer toggle: receive to custom address. Default ON when the user has
+  // a payoutAddress saved in Settings, OFF otherwise. Ephemeral per-trade.
+  const [useCustomPayout, setUseCustomPayout] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      !!window.__PEACH_AUTH__?.profile?.payoutAddress,
+  );
+  const [showSetupPayoutPopup, setShowSetupPayoutPopup] = useState(false);
 
   // Re-fetch the contract and merge the mobileAction* pending-action ids into
   // liveContract so the deep-link button picks up the new id immediately
@@ -758,6 +767,7 @@ export default function TradeExecution() {
             escrow: c.escrow ?? null,
             ratingBuyer: c.ratingBuyer ?? null,
             ratingSeller: c.ratingSeller ?? null,
+            buyOffer69Id: c.buyOffer69Id ?? null,
           },
           counterparty: (() => {
             const cp = isBuyer ? (c.seller ?? {}) : (c.buyer ?? {});
@@ -1811,7 +1821,17 @@ export default function TradeExecution() {
                     !scenario.paymentTimedOut &&
                     !scenario.cancelationRequested &&
                     pendingTaskType !== "confirmPayment" && (
-                      <BuyerGroupHugDisplay />
+                      <>
+                        <BuyerGroupHugDisplay />
+                        <BuyerCustomAddressToggle
+                          isOn={useCustomPayout}
+                          hasSavedAddress={
+                            !!window.__PEACH_AUTH__?.profile?.payoutAddress
+                          }
+                          onToggle={() => setUseCustomPayout((v) => !v)}
+                          onRequestSetup={() => setShowSetupPayoutPopup(true)}
+                        />
+                      </>
                     )}
 
                   {/* All other action states */}
@@ -2018,29 +2038,33 @@ export default function TradeExecution() {
                                 await refreshContractMobileActions();
                                 return;
                               }
-                              // (2) No release address on contract — see if the
-                              // user has a saved custom payout address. If so,
-                              // let them choose between Peach wallet (mobile
-                              // signing) and that saved address.
-                              let savedPayout = null;
-                              try {
-                                const meRes = await get("/user/me");
-                                if (meRes.ok) {
-                                  const me = await meRes.json();
-                                  if (
-                                    me?.payoutAddress &&
-                                    me?.payoutAddressSignature
-                                  ) {
-                                    savedPayout = {
-                                      address: me.payoutAddress,
-                                      signature: me.payoutAddressSignature,
-                                    };
+                              // (2) No release address on contract — if the
+                              // buyer has the "receive to custom address"
+                              // toggle ON, fetch their saved payout address
+                              // and open the choice modal as a final
+                              // confirmation step. Toggle OFF skips this and
+                              // falls through to the mobile-signing path.
+                              if (useCustomPayout) {
+                                let savedPayout = null;
+                                try {
+                                  const meRes = await get("/user/me");
+                                  if (meRes.ok) {
+                                    const me = await meRes.json();
+                                    if (
+                                      me?.payoutAddress &&
+                                      me?.payoutAddressSignature
+                                    ) {
+                                      savedPayout = {
+                                        address: me.payoutAddress,
+                                        signature: me.payoutAddressSignature,
+                                      };
+                                    }
                                   }
+                                } catch {}
+                                if (savedPayout) {
+                                  setPayoutChoice(savedPayout);
+                                  return;
                                 }
-                              } catch {}
-                              if (savedPayout) {
-                                setPayoutChoice(savedPayout);
-                                return;
                               }
                               // (3) Fallback: original mobile-action flow.
                               const res = await post(
@@ -2395,6 +2419,13 @@ export default function TradeExecution() {
           <HorizontalStepper
             status={status}
             statusWithoutDispute={tradeStatusWithoutDispute}
+            originOfferType={
+              liveContract?.contract
+                ? liveContract.contract.buyOffer69Id
+                  ? "buy"
+                  : "sell"
+                : "buy"
+            }
           />
         </div>
       )}
@@ -2406,6 +2437,97 @@ export default function TradeExecution() {
         description={signingModal?.description}
         onCancel={() => setSigningModal(null)}
       />
+
+      {/* ── CUSTOM PAYOUT ADDRESS NOT SET POPUP (buyer toggle empty state) ── */}
+      {showSetupPayoutPopup && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 700,
+            background: "rgba(0,0,0,.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={() => setShowSetupPayoutPopup(false)}
+        >
+          <div
+            style={{
+              background: "var(--surface)",
+              borderRadius: 16,
+              padding: "28px 24px",
+              maxWidth: 380,
+              width: "100%",
+              boxShadow: "0 20px 60px rgba(0,0,0,.25)",
+              animation: "modalIn .18s ease",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: "1.05rem",
+                marginBottom: 8,
+                color: "var(--text)",
+              }}
+            >
+              Custom payout address not set
+            </div>
+            <div
+              style={{
+                fontSize: ".88rem",
+                color: "var(--black-65)",
+                lineHeight: 1.6,
+                marginBottom: 20,
+              }}
+            >
+              You haven't saved an external payout address yet. Add one in
+              Settings → Custom Payout Address, then come back to enable this
+              toggle.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                style={{
+                  border: "none",
+                  background: "var(--grad)",
+                  borderRadius: 999,
+                  fontFamily: "Baloo 2, cursive",
+                  fontWeight: 800,
+                  fontSize: ".87rem",
+                  color: "white",
+                  padding: "12px",
+                  cursor: "pointer",
+                  boxShadow: "0 2px 10px rgba(245,101,34,.3)",
+                }}
+                onClick={() => {
+                  setShowSetupPayoutPopup(false);
+                  navigate("/settings", { state: { openSection: "payout" } });
+                }}
+              >
+                Go to Settings
+              </button>
+              <button
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--black-65)",
+                  fontFamily: "Baloo 2, cursive",
+                  fontWeight: 700,
+                  fontSize: ".82rem",
+                  padding: "8px",
+                  cursor: "pointer",
+                  marginTop: 4,
+                }}
+                onClick={() => setShowSetupPayoutPopup(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── PAYOUT-CHOICE MODAL (buyer: payment_sent w/ saved address) ── */}
       {payoutChoice && contract && (
