@@ -526,6 +526,8 @@ export async function extractPMsFromProfile(profile, armoredPrivKey) {
       "encryptedPaymentDataSignature",
       "encryptedCustomRefundAddress",
       "encryptedCustomRefundAddressSignature",
+      "encryptedCustomPayoutAddress",
+      "encryptedCustomPayoutAddressSignature",
     ]);
     const encryptedEntries = [];
     for (const [key, val] of Object.entries(profile)) {

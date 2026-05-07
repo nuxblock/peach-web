@@ -12,6 +12,10 @@ import {
   syncCustomRefundAddressToServer,
   extractCustomRefundAddressFromProfile,
 } from "../../utils/customRefundAddressSync.js";
+import {
+  syncCustomPayoutAddressToServer,
+  extractCustomPayoutAddressFromProfile,
+} from "../../utils/customPayoutAddressSync.js";
 import { validateBtcAddress, validateBIP322Signature, validateFeeRate } from "../../peach-validators.js";
 import {
   IconCopy, IconTrash, IconCamera, IconExternalLink, IconShield,
@@ -698,7 +702,7 @@ export function RefundAddressSubScreen({ onBack }) {
 // ── PayoutWalletSubScreen ────────────────────────────────────────────────────
 
 export function PayoutWalletSubScreen({ onBack }) {
-  const { patch, auth } = useApi();
+  const { auth } = useApi();
   const btcNetwork = auth?.xpub?.startsWith("tpub") ? "regtest" : "mainnet";
   const [step, setStep] = useState(1);
   const [label, setLabel] = useState("");
@@ -712,12 +716,65 @@ export function PayoutWalletSubScreen({ onBack }) {
   const peachId = auth?.peachId ?? "peach03cf9e9a";
   const signMessage = `I confirm that only I, ${peachId}, control the address ${address}`;
 
+  // Load existing encrypted payout address from /v069/selfUser on mount.
+  useEffect(() => {
+    if (!auth?.token || !auth?.pgpPrivKey) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const v069Base = auth.baseUrl.replace(/\/v1$/, "/v069");
+        const res = await fetchWithSessionCheck(`${v069Base}/selfUser`, {
+          headers: { Authorization: `Bearer ${auth.token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const profile = data.user ?? data;
+        const saved = await extractCustomPayoutAddressFromProfile(profile, auth.pgpPrivKey);
+        if (cancelled || !saved) return;
+        if (saved.label)            setLabel(saved.label);
+        if (saved.address)          setAddress(saved.address);
+        if (saved.bip322Signature)  setSignature(saved.bip322Signature);
+        if (saved.address && validateBtcAddress(saved.address, btcNetwork).valid) {
+          setAddressSet(true);
+        }
+      } catch (err) {
+        console.warn("[PayoutAddress] Failed to load:", err.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [auth?.token, auth?.pgpPrivKey, auth?.baseUrl, btcNetwork]);
+
   function handleAddressBlur() {
     if (!address.trim()) { setErrors(p => ({ ...p, address: null })); setAddressSet(false); return; }
     const valid = handleBlur("address", address, validateBtcAddress, btcNetwork);
     setAddressSet(valid);
   }
-  function handleRemove() { setLabel(""); setAddress(""); setAddressSet(false); setErrors(p => ({ ...p, address: null })); }
+
+  async function handleRemove() {
+    setErrors(p => ({ ...p, address: null, sig: null }));
+    setSubmitting(true);
+    try {
+      if (auth) {
+        const ok = await syncCustomPayoutAddressToServer(
+          { address: null, label: null, confirmationPhrase: null, bip322Signature: null },
+          auth,
+        );
+        if (!ok) {
+          setErrors(p => ({ ...p, address: "Server error — try again" }));
+          setSubmitting(false);
+          return;
+        }
+      }
+      setLabel("");
+      setAddress("");
+      setSignature("");
+      setAddressSet(false);
+    } catch {
+      setErrors(p => ({ ...p, address: "Network error — check your connection" }));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function handleConfirm() {
     const sigCheck = validateBIP322Signature(signature);
@@ -728,14 +785,17 @@ export function PayoutWalletSubScreen({ onBack }) {
 
     try {
       if (auth) {
-        const res = await patch('/user', {
-          payoutAddress: address,
-          payoutAddressLabel: label || undefined,
-          payoutAddressSignature: signature,
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          setErrors(p => ({ ...p, sig: (res.status === 400 || res.status === 401) ? "Signature invalid" : (err.message || "Server error — try again") }));
+        const ok = await syncCustomPayoutAddressToServer(
+          {
+            address,
+            label: label || null,
+            confirmationPhrase: signMessage,
+            bip322Signature: signature,
+          },
+          auth,
+        );
+        if (!ok) {
+          setErrors(p => ({ ...p, sig: "Server error — try again" }));
           setSubmitting(false);
           return;
         }
@@ -850,14 +910,14 @@ export function PayoutWalletSubScreen({ onBack }) {
       {addressSet && (
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, marginBottom:20 }}>
           <span style={{ fontSize:".8rem", fontWeight:800, color:"var(--success)", letterSpacing:".04em" }}>ADDRESS VALID ✓</span>
-          <button onClick={handleRemove} style={{ display:"flex", alignItems:"center", gap:5, border:"none", background:"transparent", cursor:"pointer", color:"var(--black)", fontFamily:"'Baloo 2',cursive", fontSize:".78rem", fontWeight:700, textDecoration:"underline", textTransform:"uppercase", letterSpacing:".04em" }}>
-            REMOVE WALLET <IconTrash size={14}/>
+          <button onClick={handleRemove} disabled={submitting} style={{ display:"flex", alignItems:"center", gap:5, border:"none", background:"transparent", cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.5 : 1, color:"var(--black)", fontFamily:"'Baloo 2',cursive", fontSize:".78rem", fontWeight:700, textDecoration:"underline", textTransform:"uppercase", letterSpacing:".04em" }}>
+            {submitting ? "REMOVING…" : <>REMOVE WALLET <IconTrash size={14}/></>}
           </button>
         </div>
       )}
 
 
-      <PrimaryBtn label="NEXT" onClick={() => setStep(2)} disabled={!addressSet || !!errors.address}/>
+      <PrimaryBtn label="NEXT" onClick={() => setStep(2)} disabled={!addressSet || !!errors.address || submitting}/>
     </SubScreenWrapper>
   );
 }
