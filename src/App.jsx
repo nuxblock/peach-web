@@ -1,4 +1,4 @@
-import { Component, useState, useEffect } from 'react'
+import { Component, useState, useEffect, lazy, Suspense } from 'react'
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import SessionExpiredModal from './components/SessionExpiredModal.jsx'
 import TamperDetectedModal from './components/TamperDetectedModal.jsx'
@@ -13,6 +13,21 @@ import TradeExecution from './screens/trade-execution/index.jsx'
 import SettingsScreen from './screens/settings/index.jsx'
 import PeachPaymentMethods from './screens/payment-methods/index.jsx'
 import OtherUserPage from './screens/other-user/index.jsx'
+
+// ── Developer tools ──
+// Build-time gate: VITE_DEV_TOOLS is inlined by Vite, so the && branch and the
+// lazy import() are eliminated from production bundles when the flag is unset.
+const DEV_TOOLS_ENABLED = import.meta.env.VITE_DEV_TOOLS === "1";
+const Bip322SignerScreen = DEV_TOOLS_ENABLED
+  ? lazy(() => import('./screens/dev-tools/bip322-sign.jsx'))
+  : null;
+
+// Runtime gate: even with the flag set, refuse to render outside a regtest session.
+function RegtestGuard({ children }) {
+  const xpub = window.__PEACH_AUTH__?.xpub;
+  if (!xpub?.startsWith("tpub")) return <Navigate to="/" replace />;
+  return children;
+}
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -101,6 +116,17 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute><SettingsScreen /></ProtectedRoute>} />
           <Route path="/payment-methods" element={<ProtectedRoute><PeachPaymentMethods /></ProtectedRoute>} />
           <Route path="/user/:userId" element={<ProtectedRoute><OtherUserPage /></ProtectedRoute>} />
+          {Bip322SignerScreen && (
+            <Route path="/dev-tools/bip322" element={
+              <ProtectedRoute>
+                <RegtestGuard>
+                  <Suspense fallback={<div style={{ padding: 40 }}>Loading dev tools…</div>}>
+                    <Bip322SignerScreen />
+                  </Suspense>
+                </RegtestGuard>
+              </ProtectedRoute>
+            } />
+          )}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HashRouter>

@@ -1251,7 +1251,7 @@ export function AboutSubScreen({ onBack }) {
   const links = [
     { icon:"🌐", label:"Website",  url:"https://peachbitcoin.com" },
     { icon:"𝕏",  label:"Twitter / X", url:"https://x.com/peachbitcoin" },
-    { icon:"💬", label:"Telegram", url:"https://t.me/peachtopeach" },
+    { icon:"💬", label:"Telegram", url:"https://t.me/+5xWlXoI5Nrk3ZmQ0" },
     { icon:"📖", label:"GitHub",   url:"https://github.com/Peach2Peach" },
   ];
 

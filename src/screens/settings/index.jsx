@@ -147,6 +147,18 @@ export default function SettingsScreen() {
             noBorder/>
         </SettingsSection>
 
+        {/* Developer Tools — gated by VITE_DEV_TOOLS at build time AND tpub at runtime. */}
+        {/* The `import.meta.env.VITE_DEV_TOOLS === "1"` literal is inlined by Vite so the */}
+        {/* whole section is dead code in production builds. */}
+        {import.meta.env.VITE_DEV_TOOLS === "1" && window.__PEACH_AUTH__?.xpub?.startsWith("tpub") && (
+          <SettingsSection title="Developer Tools (regtest)">
+            <SettingsRow icon="🛠️" label="BIP322 Message Signer"
+              description="Sign a payout-flow message with a regtest seed"
+              onClick={() => navigate("/dev-tools/bip322")}
+              noBorder/>
+          </SettingsSection>
+        )}
+
         <div className="version-footer">Peach Bitcoin Web · v0.1.0 · Made with 🍑</div>
       </div>
     );
