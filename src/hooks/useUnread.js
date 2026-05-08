@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchWithSessionCheck } from "../utils/sessionGuard.js";
+import { API_V1 } from "../utils/network.js";
 
 // ── Singleton polling state ──────────────────────────────────────────────────
 let _interval = null;
@@ -59,7 +60,7 @@ function _startPolling() {
   if (_interval) return;
   const auth = window.__PEACH_AUTH__;
   if (!auth) return;
-  const base = auth.baseUrl ?? import.meta.env.VITE_API_BASE;
+  const base = auth.baseUrl ?? API_V1;
   _poll(auth, base);
   _interval = setInterval(() => _poll(auth, base), 10_000);
 }

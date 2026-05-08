@@ -3,6 +3,8 @@
 // server, we offer a "Open Peach App" button that deep-links into the app
 // with `?type=<context>&id=<actionId>` so the app can handle it directly.
 
+import { MOBILE_APP_SCHEME } from "./network.js";
+
 export const IS_PHONE =
   typeof navigator !== "undefined" &&
   typeof window !== "undefined" &&
@@ -16,5 +18,5 @@ export const IS_PHONE =
 export function buildMobileActionDeepLink(type, id) {
   const params = new URLSearchParams({ type });
   if (id != null) params.set("id", String(id));
-  return `peachbitcoinregtest://mobileAction?${params.toString()}`;
+  return `${MOBILE_APP_SCHEME}://mobileAction?${params.toString()}`;
 }

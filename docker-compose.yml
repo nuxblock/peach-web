@@ -1,0 +1,12 @@
+services:
+  peach-web:
+    build:
+      context: .
+      args:
+        # Both vars are baked into the bundle at build time. Change these and
+        # rebuild (`docker compose build --no-cache`) for a different deploy.
+        VITE_API_URL: ${VITE_API_URL:-https://api-regtest.peachbitcoin.com}
+        VITE_BITCOIN_NETWORK: ${VITE_BITCOIN_NETWORK:-REGTEST}
+    ports:
+      - "8080:80"
+    restart: unless-stopped

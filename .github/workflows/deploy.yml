@@ -30,6 +30,10 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          BASE_PATH: /peach-web/
+          VITE_API_URL: https://api-regtest.peachbitcoin.com
+          VITE_BITCOIN_NETWORK: REGTEST
         run: npm run build
 
       - name: Upload Pages artifact

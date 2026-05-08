@@ -17,6 +17,7 @@ import {
   extractCustomPayoutAddressFromProfile,
 } from "../../utils/customPayoutAddressSync.js";
 import { validateBtcAddress, validateBIP322Signature, validateFeeRate } from "../../peach-validators.js";
+import { BITCOIN_NETWORK } from "../../utils/network.js";
 import {
   IconCopy, IconTrash, IconCamera, IconExternalLink, IconShield,
   Toggle, SettingsRow, SettingsSection, SubScreenWrapper,
@@ -542,7 +543,7 @@ export function TxBatchingSubScreen({ onBack }) {
 
 export function RefundAddressSubScreen({ onBack }) {
   const { auth } = useApi();
-  const btcNetwork = auth?.xpub?.startsWith("tpub") ? "regtest" : "mainnet";
+  const btcNetwork = BITCOIN_NETWORK;
   const [label, setLabel] = useState("");
   const [address, setAddress] = useState("");
   const [addressSet, setAddressSet] = useState(false);
@@ -703,7 +704,7 @@ export function RefundAddressSubScreen({ onBack }) {
 
 export function PayoutWalletSubScreen({ onBack }) {
   const { auth } = useApi();
-  const btcNetwork = auth?.xpub?.startsWith("tpub") ? "regtest" : "mainnet";
+  const btcNetwork = BITCOIN_NETWORK;
   const [step, setStep] = useState(1);
   const [label, setLabel] = useState("");
   const [address, setAddress] = useState("");

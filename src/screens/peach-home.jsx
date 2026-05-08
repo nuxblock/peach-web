@@ -9,6 +9,7 @@ import { BTC_PRICE_FALLBACK as BTC_PRICE, fmt as formatSats, fmtPct, relTime, to
 import PeachRating from "../components/PeachRating.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { RefreshIndicator } from "../components/RefreshIndicator.jsx";
+import { API_V1 } from "../utils/network.js";
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const css = `
@@ -353,10 +354,9 @@ export default function PeachHome() {
 
   // ── ATH PRICE DATA (public endpoint — no auth headers, always via proxy) ──
   useEffect(() => {
-    const athBase = import.meta.env.VITE_API_BASE;
     async function fetchAth() {
       try {
-        const res = await fetch(`${athBase}/market/tradePricePeaks`);
+        const res = await fetch(`${API_V1}/market/tradePricePeaks`);
         if (res.ok) {
           const data = await res.json();
           if (data?.tradePeaks) setAthData(data);

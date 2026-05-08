@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { STATUS_CONFIG } from "../data/statusConfig.js";
 import { fetchWithSessionCheck } from "../utils/sessionGuard.js";
+import { API_V1 } from "../utils/network.js";
 
 // ── Seller-specific overrides (keyed by status) ─────────────────────────────
 const SELLER_OVERRIDE = {
@@ -580,7 +581,7 @@ function _startPolling() {
   const auth = window.__PEACH_AUTH__;
   if (!auth) return;
   _hydrateForUser(auth.peachId);
-  const base = auth.baseUrl ?? import.meta.env.VITE_API_BASE;
+  const base = auth.baseUrl ?? API_V1;
   _poll(auth, base);
   _interval = setInterval(() => _poll(auth, base), 8_000);
 }
