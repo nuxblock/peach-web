@@ -1,7 +1,8 @@
 // ─── DEV TOOLS — BIP322 MESSAGE SIGNER (regtest) ─────────────────────────────
-// In-app testing utility. Reachable only when:
-//   1. VITE_DEV_TOOLS === "1"   (build-time — production bundles drop this code)
-//   2. auth.xpub starts with "tpub"  (runtime — regtest sessions only)
+// In-app testing utility. Reachable only when both build-time literals are set:
+//   VITE_DEV_TOOLS === "1"
+//   VITE_BITCOIN_NETWORK === "REGTEST"
+// Production (mainnet) builds drop this code entirely.
 //
 // Produces a BIP322-simple signature for a P2WPKH regtest address. The output
 // is meant to be pasted into the existing Custom Payout Address flow at
@@ -147,7 +148,6 @@ export default function Bip322SignerScreen() {
   }
 
   const sideMargin = 68;
-  const onRegtest = auth?.xpub?.startsWith("tpub");
 
   return (
     <>
@@ -188,12 +188,7 @@ export default function Bip322SignerScreen() {
             <div className="dev-warn">
               <strong>Regtest only.</strong> This tool holds the seed in browser memory. Never paste a
               mainnet seed here. This screen is hidden from production builds (gated by
-              VITE_DEV_TOOLS at build time and tpub-prefix at runtime).
-              {!onRegtest && (
-                <div style={{ marginTop: 8, fontWeight: 800 }}>
-                  Current session is NOT regtest. Sign in via QR auth on regtest before using this tool.
-                </div>
-              )}
+              VITE_DEV_TOOLS=1 AND VITE_BITCOIN_NETWORK=REGTEST at build time).
             </div>
 
             <div className="dev-card">

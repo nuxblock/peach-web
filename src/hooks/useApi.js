@@ -2,8 +2,8 @@
  * useApi — shared API helper for all Peach screens.
  *
  * Returns get / post / patch helpers that automatically:
- *   - Route to auth.baseUrl (regtest) when window.__PEACH_AUTH__ is set,
- *     or to VITE_API_BASE (Vite proxy / Cloudflare worker) otherwise.
+ *   - Route to auth.baseUrl when window.__PEACH_AUTH__ is set, or to the
+ *     build-time API_V1 (VITE_API_URL + /v1) otherwise.
  *   - Attach the Bearer token header when logged in.
  *
  * Usage:
@@ -16,6 +16,7 @@
  */
 
 import { fetchWithSessionCheck } from '../utils/sessionGuard.js';
+import { API_V1 } from '../utils/network.js';
 
 // ── In-memory cache (survives navigation, cleared on page refresh) ──
 if (!window.__PEACH_CACHE__) window.__PEACH_CACHE__ = {};
@@ -38,7 +39,7 @@ export function clearCache(key) {
 
 export function useApi() {
   const auth = window.__PEACH_AUTH__ ?? null;
-  const base = auth?.baseUrl ?? import.meta.env.VITE_API_BASE;
+  const base = auth?.baseUrl ?? API_V1;
   const authHeaders = auth ? { Authorization: `Bearer ${auth.token}` } : {};
 
   return {

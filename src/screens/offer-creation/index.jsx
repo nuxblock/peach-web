@@ -16,6 +16,7 @@ import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js
 import { QRCodeSVG } from "qrcode.react";
 import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE_INIT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur, formatTradeId, truncateAddress } from "../../utils/format.js";
 import { extractCustomRefundAddressFromProfile } from "../../utils/customRefundAddressSync.js";
+import { BITCOIN_NETWORK } from "../../utils/network.js";
 import { CSS } from "./styles.js";
 import {
   MIN_SATS, maxSatsAtPrice,
@@ -217,7 +218,7 @@ export default function OfferCreation({ initialType="buy" }) {
   // ── AUTH STATE ──
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
   const { get, post, auth } = useApi();
-  const btcNetwork = auth?.xpub?.startsWith("tpub") ? "regtest" : "mainnet";
+  const btcNetwork = BITCOIN_NETWORK;
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };

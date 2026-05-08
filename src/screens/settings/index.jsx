@@ -11,6 +11,7 @@ import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
 import { CSS } from "./styles.js";
 import { SettingsRow, SettingsSection } from "./components.jsx";
+import { IS_REGTEST } from "../../utils/network.js";
 import {
   ProfileSubScreen, ReferralsSubScreen, BackupsSubScreen,
   NetworkFeesSubScreen, TxBatchingSubScreen, RefundAddressSubScreen,
@@ -147,10 +148,9 @@ export default function SettingsScreen() {
             noBorder/>
         </SettingsSection>
 
-        {/* Developer Tools — gated by VITE_DEV_TOOLS at build time AND tpub at runtime. */}
-        {/* The `import.meta.env.VITE_DEV_TOOLS === "1"` literal is inlined by Vite so the */}
-        {/* whole section is dead code in production builds. */}
-        {import.meta.env.VITE_DEV_TOOLS === "1" && window.__PEACH_AUTH__?.xpub?.startsWith("tpub") && (
+        {/* Developer Tools — gated by VITE_DEV_TOOLS=1 AND VITE_BITCOIN_NETWORK=REGTEST. */}
+        {/* Both literals are inlined by Vite, so the whole section is dead code in mainnet builds. */}
+        {import.meta.env.VITE_DEV_TOOLS === "1" && IS_REGTEST && (
           <SettingsSection title="Developer Tools (regtest)">
             <SettingsRow icon="🛠️" label="BIP322 Message Signer"
               description="Sign a payout-flow message with a regtest seed"

@@ -13,21 +13,17 @@ import TradeExecution from './screens/trade-execution/index.jsx'
 import SettingsScreen from './screens/settings/index.jsx'
 import PeachPaymentMethods from './screens/payment-methods/index.jsx'
 import OtherUserPage from './screens/other-user/index.jsx'
+import { IS_REGTEST } from './utils/network.js'
 
 // ── Developer tools ──
 // Build-time gate: VITE_DEV_TOOLS is inlined by Vite, so the && branch and the
 // lazy import() are eliminated from production bundles when the flag is unset.
-const DEV_TOOLS_ENABLED = import.meta.env.VITE_DEV_TOOLS === "1";
+// We additionally require VITE_BITCOIN_NETWORK=REGTEST so the tools never ship
+// in a mainnet build even if VITE_DEV_TOOLS is accidentally set.
+const DEV_TOOLS_ENABLED = import.meta.env.VITE_DEV_TOOLS === "1" && IS_REGTEST;
 const Bip322SignerScreen = DEV_TOOLS_ENABLED
   ? lazy(() => import('./screens/dev-tools/bip322-sign.jsx'))
   : null;
-
-// Runtime gate: even with the flag set, refuse to render outside a regtest session.
-function RegtestGuard({ children }) {
-  const xpub = window.__PEACH_AUTH__?.xpub;
-  if (!xpub?.startsWith("tpub")) return <Navigate to="/" replace />;
-  return children;
-}
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -119,11 +115,9 @@ export default function App() {
           {Bip322SignerScreen && (
             <Route path="/dev-tools/bip322" element={
               <ProtectedRoute>
-                <RegtestGuard>
-                  <Suspense fallback={<div style={{ padding: 40 }}>Loading dev tools…</div>}>
-                    <Bip322SignerScreen />
-                  </Suspense>
-                </RegtestGuard>
+                <Suspense fallback={<div style={{ padding: 40 }}>Loading dev tools…</div>}>
+                  <Bip322SignerScreen />
+                </Suspense>
               </ProtectedRoute>
             } />
           )}

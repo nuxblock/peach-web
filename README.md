@@ -2,6 +2,19 @@
 
 Frontend-only web companion app for [Peach Bitcoin](https://peachbitcoin.com), a peer-to-peer Bitcoin exchange. React 18 + Vite 6. All data comes from the existing Peach REST API — there is no backend in this repo.
 
+## Configuration
+
+The app reads two build-time env vars (Vite inlines them into the bundle):
+
+| Variable | Required | Values | Meaning |
+|----------|----------|--------|---------|
+| `VITE_API_URL` | yes | full origin, no `/v1` suffix | Where every API call is sent. The browser fetches it directly — the upstream must allow your origin via CORS. |
+| `VITE_BITCOIN_NETWORK` | yes | `BITCOIN` \| `REGTEST` | Governs address validation and the mobile-app deeplink scheme. Independent from `VITE_API_URL`. |
+
+`VITE_API_URL` and `VITE_BITCOIN_NETWORK` are independent on purpose. Pointing at a regtest API while choosing `BITCOIN` (or vice versa) is a configuration mistake the codebase honors as if it were intentional.
+
+Copy `.env.example` to `.env` and edit if needed.
+
 ## Run locally
 
 **Prerequisites:** Node 20+ (see `.nvmrc`) and npm.
@@ -11,12 +24,11 @@ git clone <repo-url> peach-web
 cd peach-web
 nvm use         # optional, picks up .nvmrc
 npm install
+cp .env.example .env   # adjust VITE_API_URL / VITE_BITCOIN_NETWORK
 npm run dev
 ```
 
-Then open **http://localhost:5173/peach-web/** in your browser.
-
-The Vite dev server automatically proxies `/api` → `https://api.peachbitcoin.com/v1` (see `vite.config.js`), so no API keys or environment setup are required to browse the app. To sign in, scan the QR code on the landing page with the Peach mobile app.
+Then open **http://localhost:5173/** in your browser. To sign in, scan the QR code with the Peach mobile app.
 
 ### Other commands
 
@@ -29,19 +41,39 @@ npm run test:watch
 
 ---
 
+## Deploy with Docker
+
+The included `Dockerfile` produces an nginx image serving the static build at port 80. Both env vars are baked in at build time, so build one image per environment.
+
+```bash
+# Build (regtest example)
+docker build \
+  --build-arg VITE_API_URL=https://api-regtest.peachbitcoin.com \
+  --build-arg VITE_BITCOIN_NETWORK=REGTEST \
+  -t peach-web:regtest .
+
+# Run
+docker run --rm -p 8080:80 peach-web:regtest
+# → http://localhost:8080
+```
+
+Or via Docker Compose (reads `VITE_API_URL` and `VITE_BITCOIN_NETWORK` from your shell or a `.env` file):
+
+```bash
+docker compose up --build
+```
+
+The image makes API calls **directly** from the browser to `VITE_API_URL`. The upstream API must allow your deployment origin via CORS — there is no proxy in front.
+
 ## Deploy to GitHub Pages
 
-The repo is already wired for GitHub Actions deployment to GitHub Pages. Every push to `main` triggers a build and deploys automatically via `.github/workflows/`.
+The repo also ships with a GitHub Actions workflow under `.github/workflows/`. To use it on a fork hosted at a subpath:
 
-If you fork this into a new repo:
+```bash
+BASE_PATH=/your-repo-name/ npm run build
+```
 
-1. Update `base` in `vite.config.js` to match your repo name: `base: '/your-repo-name/'`.
-2. Push to GitHub.
-3. In the repo: Settings → Pages → Source → **GitHub Actions**.
-
-Your site will be live at `https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/`.
-
-Because GitHub Pages is static, production API calls go through a Cloudflare Worker proxy (see `cloudflare/` and `.env.production`) to work around CORS. You do **not** need to touch this to run the app locally.
+`vite.config.js` reads `BASE_PATH` (defaults to `/`). The legacy Cloudflare Worker proxy in `cloudflare/` is no longer wired into the app — leave it or delete it as you prefer.
 
 ---
 

@@ -9,6 +9,7 @@ import {
   NAV_ROUTES,
 } from "../components/Navbars.jsx";
 import { IcoBtc } from "../components/BitcoinAmount.jsx";
+import { API_URL, API_V1, MOBILE_APP_SCHEME } from "../utils/network.js";
 
 // ─── QR CODE DISPLAY ─────────────────────────────────────────────────────────
 const QRDisplay = ({ qrPayload, size = 189 }) => {
@@ -304,11 +305,6 @@ export default function PeachAuth() {
     /Android.*Mobile/i.test(navigator.userAgent);
 
   // ─── QR AUTH (real handshake) ──────────────────────────────────────────────
-  const isLocal =
-    location.hostname === "localhost" || location.hostname === "127.0.0.1";
-  const regtestBase = isLocal
-    ? "/api-regtest"
-    : (import.meta.env.VITE_API_BASE || "") + "/regtest";
   const {
     phase: qrPhase,
     qrPayload,
@@ -317,7 +313,7 @@ export default function PeachAuth() {
     error: qrError,
     profile: qrProfile,
     restart: qrRestart,
-  } = useQRAuth({ baseUrl: regtestBase, auto: true });
+  } = useQRAuth({ baseUrl: API_URL, auto: true });
 
   // Map hook phases to UI display
   const phase =
@@ -351,9 +347,7 @@ export default function PeachAuth() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_BASE}/market/prices`,
-        );
+        const res = await fetch(`${API_V1}/market/prices`);
         const data = await res.json();
         if (data && typeof data === "object") {
           setAllPrices(data);
@@ -425,10 +419,7 @@ export default function PeachAuth() {
     const browser = await detectReturnBrowser();
     const params = new URLSearchParams({ data: b64 });
     if (browser) params.set("browser", browser);
-    const deepLink = `peachbitcoinregtest://desktopConnection?${params.toString()}`;
-    console.log(
-      "TODO TODO TODO: change hardcoded peachbitcoinregtest deeplink",
-    );
+    const deepLink = `${MOBILE_APP_SCHEME}://desktopConnection?${params.toString()}`;
     let didHide = false;
     const onHidden = () => {
       if (document.hidden) didHide = true;
