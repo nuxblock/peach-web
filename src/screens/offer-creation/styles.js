@@ -336,35 +336,35 @@ export const CSS = `
     position:sticky;top:var(--topbar);height:calc(100vh - var(--topbar));overflow-y:auto}
   .preview-label{font-size:.64rem;font-weight:700;text-transform:uppercase;
     letter-spacing:.1em;color:var(--black-65);margin-bottom:4px}
-  .prev-card{background:var(--surface);border-radius:14px;
-    border:1px solid var(--black-10);padding:14px 16px;
-    box-shadow:0 2px 12px rgba(43,25,17,.06)}
-  .prev-card.buy-top{border-top:3px solid var(--success)}
-  .prev-card.sell-top{border-top:3px solid var(--error)}
-  .prev-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
-  .prev-avatar{width:32px;height:32px;border-radius:50%;background:var(--grad);
-    display:flex;align-items:center;justify-content:center;font-size:.68rem;
-    font-weight:800;color:white;position:relative;flex-shrink:0}
-  .prev-dot{position:absolute;bottom:0;right:0;width:8px;height:8px;
-    border-radius:50%;background:var(--success);border:2px solid var(--surface)}
-  .pt{padding:2px 7px;border-radius:999px;font-size:.63rem;font-weight:700;
-    border:1.5px solid currentColor}
-  .pt-m{color:var(--black-65);border-color:var(--black-10);background:var(--black-5)}
-  .pt-c{background:var(--primary-mild);color:var(--primary-dark);
-    border-color:transparent;border-radius:4px;letter-spacing:.04em}
-  .pt-g{color:var(--success);border-color:var(--success-mild);background:var(--success-bg)}
-  .pt-r{color:var(--error);border-color:var(--error-bg);background:var(--error-bg)}
-  .pt-n{color:var(--black-65);border-color:var(--black-10);background:var(--black-5)}
-  .info-box{background:var(--surface);border-radius:12px;
-    border:1px solid var(--black-10);padding:11px 13px}
-  .ir{display:flex;justify-content:space-between;padding:6px 0;
-    border-bottom:1px solid var(--black-5)}
-  .ir:last-child{border-bottom:none}
-  .ik{font-size:.7rem;font-weight:600;color:var(--black-65)}
-  .iv{font-size:.76rem;font-weight:800;color:var(--black)}
   .placeholder{display:flex;flex-direction:column;align-items:center;gap:8px;
     padding:24px 16px;text-align:center;border:2px dashed var(--black-10);
     border-radius:14px;color:var(--black-25)}
+
+  /* Offer card preview — mirrors market-view's mobile offer-card layout
+     (rendered from a counterparty's perspective, not as own offer) */
+  .offer-card{background:var(--surface);border-radius:14px;border:1px solid var(--black-10);
+    padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+  .user-peach-id{font-size:.82rem;font-weight:800;color:var(--black-65);
+    font-family:inherit;white-space:nowrap;letter-spacing:.04em;line-height:1.2}
+  .rep-trades{font-size:.67rem;color:var(--black-65);font-weight:500}
+  .badge{display:inline-flex;align-items:center;padding:1px 6px;border-radius:999px;
+    font-size:.62rem;font-weight:700;white-space:nowrap}
+  .badge-super{background:var(--grad);color:white}
+  .badge-fast{background:var(--primary-mild);color:var(--primary-dark)}
+  .action-cell-badges{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+  .auto-badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;
+    border-radius:999px;background:var(--grad);color:white;font-size:.68rem;font-weight:800;
+    white-space:nowrap;box-shadow:0 1px 6px rgba(245,101,34,.28)}
+  .exp-badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;
+    border-radius:999px;background:var(--primary-mild);color:var(--primary-dark);
+    font-size:.68rem;font-weight:700;white-space:nowrap;border:1.5px solid var(--primary)}
+  .method-chip{padding:2px 7px;border-radius:999px;font-size:.69rem;font-weight:600;
+    background:var(--black-5);color:var(--black-65);border:1px solid var(--black-10)}
+  .currency-chip{padding:2px 7px;border-radius:4px;font-size:.69rem;font-weight:700;
+    background:var(--primary-mild);color:var(--primary-dark);letter-spacing:.04em}
+  .prem-good{color:var(--success);font-weight:700}
+  .prem-bad{color:var(--error);font-weight:700}
+  .prem-zero{color:var(--black-65);font-weight:600}
 
   /* Success */
   @keyframes stepFwd{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
@@ -505,4 +505,14 @@ export const CSS = `
       margin-top:8px;
     }
   }
+
+  /* ── Market stats (competing offers + completed-trade premium) ── */
+  .market-stats{
+    display:flex;flex-direction:column;gap:2px;margin-top:12px;
+  }
+  .market-stats-row{
+    font-size:.82rem;font-weight:700;color:var(--primary);
+    letter-spacing:.01em;line-height:1.4;
+  }
+  .market-stats-center{text-align:center}
 `;

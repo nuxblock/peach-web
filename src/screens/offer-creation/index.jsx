@@ -8,6 +8,7 @@ import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx"
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
+import { useMarketStats } from "../../hooks/useMarketStats.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import { extractPMsFromProfile, isApiError, hashPaymentFields, encryptForPublicKey, encryptPGPMessage, signPGPMessage } from "../../utils/pgp.js";
 import { deriveEscrowPubKey, deriveReturnAddress, isReturnAddressFromXpub } from "../../utils/escrow.js";
@@ -280,6 +281,9 @@ export default function OfferCreation({ initialType="buy" }) {
   const selectedSaved    = savedMethods.filter(m=>form.selectedMethodIds.includes(m.id));
   const offerMethods     = [...new Set(selectedSaved.map(m=>m.methodId))];
   const offerCurrencies  = [...new Set(selectedSaved.flatMap(m=>m.currencies||[]))];
+
+  // Live market stats (competing offers + avg premium of completed trades).
+  const marketStats = useMarketStats({ type, pms: selectedSaved, premium: prem });
 
   useEffect(() => {
     async function fetchPrices() {
@@ -1272,6 +1276,21 @@ export default function OfferCreation({ initialType="buy" }) {
                     ))}
                   </div>
                 )}
+
+                {/* Market stats — competing offers + avg premium of completed trades */}
+                {savedMethods.length > 0 && marketStats.hasData && !marketStats.loading && (
+                  <div className="market-stats">
+                    <div className="market-stats-row">
+                      competing {isSell ? "sell" : "buy"} offers: {marketStats.total}
+                    </div>
+                    <div className="market-stats-row">
+                      premium of completed trades:{" "}
+                      {marketStats.avgPremium == null
+                        ? "–"
+                        : `${marketStats.avgPremium.toFixed(2)}%`}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* §3 Premium */}
@@ -1355,6 +1374,13 @@ export default function OfferCreation({ initialType="buy" }) {
                     </>
                   )}
                 </div>
+
+                {/* Offers below/above this premium */}
+                {!marketStats.loading && marketStats.hasData && (
+                  <div className="market-stats-row market-stats-center" style={{marginTop:10}}>
+                    {marketStats.beyondCount} offers {isSell ? "below" : "above"} this premium
+                  </div>
+                )}
               </div>
 
               {/* §4 Attributes */}
@@ -2071,45 +2097,22 @@ export default function OfferCreation({ initialType="buy" }) {
           <LivePreview type={type} form={form} btcPrice={btcPrice}
             offerMethods={offerMethods} offerCurrencies={offerCurrencies}/>
 
-          {(offerMethods.length>0||offerCurrencies.length>0||(parseFloat(form.premium)||0)!==0)&&(
-            <div>
-              <div className="preview-label">Details</div>
-              <div className="info-box">
-                {offerMethods.length>0&&(
-                  <div className="ir">
-                    <span className="ik">Methods</span>
-                    <span className="iv" style={{fontSize:".7rem"}}>{offerMethods.join(", ")}</span>
-                  </div>
-                )}
-                {offerCurrencies.length>0&&(
-                  <div className="ir">
-                    <span className="ik">Currencies</span>
-                    <span className="iv" style={{fontSize:".7rem"}}>{offerCurrencies.join(", ")}</span>
-                  </div>
-                )}
-                <div className="ir">
-                  <span className="ik">Effective price</span>
-                  <span className="iv">€{Math.round(effP).toLocaleString()}</span>
-                </div>
-                {form.instantMatch&&(
-                  <div className="ir">
-                    <span className="ik">Instant Trade</span>
-                    <span className="iv">⚡ On</span>
-                  </div>
-                )}
+          {!marketStats.loading && marketStats.hasData && (
+            <div className="market-stats">
+              <div className="market-stats-row">
+                competing {isSell ? "sell" : "buy"} offers: {marketStats.total}
+              </div>
+              <div className="market-stats-row">
+                premium of completed trades:{" "}
+                {marketStats.avgPremium == null
+                  ? "–"
+                  : `${marketStats.avgPremium.toFixed(2)}%`}
+              </div>
+              <div className="market-stats-row">
+                {marketStats.beyondCount} offers {isSell ? "below" : "above"} this premium
               </div>
             </div>
           )}
-
-          {/* Contextual tip */}
-          <div style={{marginTop:"auto",padding:"12px 14px",borderRadius:12,
-            background:"var(--surface)",border:"1px solid var(--black-10)",
-            fontSize:".72rem",color:"var(--black-65)",fontWeight:500,lineHeight:1.6}}>
-            {step===0&&!isSell&&"💡 Set all three sections, then tap Review."}
-            {step===0&&isSell&&"💡 The fixed amount locks in escrow after publishing. Ensure your wallet is ready."}
-            {step===1&&"✅ Amount and payment methods can't be changed after publishing."}
-            {step===2&&"🔒 Send the exact amount. Over/underfunding delays activation."}
-          </div>
         </div>
       </div>
 

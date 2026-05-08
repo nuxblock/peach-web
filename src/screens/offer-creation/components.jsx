@@ -11,9 +11,20 @@ import {
   satsToFiatRaw as satsToFiat,
   fmtFiat as fmtEur,
   formatTradeId,
+  toPeaches,
 } from "../../utils/format.js";
 import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js";
 import { InfoDot } from "../../components/InfoPopup.jsx";
+import { getTopbarPeachId } from "../../components/Navbars.jsx";
+import Avatar from "../../components/Avatar.jsx";
+import PeachRating from "../../components/PeachRating.jsx";
+import { methodDisplayName } from "../../data/paymentMethodMeta.js";
+
+const PREVIEW_CURRENCY_SYMBOL = {
+  EUR: "€", GBP: "£", USD: "$", CHF: "CHF", JPY: "¥", SEK: "kr", NOK: "kr", DKK: "kr",
+};
+function previewCurrSym(c) { return PREVIEW_CURRENCY_SYMBOL[c] || c; }
+function stripPmIndex(id) { return String(id || "").replace(/[-_]\d+$/, ""); }
 
 // ─── CONSTANTS (shared with index.jsx) ──────────────────────────────────────
 
@@ -40,22 +51,31 @@ export function LivePreview({
   offerMethods,
   offerCurrencies,
 }) {
-  const isBuy = type === "buy";
-  const prem = parseFloat(form.premium) || 0;
-  const effP = btcPrice * (1 + prem / 100);
-  const hasAmt = isBuy ? form.amtFixed > 0 : form.amtFixed > 0;
+  const isSell = type === "sell";
+  const p = parseFloat(form.premium) || 0;
+  const effP = btcPrice * (1 + p / 100);
+  const hasAmt = form.amtFixed > 0;
   const hasPay = offerMethods.length > 0;
   const hasPrem = form.premium !== "";
   const empty = !hasAmt && !hasPay && !hasPrem;
 
-  let fiatStr = "—";
-  if (hasAmt) {
-    fiatStr = `≈ €${fmtEur(satsToFiat(form.amtFixed, effP))}`;
-  }
-  let premCls = "pt-n";
-  const p = parseFloat(form.premium) || 0;
-  if (p !== 0)
-    premCls = isBuy ? (p < 0 ? "pt-g" : "pt-r") : p > 0 ? "pt-g" : "pt-r";
+  const peachId = getTopbarPeachId() || "PEACH00000000";
+  const auth = typeof window !== "undefined" ? window.__PEACH_AUTH__ : null;
+  const profile = auth?.profile || null;
+  const userPubKey = auth?.peachId || profile?.publicKey || "";
+  const userTrades = profile?.trades ?? 0;
+  const userRep = profile?.rating != null ? toPeaches(profile.rating) : 0;
+  const userBadges = profile?.medals ?? profile?.badges ?? [];
+
+  const sym = previewCurrSym(offerCurrencies[0] || "EUR");
+  const rate = Math.round(effP);
+  const rateStr = `${rate.toLocaleString("fr-FR")} ${sym}`;
+  const fiatVal = hasAmt ? `${sym}${fmtEur(satsToFiat(form.amtFixed, effP))}` : "—";
+
+  // Premium color: seller perspective → high premium = good (green)
+  const premCls = p === 0 ? "prem-zero" : isSell ? (p > 0 ? "prem-good" : "prem-bad") : (p < 0 ? "prem-good" : "prem-bad");
+
+  const showOfferBadges = form.instantMatch || form.experienceLevel;
 
   return (
     <div>
@@ -70,173 +90,59 @@ export function LivePreview({
           </div>
         </div>
       ) : (
-        <div className={`prev-card ${isBuy ? "buy-top" : "sell-top"}`}>
-          {/* Row 1: Your offer badge left · Buy/Sell button right */}
-          <div className="prev-top">
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div className="prev-avatar">
-                PW
-                <div className="prev-dot" />
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: ".76rem",
-                    fontWeight: 700,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 3,
-                  }}
-                >
-                  <span style={{ color: "var(--btc)" }}>★</span>4.7
-                  <span
-                    style={{
-                      fontSize: ".65rem",
-                      color: "var(--black-65)",
-                      fontWeight: 500,
-                      marginLeft: 2,
-                    }}
-                  >
-                    (23)
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontSize: ".58rem",
-                    fontWeight: 800,
-                    color: "var(--primary-dark)",
-                    background: "var(--primary-mild)",
-                    borderRadius: 999,
-                    padding: "1px 6px",
-                    marginTop: 2,
-                    display: "inline-block",
-                  }}
-                >
-                  Your offer
-                </div>
-              </div>
-            </div>
-            <button
-              style={{
-                padding: "5px 16px",
-                borderRadius: 999,
-                border: "none",
-                fontFamily: "var(--font)",
-                fontSize: ".76rem",
-                fontWeight: 800,
-                cursor: "default",
-                background: isBuy ? "var(--error-bg)" : "var(--success-bg)",
-                color: isBuy ? "var(--error)" : "var(--success)",
-              }}
-            >
-              {isBuy ? "Sell" : "Buy"}
-            </button>
+        <div className="offer-card">
+          {/* Row 1: PeachID */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <span className="user-peach-id">{peachId}</span>
           </div>
 
-          {/* Row 2: left spacer · right = stacked amounts */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              padding: "4px 0 8px",
-            }}
-          >
-            <div style={{ flex: 1 }} />
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-end",
-                gap: 2,
-                flexShrink: 0,
-              }}
-            >
-              {hasAmt ? (
-                <SatsAmount sats={form.amtFixed} />
-              ) : (
-                <span
-                  style={{
-                    color: "var(--black-25)",
-                    fontSize: ".9rem",
-                    fontWeight: 700,
-                  }}
-                >
-                  —
-                </span>
-              )}
-              {hasAmt && (
-                <span
-                  style={{
-                    fontSize: ".78rem",
-                    fontWeight: 600,
-                    color: "var(--black-65)",
-                  }}
-                >
-                  {fiatStr}
-                </span>
-              )}
-              {hasPrem && p !== 0 && (
-                <span
-                  style={{
-                    fontSize: ".72rem",
-                    fontWeight: 700,
-                    color: isBuy
-                      ? p < 0
-                        ? "var(--success)"
-                        : "var(--error)"
-                      : p > 0
-                        ? "var(--success)"
-                        : "var(--error)",
-                  }}
-                >
-                  {p > 0 ? "+" : ""}
-                  {p.toFixed(1)}%
-                </span>
-              )}
+          {/* Row 2: avatar + rating + trades + user badges | instant-trade / experience badges */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Avatar peachId={userPubKey} size={32} />
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+              <PeachRating rep={userRep} size={14} trades={userTrades} />
+              {userTrades > 0 && <span className="rep-trades">({userTrades})</span>}
+              {userBadges.includes("supertrader") && <span className="badge badge-super">🏆</span>}
+              {userBadges.includes("fast") && <span className="badge badge-fast">⚡</span>}
             </div>
+            {showOfferBadges && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <div className="action-cell-badges">
+                  {form.instantMatch && <span className="auto-badge">⚡ Instant Trade</span>}
+                  {form.experienceLevel === "experiencedUsersOnly" && <span className="exp-badge">👤 Experienced only</span>}
+                  {form.experienceLevel === "newUsersOnly" && <span className="exp-badge">🆕 New users</span>}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Row 3: tags */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 3,
-              paddingBottom: 4,
-            }}
-          >
-            {hasPrem && (
-              <span className={`pt ${premCls}`}>
-                {p === 0 ? "0%" : (p > 0 ? "+" : "") + p.toFixed(1) + "%"}
-              </span>
-            )}
-            {offerMethods.slice(0, 3).map((m) => (
-              <span key={m} className="pt pt-m">
-                {m}
-              </span>
-            ))}
-            {offerCurrencies.slice(0, 3).map((c) => (
-              <span key={c} className="pt pt-c">
-                {c}
-              </span>
-            ))}
-            {form.instantMatch && (
-              <span
-                style={{
-                  padding: "2px 7px",
-                  borderRadius: 999,
-                  fontSize: ".6rem",
-                  fontWeight: 800,
-                  background: "var(--grad)",
-                  color: "white",
-                  border: "none",
-                }}
-              >
-                ⚡ Instant Trade
-              </span>
-            )}
+          {/* Row 3: rate (left) · sats amount (right) */}
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+            <span style={{ fontSize: ".9rem", fontWeight: 800, color: "var(--black)" }}>{rateStr}</span>
+            {hasAmt
+              ? <SatsAmount sats={form.amtFixed} />
+              : <span style={{ color: "var(--black-25)", fontSize: ".9rem", fontWeight: 700 }}>—</span>}
           </div>
+
+          {/* Row 4: premium (left) · fiat (right) */}
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+            <span className={premCls} style={{ fontSize: ".9rem" }}>
+              {p > 0 ? "+" : ""}{p.toFixed(2)}%
+            </span>
+            <span style={{ fontSize: ".9rem", fontWeight: 700, color: "var(--black)" }}>{fiatVal}</span>
+          </div>
+
+          {/* Row 5: method + currency chips */}
+          {(offerMethods.length > 0 || offerCurrencies.length > 0) && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {offerMethods.map((m) => (
+                <span key={m} className="method-chip">{methodDisplayName(stripPmIndex(m))}</span>
+              ))}
+              {offerCurrencies.map((c) => (
+                <span key={c} className="currency-chip">{c}</span>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
