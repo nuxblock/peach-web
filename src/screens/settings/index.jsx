@@ -159,7 +159,7 @@ export default function SettingsScreen() {
           </SettingsSection>
         )}
 
-        <div className="version-footer">Peach Bitcoin Web · v0.1.0 · Made with 🍑</div>
+        <div className="version-footer">🍑 Peach Web · v0.1.0 · Made in Switzerland 🇨🇭</div>
       </div>
     );
   }

@@ -235,10 +235,12 @@ export function BackupsSubScreen({ onBack }) {
         </div>
         <div>
           <div style={{ fontSize:".9rem", fontWeight:800, color:"var(--black)", marginBottom:6 }}>
-            Backups are done on the mobile app
+            Backups are done on the mobile app.
+            <br/>
+            To create a backup: Peach mobile app → Settings → Backups
           </div>
           <p style={{ fontSize:".8rem", color:"var(--black-75)", lineHeight:1.6, margin:0 }}>
-            Your Peach account and private keys live exclusively on your mobile device.
+            Your Peach wallet private keys live on your mobile device, they are never on the web.
             Backups can only be created and restored from the Peach mobile app — this is by design,
             to ensure your Bitcoin private keys never leave your phone.
           </p>
@@ -246,10 +248,19 @@ export function BackupsSubScreen({ onBack }) {
       </div>
 
       <SettingsSection title="How your backup works">
+        
         <div style={{ padding:"14px 20px", borderBottom:"1px solid var(--black-5)" }}>
           <div style={{ fontSize:".82rem", fontWeight:700, color:"var(--black)", marginBottom:4 }}>🔐 End-to-end encrypted</div>
           <div style={{ fontSize:".76rem", color:"var(--black-65)", lineHeight:1.5 }}>
-            Your backup file is encrypted with your account password before it leaves your device. Peach never sees your unencrypted account data.
+            Your backup file is encrypted with the password of your choice before it leaves your device. Peach never sees your unencrypted account data.
+          </div>
+        </div>
+        <div style={{ padding:"14px 20px", borderBottom:"1px solid var(--black-5)" }}>
+          <div style={{ fontSize:".82rem", fontWeight:700, color:"var(--black)", marginBottom:4 }}>💾🔑 Two backup types: file backup and seed-only.</div>
+          <div style={{ fontSize:".76rem", color:"var(--black-65)", lineHeight:1.5 }}>
+            Save an encrypted file with your account data. Recover your account just by inserting your file password. Fast and easy. Be certain to recover all your activity (trade history, chats, payment methods…).
+            <br/><br/>
+            <strong>Or</strong>, follow the industry standards and write down your seed. If your account was created after April 2026, your PGP key is derived from you seed and the latter is sufficient to recover everything included in the file backup too (especially trade history chats and payment methods).
           </div>
         </div>
         <div style={{ padding:"14px 20px", borderBottom:"1px solid var(--black-5)" }}>
@@ -261,19 +272,11 @@ export function BackupsSubScreen({ onBack }) {
         <div style={{ padding:"14px 20px" }}>
           <div style={{ fontSize:".82rem", fontWeight:700, color:"var(--black)", marginBottom:4 }}>⚠️ Back up regularly</div>
           <div style={{ fontSize:".76rem", color:"var(--black-65)", lineHeight:1.5 }}>
-            Without a backup, losing your phone means losing access to your account and any escrowed funds. Back up after each trade.
+            Without a backup, losing your phone means losing access to your account and any escrowed funds.
           </div>
         </div>
       </SettingsSection>
 
-      <div style={{ marginTop:4, background:"var(--black-5)", borderRadius:12, padding:"14px 18px" }}>
-        <div style={{ fontSize:".82rem", fontWeight:700, color:"var(--black)", marginBottom:3 }}>
-          To create a backup: Peach mobile app → Settings → Backups
-        </div>
-        <div style={{ fontSize:".75rem", color:"var(--black-65)" }}>
-          Not on mobile yet? Download Peach at peachbitcoin.com.
-        </div>
-      </div>
     </SubScreenWrapper>
   );
 }
