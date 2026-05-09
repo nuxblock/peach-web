@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { IcoBtc } from "./BitcoinAmount.jsx";
 import { useUnread } from "../hooks/useUnread.js";
+import { useUrgentCount } from "../hooks/useUrgentCount.js";
 import { useSessionTimer } from "../hooks/useSessionTimer.js";
 import { useNotifications } from "../hooks/useNotifications.js";
 import { useTheme } from "../hooks/useTheme.js";
@@ -74,7 +75,7 @@ export const NAV_ROUTES = {
 
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
 export function SideNav({ active, mobileOpen, onClose, onNavigate, mobilePriceSlot }) {
-  const { total } = useUnread();
+  const { urgentCount } = useUrgentCount();
   const { theme, toggleTheme } = useTheme();
   return (
     <>
@@ -85,7 +86,7 @@ export function SideNav({ active, mobileOpen, onClose, onNavigate, mobilePriceSl
             onClick={() => { if (onNavigate && NAV_ROUTES[id]) onNavigate(NAV_ROUTES[id]); }}>
             <span className="sidenav-icon" style={{ position:"relative" }}>
               {icon()}
-              {id === "trades" && total > 0 && <span className="sidenav-badge">{total > 99 ? "99+" : total}</span>}
+              {id === "trades" && urgentCount > 0 && <span className="sidenav-badge">{urgentCount > 99 ? "99+" : urgentCount}</span>}
             </span>
             <span className="sidenav-label">{label}</span>
           </button>

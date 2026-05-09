@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { relTime, formatTradeId } from "../utils/format.js";
 
 // ── Icons per notification type (stroke-based, 16×16) ────────────────────────
@@ -53,7 +54,20 @@ const TYPE_COLOR = {
 };
 
 export default function NotificationPanel({ notifications, readIds, onMarkAllRead, onMarkRead, onNavigate }) {
-  const hasUnread = notifications.some(n => !readIds.has(n.id));
+  const tradeItems   = notifications.filter(n => n.type !== "message");
+  const messageItems = notifications.filter(n => n.type === "message");
+
+  // Default to whichever tab has the only items; otherwise Notifications.
+  const [activeTab, setActiveTab] = useState(
+    tradeItems.length === 0 && messageItems.length > 0 ? "messages" : "notifications"
+  );
+
+  const tradesUnread   = tradeItems.some(n => !readIds.has(n.id));
+  const messagesUnread = messageItems.some(n => !readIds.has(n.id));
+  const hasUnread      = tradesUnread || messagesUnread;
+
+  const visibleItems = activeTab === "messages" ? messageItems : tradeItems;
+  const emptyCopy    = activeTab === "messages" ? "No messages yet" : "No notifications yet";
 
   return (
     <div className="notif-panel" onClick={e => e.stopPropagation()}>
@@ -63,16 +77,36 @@ export default function NotificationPanel({ notifications, readIds, onMarkAllRea
           <button className="notif-mark-read" onClick={onMarkAllRead}>Mark all read</button>
         )}
       </div>
+      <div className="notif-panel-tabs" role="tablist">
+        <button
+          role="tab"
+          aria-selected={activeTab === "notifications"}
+          className={`notif-panel-tab${activeTab === "notifications" ? " is-active" : ""}`}
+          onClick={() => setActiveTab("notifications")}
+        >
+          <span>Notifications</span>
+          {tradesUnread && <span className="notif-panel-tab-dot" aria-hidden="true"/>}
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === "messages"}
+          className={`notif-panel-tab${activeTab === "messages" ? " is-active" : ""}`}
+          onClick={() => setActiveTab("messages")}
+        >
+          <span>Messages</span>
+          {messagesUnread && <span className="notif-panel-tab-dot" aria-hidden="true"/>}
+        </button>
+      </div>
       <div className="notif-panel-list">
-        {notifications.length === 0 ? (
+        {visibleItems.length === 0 ? (
           <div className="notif-empty">
             <svg width="32" height="32" viewBox="0 0 20 20" fill="none" stroke="var(--black-25,var(--black-25))" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{marginBottom:8}}>
               <path d="M15 7a5 5 0 00-10 0c0 5-2 7-2 7h14s-2-2-2-7"/><path d="M8.5 17a1.5 1.5 0 003 0"/>
             </svg>
-            No notifications yet
+            {emptyCopy}
           </div>
         ) : (
-          notifications.map(n => {
+          visibleItems.map(n => {
             const Icon = TYPE_ICON[n.type] || IcoStatus;
             const color = TYPE_COLOR[n.type] || "var(--black-50)";
             const isUnread = !readIds.has(n.id);

@@ -334,6 +334,21 @@ body{font-family:var(--font);background:var(--primary-bg);color:var(--black)}
   transition:background .1s,color .1s;
 }
 .notif-mark-one:hover{background:var(--primary-mild);color:var(--primary)}
+.notif-panel-tabs{
+  display:flex;border-bottom:1px solid var(--black-10);flex-shrink:0;
+}
+.notif-panel-tab{
+  flex:1;border:none;background:transparent;cursor:pointer;font-family:var(--font);
+  padding:10px 12px;font-size:.78rem;font-weight:700;color:var(--black-50);
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+  transition:color .1s,border-color .1s,background .1s;
+}
+.notif-panel-tab:hover{color:var(--black);background:var(--black-5)}
+.notif-panel-tab.is-active{color:var(--primary);border-bottom-color:var(--primary)}
+.notif-panel-tab-dot{
+  display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--error);
+}
 .notif-panel-list{overflow-y:auto;flex:1}
 .notif-empty{
   display:flex;flex-direction:column;align-items:center;justify-content:center;

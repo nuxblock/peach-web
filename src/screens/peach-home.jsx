@@ -4,6 +4,7 @@ import { SideNav, Topbar, CurrencyDropdown, formatPeachId } from "../components/
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { useApi, getCached, setCache } from "../hooks/useApi.js";
+import { useUrgentCount } from "../hooks/useUrgentCount.js";
 import { STATUS_CONFIG, FINISHED_STATUSES } from "../data/statusConfig.js";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmt as formatSats, fmtPct, relTime, toPeaches } from "../utils/format.js";
 import PeachRating from "../components/PeachRating.jsx";
@@ -387,17 +388,8 @@ export default function PeachHome() {
   }, [athPeaks, athPeriod]);
 
   // ── URGENT TRADES COUNT ──
-  function countUrgent(items) {
-    return items.filter(t => {
-      const s = t.tradeStatus ?? t.status ?? "unknown";
-      return (STATUS_CONFIG[s] || {}).action;
-    }).length;
-  }
-  const [urgentCount, setUrgentCount] = useState(() => {
-    if (!auth) return 0;
-    const cached = getCached("trades-items")?.data;
-    return cached ? countUrgent(cached) : 0;
-  });
+  // Shared with the side-nav badge via useUrgentCount — same predicate, one source.
+  const { urgentCount } = useUrgentCount();
   const [isRefetching, setIsRefetching] = useState(false);
 
   // ── ATTENTION INDICATORS (top strip + scroll-triggered floating pill) ──
@@ -432,14 +424,12 @@ export default function PeachHome() {
   // background poll updates flow into home state without home owning a fetch.
   useEffect(() => {
     if (!auth) {
-      setUrgentCount(0);
       setContractsData([]);
       return;
     }
     function syncFromCache() {
       const cached = getCached("trades-items")?.data;
       if (!cached) return;
-      setUrgentCount(countUrgent(cached));
       setContractsData(cached.filter((i) => i.kind === "contract"));
     }
     syncFromCache();
