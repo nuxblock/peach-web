@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { STATUS_CONFIG } from "../data/statusConfig.js";
+import { STATUS_CONFIG, PENDING_STATUSES } from "../data/statusConfig.js";
 import { fetchWithSessionCheck } from "../utils/sessionGuard.js";
 import { API_V1 } from "../utils/network.js";
+import { getCached, setCache } from "./useApi.js";
+import { normalizeOffer, normalizeContract } from "../utils/tradesNormalize.js";
 
 // ── Seller-specific overrides (keyed by status) ─────────────────────────────
 const SELLER_OVERRIDE = {
@@ -236,10 +238,11 @@ async function _poll(auth, base) {
 
   try {
     const peachId = window.__PEACH_AUTH__?.peachId;
-    const [contractsRes, buyRes, ownOffersRes] = await Promise.all([
+    const [contractsRes, buyRes, ownOffersRes, offersSummaryRes] = await Promise.all([
       fetchWithSessionCheck(`${base}/contracts/summary`, { headers: hdrs }).then(r => r.ok ? r.json() : null).catch(() => null),
       fetchWithSessionCheck(`${v069Base}/buyOffer?ownOffers=true`, { headers: hdrs }).then(r => r.ok ? r.json() : null).catch(() => null),
       fetchWithSessionCheck(`${v069Base}/user/${peachId}/offers`, { headers: hdrs }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetchWithSessionCheck(`${base}/offers/summary`, { headers: hdrs }).then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
 
     // ── Parse responses ──
@@ -282,6 +285,33 @@ async function _poll(auth, base) {
       ...buyOffers.map(o => ({ ...o, _dir: "buy" })),
       ...sellOffers.map(o => ({ ...o, _dir: "sell" })),
     ];
+
+    // ── Populate trades-items / trades-pending caches so trades-dashboard hydrates instantly ──
+    // Mirrors the merge in trades-dashboard fast-tier: /offers/summary canonical for sells,
+    // /v069/buyOffer overlays buys (carrying over v1's `prices` when v069 omits them).
+    {
+      const offersArr = offersSummaryRes
+        ? (Array.isArray(offersSummaryRes) ? offersSummaryRes : (offersSummaryRes.offers ?? []))
+        : [];
+      const buyTagged = buyOffers.map(o => ({ ...o, _direction: "buy" }));
+      const byId = new Map();
+      offersArr.forEach(o => byId.set(o.id, o));
+      buyTagged.forEach(o => {
+        const existing = byId.get(o.id);
+        if (existing?.prices && !o.prices) o.prices = existing.prices;
+        byId.set(o.id, o);
+      });
+      const cachedPrices = getCached("market-prices")?.data ?? null;
+      const normalizedOffers = [...byId.values()].map(o => normalizeOffer(o, { allPrices: cachedPrices }));
+      const normalizedContracts = contracts.map(c => normalizeContract(c, { peachId }));
+      setCache("trades-items", [...normalizedOffers, ...normalizedContracts]);
+      // Seed trades-pending only when empty — trades-dashboard's slow tier owns the
+      // enrichment fields (matches, sentRequests) on this key; don't clobber them.
+      if (!getCached("trades-pending")) {
+        const pending = normalizedOffers.filter(i => PENDING_STATUSES.has(i.tradeStatus));
+        setCache("trades-pending", pending);
+      }
+    }
 
     // ── First poll = baseline only (only when no persisted baseline existed) ──
     if (_isFirstPoll) {
@@ -583,7 +613,7 @@ function _startPolling() {
   _hydrateForUser(auth.peachId);
   const base = auth.baseUrl ?? API_V1;
   _poll(auth, base);
-  _interval = setInterval(() => _poll(auth, base), 8_000);
+  _interval = setInterval(() => _poll(auth, base), 15_000);
 }
 
 function _stopPolling() {

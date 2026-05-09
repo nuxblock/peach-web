@@ -37,7 +37,6 @@ import {
   FINISHED_STATUSES,
   PENDING_STATUSES,
   REFUND_ACTION_PENDING_STATUSES,
-  deriveDisplayStatus,
 } from "../../data/statusConfig.js";
 import { isReturnAddressFromXpub } from "../../utils/escrow.js";
 import { QRCodeSVG } from "qrcode.react";
@@ -52,6 +51,7 @@ import MatchesPopup, {
   transformMatch,
   transformTradeRequest,
 } from "./MatchesPopup.jsx";
+import { normalizeOffer, normalizeContract } from "../../utils/tradesNormalize.js";
 import RequestedOfferPopup from "../../components/RequestedOfferPopup.jsx";
 import { RefreshIndicator } from "../../components/RefreshIndicator.jsx";
 
@@ -647,6 +647,7 @@ export default function TradesDashboard() {
         if (data && typeof data === "object") {
           setAllPrices(data);
           setAvailableCurrencies(Object.keys(data).sort());
+          setCache("market-prices", data);
         }
       } catch {}
     }
@@ -657,91 +658,6 @@ export default function TradesDashboard() {
 
   // ── NORMALIZE HELPERS (stable across renders — only depend on auth.peachId) ──
   const peachId = auth?.peachId;
-
-  // Instant trade is enabled iff at least one paymentData entry carries an
-  // `encrypted` blob (the counterparty-readable copy). `selfEncrypted` alone
-  // means the owner can read it back but no counterparty key was attached.
-  function hasInstantTradeEnabled(paymentData) {
-    if (!paymentData || typeof paymentData !== "object") return false;
-    return Object.values(paymentData).some((d) => d && d.encrypted);
-  }
-
-  function normalizeOffer(o) {
-    // Direction: prefer _direction tag (set from v069 endpoint), fall back to type field
-    const rawType = (o.type ?? o.offerType ?? "").toLowerCase();
-    const isBuy =
-      o._direction === "buy" || rawType === "bid" || rawType === "buy";
-    // Extract first fiat price — v1 uses `prices` object, v069 uses `priceIn{CURRENCY}` fields
-    let pricesObj = o.prices ?? {};
-    if (Object.keys(pricesObj).length === 0) {
-      for (const key of Object.keys(o)) {
-        if (key.startsWith("priceIn")) {
-          const cur = key.slice(7);
-          if (cur && o[key] != null) pricesObj[cur] = o[key];
-        }
-      }
-    }
-    const mop = o.meansOfPayment ?? {};
-    const offerMethods = [...new Set(Object.values(mop).flat())];
-    // Sells from /offers/summary lack meansOfPayment; derive currencies from `prices` keys.
-    const offerCurrencies =
-      Object.keys(mop).length > 0
-        ? Object.keys(mop)
-        : Object.keys(o.prices ?? {});
-    const amtForPrice =
-      o.amountSats ?? (Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0));
-    // Buy offers from v069 don't reliably expose priceIn{offerCurrency} — compute
-    // fiat locally from amountSats × BTC price × (1 + premium) for the offer's
-    // own currencies. Falls back to whatever v069 did return if allPrices is absent.
-    if (isBuy && offerCurrencies.length > 0) {
-      const factor = 1 + (o.premium ?? 0) / 100;
-      const computed = {};
-      for (const cur of offerCurrencies) {
-        const btc = allPrices?.[cur];
-        if (btc != null && amtForPrice) {
-          computed[cur] = (amtForPrice / 1e8) * btc * factor;
-        } else if (pricesObj[cur] != null) {
-          computed[cur] = pricesObj[cur];
-        }
-      }
-      pricesObj = computed;
-    }
-    const firstCurrency =
-      (isBuy ? offerCurrencies[0] : null) ?? Object.keys(pricesObj)[0] ?? null;
-    const fiatAmount =
-      firstCurrency && pricesObj[firstCurrency] != null
-        ? String(pricesObj[firstCurrency])
-        : "—";
-    const currency = firstCurrency ?? "";
-    const amt =
-      o.amountSats ?? (Array.isArray(o.amount) ? o.amount[0] : (o.amount ?? 0));
-    const status = o.tradeStatusNew ?? o.tradeStatus ?? o.status ?? "unknown";
-    return {
-      id: o.id,
-      tradeId: formatTradeId(o.id, "offer"),
-      kind: "offer",
-      direction: isBuy ? "buy" : "sell",
-      amount: amt,
-      premium: o.premium ?? 0,
-      fiatAmount,
-      currency,
-      prices: pricesObj,
-      tradeStatus: status,
-      createdAt: new Date(o.creationDate ?? Date.now()),
-      methods:
-        offerMethods.length > 0 ? offerMethods : (o.paymentMethods ?? []),
-      currencies:
-        offerCurrencies.length > 0 ? offerCurrencies : (o.currencies ?? []),
-      paymentData: o.paymentData ?? null,
-      experienceLevel: o.experienceLevelCriteria ?? null,
-      // Sell offers: /v1/offers/summary returns `instantTradeEnabled` directly.
-      // Buy offers: derive from paymentData (v069 endpoint doesn't set the flag).
-      instantTrade: isBuy
-        ? hasInstantTradeEnabled(o.paymentData)
-        : !!o.instantTradeEnabled,
-      instantTradeCriteria: o.instantTradeCriteria ?? null,
-    };
-  }
 
   function normalizeSentRequest(o, offerType) {
     const userDirection = offerType === "buyOffer" ? "sell" : "buy";
@@ -766,46 +682,6 @@ export default function TradesDashboard() {
       _offerType: offerType,
       _offerId: o.id,
       _tradeRequestData: null,
-    };
-  }
-
-  function normalizeContract(c) {
-    const rawType = (c.type ?? "").toLowerCase();
-    const isBuyer =
-      rawType === "bid" ||
-      rawType === "buy" ||
-      (c.buyer?.id ?? c.buyerId) === peachId;
-    const direction = isBuyer ? "buy" : "sell";
-    const tradeStatus = c.tradeStatus ?? c.status ?? "unknown";
-    // For sell contracts already refunded or revived, keep the raw status for
-    // the chip (grey "Trade Cancelled") — the action is done. Only contracts
-    // still awaiting refund/republish get the yellow "Refund or Re-publish"
-    // chip via the helper override.
-    const isDone = !!c.refunded || !!c.newTradeId;
-    const displayStatus = isDone
-      ? tradeStatus
-      : deriveDisplayStatus({
-          tradeStatus,
-          direction,
-          tradeStatusNew: c.tradeStatusNew,
-        });
-    return {
-      id: c.id,
-      tradeId: formatTradeId(c.id),
-      kind: "contract",
-      direction,
-      amount: c.amount ?? 0,
-      premium: c.premium ?? 0,
-      fiatAmount: c.price != null ? String(c.price) : "—",
-      currency: c.currency ?? "",
-      tradeStatus,
-      displayStatus,
-      tradeStatusWithoutDispute: c.tradeStatusWithoutDispute ?? null,
-      disputeActive: !!c.disputeActive,
-      createdAt: new Date(c.creationDate ?? Date.now()),
-      unread: c.unreadMessages ?? 0,
-      refunded: !!c.refunded,
-      newTradeId: c.newTradeId ?? null,
     };
   }
 
@@ -873,11 +749,11 @@ export default function TradesDashboard() {
           byId.set(o.id, o);
         });
 
-        const all = [...byId.values()].map(normalizeOffer);
+        const all = [...byId.values()].map((o) => normalizeOffer(o, { allPrices }));
         const pending = all.filter((i) => PENDING_STATUSES.has(i.tradeStatus));
 
         // ── Build liveItems (Active + History tabs) from merged offers + contracts ──
-        const items = [...all, ...contractsArr.map(normalizeContract)];
+        const items = [...all, ...contractsArr.map((c) => normalizeContract(c, { peachId }))];
         // Cache revive/refund state per contract — trade execution page reads this
         // since /contract/:id doesn't return these fields
         contractsArr.forEach((c) => {

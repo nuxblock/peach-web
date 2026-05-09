@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi } from "../../hooks/useApi.js";
+import { useApi, clearCache } from "../../hooks/useApi.js";
 import { useMarketStats } from "../../hooks/useMarketStats.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import { extractPMsFromProfile, isApiError, hashPaymentFields, encryptForPublicKey, encryptPGPMessage, signPGPMessage } from "../../utils/pgp.js";
@@ -383,6 +383,17 @@ export default function OfferCreation({ initialType="buy" }) {
     const iv = setInterval(check, 10000);
     return () => { cancelled = true; clearInterval(iv); };
   }, [step, sellOfferId, auth, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Invalidate trades + market caches once an offer is published. Without this,
+  // the user's just-created offer would be missing on trades-dashboard and
+  // market-view until the next background poll (~15 s).
+  useEffect(() => {
+    if (step === 2 || done) {
+      clearCache("trades-items");
+      clearCache("trades-pending");
+      clearCache("market-offers");
+    }
+  }, [step, done]);
 
   // ── MULTI-ESCROW POLLING ──
   useEffect(() => {

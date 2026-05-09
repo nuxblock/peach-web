@@ -585,6 +585,7 @@ export default function PeachMarket() {
         if (data && typeof data === "object") {
           setAllPrices(data);
           setAvailableCurrencies(Object.keys(data).sort());
+          setCache("market-prices", data);
         }
       } catch {
         // keep existing prices on failure
@@ -746,8 +747,14 @@ export default function PeachMarket() {
   // ── LIVE MARKET OFFERS + USER PMs ──
   useEffect(() => {
     fetchMarket();
-    // Poll every 10s so hasPerformedTradeRequest and offer changes stay fresh.
-    const iv = setInterval(fetchMarket, 10000);
+    // Poll every 30s. Mainnet has hundreds of offers; a 10s poll was costly
+    // both for the client (parse/render) and the API. Focus-based refetch
+    // below covers the "user just came back to the tab" case.
+    const iv = setInterval(fetchMarket, 30000);
+    function onVisible() {
+      if (document.visibilityState === "visible") fetchMarket();
+    }
+    document.addEventListener("visibilitychange", onVisible);
 
     if (auth) {
       const selfUserBase = auth.baseUrl.replace(/\/v1$/, '/v069');
@@ -801,7 +808,10 @@ export default function PeachMarket() {
           setPmError(true);
         });
     }
-    return () => clearInterval(iv);
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const marketOffers = liveOffers ?? [];

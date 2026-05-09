@@ -328,6 +328,7 @@ export default function PeachHome() {
         if (data && typeof data === "object") {
           setAllPrices(data);
           setAvailableCurrencies(Object.keys(data).sort());
+          setCache("market-prices", data);
         }
       } catch {}
     }
@@ -395,34 +396,23 @@ export default function PeachHome() {
     return cached ? countUrgent(cached) : 0;
   });
   const [isRefetching, setIsRefetching] = useState(false);
+  // Cache is populated by useNotifications (every 15 s, globally). Re-derive
+  // urgent count + contracts list from it on mount and on a short interval so
+  // background poll updates flow into home state without home owning a fetch.
   useEffect(() => {
-    if (!auth) { setUrgentCount(0); return; }
-    // Use cache immediately if available
-    const cached = getCached("trades-items")?.data;
-    if (cached) setUrgentCount(countUrgent(cached));
-    async function fetchUrgent() {
-      setIsRefetching(true);
-      try {
-        const [offersRes, contractsRes] = await Promise.all([
-          get('/offers/summary'),
-          get('/contracts/summary'),
-        ]);
-        const [offRaw, conRaw] = await Promise.all([
-          offersRes.ok ? offersRes.json() : [],
-          contractsRes.ok ? contractsRes.json() : [],
-        ]);
-        const offers = Array.isArray(offRaw) ? offRaw : (offRaw?.offers ?? []);
-        const contracts = Array.isArray(conRaw) ? conRaw : (conRaw?.contracts ?? []);
-        const all = [...offers, ...contracts];
-        setUrgentCount(countUrgent(all));
-        setContractsData(contracts);
-        setCache("home-urgent", all);
-      } catch {} finally {
-        setIsRefetching(false);
-      }
+    if (!auth) {
+      setUrgentCount(0);
+      setContractsData([]);
+      return;
     }
-    fetchUrgent();
-    const iv = setInterval(fetchUrgent, 30000);
+    function syncFromCache() {
+      const cached = getCached("trades-items")?.data;
+      if (!cached) return;
+      setUrgentCount(countUrgent(cached));
+      setContractsData(cached.filter((i) => i.kind === "contract"));
+    }
+    syncFromCache();
+    const iv = setInterval(syncFromCache, 3000);
     return () => clearInterval(iv);
   }, [auth]);
 
