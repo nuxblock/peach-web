@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideNav, Topbar, CurrencyDropdown, formatPeachId } from "../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
@@ -9,12 +9,15 @@ import { BTC_PRICE_FALLBACK as BTC_PRICE, fmt as formatSats, fmtPct, relTime, to
 import PeachRating from "../components/PeachRating.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { RefreshIndicator } from "../components/RefreshIndicator.jsx";
+import { AttentionStrip, AttentionPill } from "../components/AttentionIndicators.jsx";
 import { API_V1 } from "../utils/network.js";
+
+const ATTENTION_DISMISS_KEY = "peach.attention.dismissed";
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const css = `
   /* ── WELCOME HEADER ── */
-  .welcome-row{display:flex;align-items:center;gap:14px}
+  .welcome-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   .welcome-text h1{font-size:1.35rem;font-weight:800;color:var(--black);line-height:1.2}
   .welcome-text p{font-size:.82rem;font-weight:500;color:var(--black-65);margin-top:2px}
   .welcome-actions{margin-left:auto;display:flex;gap:10px}
@@ -396,6 +399,34 @@ export default function PeachHome() {
     return cached ? countUrgent(cached) : 0;
   });
   const [isRefetching, setIsRefetching] = useState(false);
+
+  // ── ATTENTION INDICATORS (top strip + scroll-triggered floating pill) ──
+  // Single dismissal flag — dismissing either indicator hides both for the session.
+  const [attentionDismissed, setAttentionDismissed] = useState(() => {
+    try { return sessionStorage.getItem(ATTENTION_DISMISS_KEY) === "1"; } catch { return false; }
+  });
+  const [welcomeOutOfView, setWelcomeOutOfView] = useState(false);
+  const sentinelRef = useRef(null);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setWelcomeOutOfView(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isLoggedIn, urgentCount]);
+
+  function dismissAttention() {
+    try { sessionStorage.setItem(ATTENTION_DISMISS_KEY, "1"); } catch {}
+    setAttentionDismissed(true);
+  }
+  function goToTrades() { navigate("/trades"); }
+
+  const showStrip = isLoggedIn && urgentCount > 0 && !attentionDismissed;
+  const showPill  = isLoggedIn && urgentCount > 0 && !attentionDismissed && welcomeOutOfView;
   // Cache is populated by useNotifications (every 15 s, globally). Re-derive
   // urgent count + contracts list from it on mount and on a short interval so
   // background poll updates flow into home state without home owning a fetch.
@@ -488,6 +519,13 @@ export default function PeachHome() {
                     </h1>
                     <p>{user.peachId} · {user.trades} trades completed</p>
                   </div>
+                  {showStrip && (
+                    <AttentionStrip
+                      count={urgentCount}
+                      onView={goToTrades}
+                      onDismiss={dismissAttention}
+                    />
+                  )}
                   <div className="welcome-actions">
                     <button className="btn-ghost" onClick={() => navigate("/trades")}>View Trades</button>
                     <button className="btn-grad" onClick={() => navigate("/offer/new")}>+ Create Offer</button>
@@ -507,17 +545,8 @@ export default function PeachHome() {
               )}
             </div>
 
-            {/* ── ATTENTION ALERT (only when logged in + trades need action) ── */}
-            {isLoggedIn && urgentCount > 0 && (
-              <div style={{background:"var(--warning-soft)",border:"1.5px solid var(--warning)",borderRadius:12,
-                padding:"12px 18px",display:"inline-flex",alignItems:"center",gap:12,width:"fit-content"}}>
-                <span style={{fontSize:"1.1rem"}}>⚠️</span>
-                <span style={{fontSize:".88rem",fontWeight:700,color:"var(--black)"}}>
-                  {urgentCount} trade{urgentCount > 1 ? "s" : ""} need{urgentCount === 1 ? "s" : ""} your attention
-                </span>
-                <span style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",cursor:"pointer",paddingLeft:42}} onClick={() => navigate("/trades")}>View →</span>
-              </div>
-            )}
+            {/* Sentinel: when this leaves the viewport, the floating pill appears */}
+            <div ref={sentinelRef} aria-hidden="true" style={{height:1,width:"100%",margin:0,padding:0}} />
 
             {/* ── ATH WIDGET ── */}
             <div className="card">
@@ -778,6 +807,15 @@ export default function PeachHome() {
             </div>{/* end outer flex */}
           </div>
         </div>
+
+        {showPill && (
+          <AttentionPill
+            count={urgentCount}
+            onView={goToTrades}
+            onDismiss={dismissAttention}
+          />
+        )}
+
       </div>
     </>
   );
