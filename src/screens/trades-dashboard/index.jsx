@@ -2366,7 +2366,7 @@ export default function TradesDashboard() {
           <div
             ref={tabsWrapRef}
             style={{
-              flex: "1 1 auto",
+              flex: "0 1 auto",
               minWidth: 0,
               height:
                 tabScale < 1 && tabsRef.current
@@ -2451,7 +2451,7 @@ export default function TradesDashboard() {
           <button
             className="btn-cta"
             onClick={() => navigate("/offer/new")}
-            style={{ marginLeft: "auto", flexShrink: 0 }}
+            style={{ flexShrink: 0 }}
           >
             + Create Offer
           </button>

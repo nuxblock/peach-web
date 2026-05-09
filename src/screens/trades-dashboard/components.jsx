@@ -444,7 +444,7 @@ export function HistoryTable({ rows, onTradeSelect, selectedCurrency, tab, onRef
   return (
     <div>
       {/* Search + Filters + Export row */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:16, flexWrap:"wrap" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-start", gap:12, marginBottom:16, flexWrap:"wrap" }}>
         <input
           className="hist-search"
           placeholder="Search by ID, currency, status…"
