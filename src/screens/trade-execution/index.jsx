@@ -1970,6 +1970,12 @@ export default function TradeExecution() {
                           });
                         }}
                         onAction={async (action, arg) => {
+                          if (action === "go_to_new_offer") {
+                            navigate("/trades", {
+                              state: { openOfferId: arg },
+                            });
+                            return;
+                          }
                           if (action === "extend_time") {
                             try {
                               const res = await patch(

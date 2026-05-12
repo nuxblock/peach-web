@@ -3383,6 +3383,7 @@ export function ActionPanel({
 
         {/* Trade cancelled — final state */}
         {(status === "tradeCanceled" || status === "confirmCancelation") && (
+          <>
           <div
             style={{
               display: "flex",
@@ -3401,6 +3402,10 @@ export function ActionPanel({
             <IconAlert />
             <span>
               {(() => {
+                // Seller republished this trade — show republish copy first.
+                if (scenario.revived && role === "seller") {
+                  return "You have decided to re-publish this trade. You can find the new offer below";
+                }
                 // Buyer-payment-timeout detection: prefer the live-polling
                 // signal, fall back to derived check for the case where the
                 // user navigates straight to a contract that already
@@ -3441,6 +3446,19 @@ export function ActionPanel({
               })()}
             </span>
           </div>
+          {scenario.revived &&
+            role === "seller" &&
+            scenario.newOfferId && (
+              <Btn
+                label="Go to new trade"
+                bg="var(--primary-bg)"
+                color="var(--primary)"
+                onClick={() =>
+                  onAction("go_to_new_offer", scenario.newOfferId)
+                }
+              />
+            )}
+          </>
         )}
 
         {/* Dispute states */}
