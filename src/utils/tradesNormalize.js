@@ -1,7 +1,7 @@
 import { deriveDisplayStatus } from "../data/statusConfig.js";
 import { formatTradeId } from "./format.js";
 
-function hasInstantTradeEnabled(paymentData) {
+export function hasInstantTradeEnabled(paymentData) {
   if (!paymentData || typeof paymentData !== "object") return false;
   return Object.values(paymentData).some((d) => d && d.encrypted);
 }

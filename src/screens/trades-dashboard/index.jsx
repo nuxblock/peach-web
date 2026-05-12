@@ -51,7 +51,7 @@ import MatchesPopup, {
   transformMatch,
   transformTradeRequest,
 } from "./MatchesPopup.jsx";
-import { normalizeOffer, normalizeContract } from "../../utils/tradesNormalize.js";
+import { normalizeOffer, normalizeContract, hasInstantTradeEnabled } from "../../utils/tradesNormalize.js";
 import RequestedOfferPopup from "../../components/RequestedOfferPopup.jsx";
 import { RefreshIndicator } from "../../components/RefreshIndicator.jsx";
 
