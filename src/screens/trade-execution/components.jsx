@@ -2282,10 +2282,16 @@ export function SlideToConfirm({
   onConfirm,
   disabled = false,
   confirmedColor = "var(--success)",
+  requiresMobileConfirm = false,
 }) {
   const [dragging, setDragging] = useState(false);
   const [pos, setPos] = useState(0);
   const [confirmed, setConfirmed] = useState(false);
+  // For mobile-signing actions: slider freezes at the right edge in default
+  // colors (no green, no "Done") while we wait for the parent to swap us out
+  // for a "Confirm in mobile app" pending button. Avoids a misleading flash
+  // of completion before the action is actually confirmed on the phone.
+  const [awaitingMobile, setAwaitingMobile] = useState(false);
   const trackRef = useRef(null);
   const startXRef = useRef(0);
   const THUMB = 48;
@@ -2295,7 +2301,7 @@ export function SlideToConfirm({
   }
 
   function onPointerDown(e) {
-    if (disabled || confirmed) return;
+    if (disabled || confirmed || awaitingMobile) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     setDragging(true);
     startXRef.current = e.clientX - pos;
@@ -2312,14 +2318,18 @@ export function SlideToConfirm({
     setDragging(false);
     if (pos >= getMax() * 0.88) {
       setPos(getMax());
-      setConfirmed(true);
+      if (requiresMobileConfirm) {
+        setAwaitingMobile(true);
+      } else {
+        setConfirmed(true);
+      }
       onConfirm && onConfirm();
     } else {
       setPos(0);
     }
   }
 
-  const progress = confirmed ? 1 : pos / Math.max(getMax(), 1);
+  const progress = confirmed || awaitingMobile ? 1 : pos / Math.max(getMax(), 1);
 
   return (
     <div
@@ -2360,7 +2370,7 @@ export function SlideToConfirm({
       </div>
 
       {/* Thumb */}
-      {!confirmed && (
+      {!confirmed && !awaitingMobile && (
         <div
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -2856,6 +2866,7 @@ export function ActionPanel({
   pendingTask = null,
   onPendingClick = null,
   paymentSliderKey = 0,
+  refundSliderKey = 0,
 }) {
   const { tradeStatus: status, role } = scenario;
   const [showConfirm, setShowConfirm] = useState(false);
@@ -3079,7 +3090,7 @@ export function ActionPanel({
           <>
             {pendingTask === "confirmPayment" ? (
               <PendingBtn
-                label="Payment confirmation pending in mobile app"
+                label="Confirm payment in mobile app"
                 type="paymentMade"
                 actionId={scenario.contract?.mobileActionPaymentMadeWasTriggered}
               />
@@ -3088,6 +3099,7 @@ export function ActionPanel({
                 key={paymentSliderKey}
                 label="I've sent the payment"
                 onConfirm={() => onAction("payment_sent")}
+                requiresMobileConfirm
               />
             )}
           </>
@@ -3115,7 +3127,7 @@ export function ActionPanel({
               />
               {pendingTask === "release" ? (
                 <PendingBtn
-                  label="Release pending in mobile app"
+                  label="Confirm release in mobile app"
                   type="paymentConfirmed"
                   actionId={scenario.contract?.mobileActionPaymentConfirmedWasTriggered}
                 />
@@ -3124,6 +3136,7 @@ export function ActionPanel({
                   key={confirmSliderKey}
                   label="I've received the payment"
                   onConfirm={() => setShowConfirm(true)}
+                  requiresMobileConfirm
                 />
               )}
               <Btn
@@ -3239,14 +3252,16 @@ export function ActionPanel({
               />
               {pendingTask === "refund" ? (
                 <PendingBtn
-                  label="Refund pending in mobile app"
+                  label="Confirm refund in mobile app"
                   type="refundEscrowContract"
                   actionId={scenario.contract?.mobileActionRefundWasTriggered}
                 />
               ) : (
                 <SlideToConfirm
+                  key={refundSliderKey}
                   label="Refund Escrow"
                   onConfirm={() => onAction("refund_escrow")}
+                  requiresMobileConfirm
                 />
               )}
             </>
@@ -3325,14 +3340,16 @@ export function ActionPanel({
             </div>
             {pendingTask === "refund" ? (
               <PendingBtn
-                label="Refund signing pending in mobile app"
+                label="Confirm refund in mobile app"
                 type="refundEscrowContract"
                 actionId={scenario.contract?.mobileActionRefundWasTriggered}
               />
             ) : (
               <SlideToConfirm
+                key={refundSliderKey}
                 label="Sign Refund with mobile app"
                 onConfirm={() => onAction("refund_escrow")}
+                requiresMobileConfirm
               />
             )}
           </>

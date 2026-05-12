@@ -353,6 +353,9 @@ export default function TradeExecution() {
   // Bumped to remount the buyer's "I've sent the payment" slider so it
   // returns to its un-slid state when the choice modal is dismissed.
   const [paymentSliderKey, setPaymentSliderKey] = useState(0);
+  // Bumped to remount the refund sliders if the refund API call fails, so the
+  // slider doesn't stay frozen at the right edge in awaiting-mobile state.
+  const [refundSliderKey, setRefundSliderKey] = useState(0);
   // Saved custom payout address loaded from /v069/selfUser (decrypted).
   // undefined = loading, null = none saved, object = { address, bip322Signature, ... }
   const [savedCustomPayout, setSavedCustomPayout] = useState(undefined);
@@ -1949,6 +1952,7 @@ export default function TradeExecution() {
                         scenario={scenario}
                         pendingTask={pendingTaskType}
                         paymentSliderKey={paymentSliderKey}
+                        refundSliderKey={refundSliderKey}
                         onPendingClick={() => {
                           // refund / fund-escrow / confirm-payment / release — inline pending state only, no modal.
                           if (
@@ -2117,6 +2121,7 @@ export default function TradeExecution() {
                               setActionError(
                                 "Failed to request signing: " + e.message,
                               );
+                              setRefundSliderKey((k) => k + 1);
                             }
                           } else if (action === "payment_sent") {
                             setActionError(null);
