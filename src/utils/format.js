@@ -73,3 +73,13 @@ export function truncateAddress(addr, head = 6, tail = 4) {
   if (addr.length <= head + tail + 1) return addr;
   return `${addr.slice(0, head)}\u2026${addr.slice(-tail)}`;
 }
+
+// Canonical PeachID format used in BIP322 sign-messages. Mirrors mobile's
+// getMessageToSignForAddress (peach-app/src/utils/account/) which uses
+// `peach<first 8 lowercase hex>` (PEACH_ID_LENGTH = 8). NOT the display
+// format `formatPeachId` in components/Navbars.jsx, which is uppercase
+// ("PEACH03C292C3") and used only for UI.
+export function getSigningPeachId(rawPubKey) {
+  if (!rawPubKey || typeof rawPubKey !== "string") return "peach00000000";
+  return "peach" + rawPubKey.slice(0, 8).toLowerCase();
+}

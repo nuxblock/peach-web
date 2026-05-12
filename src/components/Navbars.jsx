@@ -359,7 +359,7 @@ export function Topbar({
                   onClick={() => { setShowAvatarMenu(false); navigate("/payment-methods"); }}
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5"/><path d="M1.5 6.5h13"/><path d="M3.5 10.5h2"/></svg>
-                  Payment methods
+                  Payments
                 </button>
                 <button
                   className="avatar-menu-item"

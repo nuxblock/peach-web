@@ -537,10 +537,17 @@ export function validateHolder(raw) {
 
 
 /**
- * BIP322 signature — base64 format check
+ * Bitcoin Signed Message (BIP-137) signature — shape check
  *
- * Full cryptographic verification is server-side.
- * Client-side check: non-empty, valid base64 string.
+ * Despite the legacy "BIP322" name (kept because the encrypted-blob field is
+ * `bip322Signature`, cross-platform with mobile), the actual payload is a
+ * BIP-137 / Bitcoin Signed Message compact recoverable ECDSA signature:
+ *   [ header (1 byte 27..42) | r (32) | s (32) ]  = 65 bytes
+ *   base64 → exactly 88 ASCII chars (one '=' pad)
+ *
+ * Full cryptographic verification is server-side. Client-side check enforces
+ * the precise shape so users can't paste BIP322-simple sigs (which are ~144
+ * chars) or other malformed input.
  */
 const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 
@@ -548,8 +555,24 @@ export function validateBIP322Signature(raw) {
   if (!raw || !raw.trim()) return { valid: false, error: "Signature is required" };
   const clean = raw.trim();
 
-  if (clean.length < 20)        return { valid: false, error: "Signature too short" };
-  if (!BASE64_RE.test(clean))   return { valid: false, error: "Signature must be valid base64" };
+  if (!BASE64_RE.test(clean)) return { valid: false, error: "Signature must be valid base64" };
+  if (clean.length !== 88) {
+    return {
+      valid: false,
+      error:
+        "Signature must be exactly 88 base64 characters (65 bytes). " +
+        "Re-sign using the BIP-137 / Bitcoin Signed Message format.",
+    };
+  }
+
+  let decoded;
+  try { decoded = atob(clean); } catch { return { valid: false, error: "Signature is not valid base64" }; }
+  if (decoded.length !== 65) return { valid: false, error: "Signature must decode to 65 bytes" };
+
+  const header = decoded.charCodeAt(0);
+  if (header < 27 || header > 42) {
+    return { valid: false, error: "Signature header byte is out of range (27..42)" };
+  }
 
   return { valid: true, error: null };
 }

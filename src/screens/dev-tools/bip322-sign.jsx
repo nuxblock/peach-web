@@ -1,22 +1,25 @@
-// ─── DEV TOOLS — BIP322 MESSAGE SIGNER (regtest) ─────────────────────────────
+// ─── DEV TOOLS — BITCOIN MESSAGE SIGNER (BIP-137, regtest) ───────────────────
 // In-app testing utility. Reachable only when both build-time literals are set:
 //   VITE_DEV_TOOLS === "1"
 //   VITE_BITCOIN_NETWORK === "REGTEST"
 // Production (mainnet) builds drop this code entirely.
 //
-// Produces a BIP322-simple signature for a P2WPKH regtest address. The output
-// is meant to be pasted into the existing Custom Payout Address flow at
-// src/screens/settings/screens.jsx (PayoutWalletSubScreen).
+// Produces a BIP-137 / Bitcoin Signed Message signature (the same format the
+// Peach mobile app produces via bitcoinjs-message) for a P2WPKH regtest
+// address. The output is meant to be pasted into the existing Custom Payout
+// Address flow at src/screens/settings/screens.jsx (PayoutWalletSubScreen).
 //
-// Crypto lives in src/utils/bip322.js.
+// Crypto lives in src/utils/bip322.js (filename kept for historical reasons;
+// the underlying format is BIP-137, not BIP-322).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { SideNav, Topbar, formatPeachId } from "../../components/Navbars.jsx";
+import { SideNav, Topbar } from "../../components/Navbars.jsx";
 import { IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
+import { getSigningPeachId } from "../../utils/format.js";
 import {
   deriveAndSign,
   addressFromMnemonic,
@@ -53,7 +56,7 @@ export default function Bip322SignerScreen() {
   // ── Form state ──
   const [mnemonic, setMnemonic] = useState("");
   const [path, setPath] = useState(DEFAULT_PATH);
-  const [peachId, setPeachId] = useState(auth?.peachId ? formatPeachId(auth.peachId) : "");
+  const [peachId, setPeachId] = useState(getSigningPeachId(auth?.peachId));
   const [address, setAddress] = useState("");
   const [message, setMessage] = useState("");
 
@@ -99,6 +102,12 @@ export default function Bip322SignerScreen() {
       return null;
     }
   }, [mnemonic, path]);
+
+  useEffect(() => {
+    if (livePreview?.address) {
+      setAddress(livePreview.address);
+    }
+  }, [livePreview]);
 
   function handleBuildPayoutMessage() {
     if (!peachId || !address) {
@@ -179,10 +188,11 @@ export default function Bip322SignerScreen() {
             <button className="dev-back" onClick={() => navigate("/settings")}>
               ← back to Settings
             </button>
-            <h1 className="dev-title">BIP322 Message Signer</h1>
+            <h1 className="dev-title">Bitcoin Message Signer (BIP-137)</h1>
             <p className="dev-sub">
-              Generate a BIP322 signature for a P2WPKH regtest address. Paste the result into
-              Settings → Custom Payout Address to test the payout-address flow end-to-end.
+              Generate a Bitcoin Signed Message (BIP-137) signature for a P2WPKH regtest address —
+              the same format the Peach mobile app produces. Paste the result into Settings →
+              Custom Payout Address to test the payout-address flow end-to-end.
             </p>
 
             <div className="dev-warn">
@@ -332,7 +342,7 @@ export default function Bip322SignerScreen() {
                 {signature && (
                   <div style={{ marginTop: 12 }}>
                     <div className="dev-label">
-                      Signature (BIP322 simple, base64)
+                      Signature (BIP-137 Bitcoin Signed Message, base64)
                     </div>
                     <div className="dev-sig-box">
                       <textarea

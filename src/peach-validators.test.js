@@ -166,10 +166,20 @@ describe("validatePhone", () => {
 });
 
 // ── validateBIP322Signature ──────────────────────────────────────────────────
+// Field name says BIP322; payload is actually BIP-137 (Bitcoin Signed Message),
+// cross-platform with mobile. Validator enforces the 88-base64-char / 65-byte
+// shape so users can't paste legacy BIP322-simple sigs (~144 chars).
 
 describe("validateBIP322Signature", () => {
-  it("accepts valid base64 string", () => {
-    expect(validateBIP322Signature("SGVsbG8gV29ybGQhIFRlc3Q=").valid).toBe(true);
+  // Real BIP-137 fixture from the mobile app's test suite. Pinned here so
+  // changes to the validator don't accidentally reject mobile-produced sigs.
+  const MOBILE_FIXTURE_SIG =
+    "H2i3dzh/dYWjpsRJmrl1C9ZKMkg1PitsM/zdh7RIQ6PrLTaYa4Wmm0fKRsLAhaDIqwg1C51StxG5JMj3sF6Yqkc=";
+
+  it("accepts a valid 88-char BIP-137 signature", () => {
+    const result = validateBIP322Signature(MOBILE_FIXTURE_SIG);
+    expect(result.valid).toBe(true);
+    expect(result.error).toBe(null);
   });
 
   it("rejects empty", () => {
@@ -182,6 +192,41 @@ describe("validateBIP322Signature", () => {
 
   it("rejects invalid base64 chars", () => {
     expect(validateBIP322Signature("not!valid@base64$$chars").valid).toBe(false);
+  });
+
+  it("rejects a legacy BIP322-simple-shaped signature (~144 chars)", () => {
+    // Realistic length for the old BIP322-simple witness-only base64 output.
+    const bip322Simple =
+      "AkgwRQIhAKWu8tbg/7oZfT/Bq6FG5ksXf6QL4DnGtePuRMwkWqQoAiBw9oDIJbdrNwVVJZsDGvhz7x6E1HR4D/KqiHYTMe9D+wEhAsfxIAMZZEKUPYWI4BruhAQjzFT8FSFSajuFwrDL1Yhy";
+    expect(bip322Simple.length).toBeGreaterThan(88);
+    const result = validateBIP322Signature(bip322Simple);
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/88 base64 characters|BIP-137/);
+  });
+
+  it("rejects an 88-char base64 string whose decoded length isn't 65 bytes", () => {
+    // 88 chars without padding sometimes decodes to a different length. Use a
+    // string of exactly 88 chars with the wrong-shaped padding/end.
+    // "A" * 87 + "=" decodes to 65 bytes (66 - 1 pad) — that's actually 65,
+    // so this would pass length but might fail header. Test with a 64-byte
+    // payload padded to 88 chars: base64 of 66 bytes is 88 chars.
+    const sixtySixBytes = new Array(66).fill(0x20).map(() => "A").join("");
+    // Just craft a string with valid base64 of 66 zero bytes:
+    const wrongDecode = btoa(String.fromCharCode(...new Uint8Array(66)));
+    expect(wrongDecode.length).toBe(88);
+    const result = validateBIP322Signature(wrongDecode);
+    // 66-byte decode → fails the strict 65-byte check (or the header range).
+    expect(result.valid).toBe(false);
+  });
+
+  it("rejects a 65-byte signature with an out-of-range header byte", () => {
+    const bytes = new Uint8Array(65);
+    bytes[0] = 50; // out of valid 27..42 range
+    const b64 = btoa(String.fromCharCode(...bytes));
+    expect(b64.length).toBe(88);
+    const result = validateBIP322Signature(b64);
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/header byte/);
   });
 });
 

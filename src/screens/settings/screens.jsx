@@ -25,7 +25,7 @@ import {
   CopyBtn, PrimaryBtn, OutlineBtn, FieldError, makeBlurHandler,
 } from "./components.jsx";
 import PeachRating from "../../components/PeachRating.jsx";
-import { toPeaches } from "../../utils/format.js";
+import { toPeaches, getSigningPeachId } from "../../utils/format.js";
 import InfoPopup, { InfoDot } from "../../components/InfoPopup.jsx";
 
 // ── ProfileSubScreen ─────────────────────────────────────────────────────────
@@ -718,7 +718,7 @@ export function PayoutWalletSubScreen({ onBack }) {
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const handleBlur = makeBlurHandler(setErrors);
-  const peachId = auth?.peachId ?? "peach03cf9e9a";
+  const peachId = getSigningPeachId(auth?.peachId);
   const signMessage = `I confirm that only I, ${peachId}, control the address ${address}`;
 
   // Load existing encrypted payout address from /v069/selfUser on mount.
