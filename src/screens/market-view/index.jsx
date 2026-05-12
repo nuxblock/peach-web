@@ -1679,7 +1679,7 @@ export default function PeachMarket() {
             </button>
             <div className="cta-wrap">
               {isLoggedIn
-                ? <button className="cta-btn" onClick={() => navigate("/offer/new")}>+ Create Offer</button>
+                ? <button className="cta-btn" onClick={() => navigate(isSellTab ? "/offer/new?type=sell" : "/offer/new")}>+ Create Offer</button>
                 : <button className="cta-btn-disabled">+ Create Offer</button>
               }
               <span className="how-to-start">How to start</span>

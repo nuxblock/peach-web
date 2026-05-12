@@ -3,7 +3,7 @@
 // Sub-components in: ./components.jsx, CSS in: ./styles.js
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -96,7 +96,9 @@ function readPersistedPMSelection() {
 // ─── MAIN ───────────────────────────────────────────────────────────────────
 export default function OfferCreation({ initialType="buy" }) {
   const navigate = useNavigate();
-  const [type,         setType]         = useState(initialType);
+  const [searchParams] = useSearchParams();
+  const typeFromUrl = searchParams.get("type") === "sell" ? "sell" : initialType;
+  const [type,         setType]         = useState(typeFromUrl);
   const [step,         setStep]         = useState(0);
   const [allPrices,           setAllPrices]           = useState(null);
   const [availableCurrencies, setAvailableCurrencies] = useState(["EUR","CHF","GBP"]);
