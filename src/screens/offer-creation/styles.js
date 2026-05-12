@@ -123,6 +123,12 @@ export const CSS = `
   .section-title{font-size:1.1rem;font-weight:800;color:var(--black)}
   .section-done{font-size:.7rem;font-weight:700;color:var(--success);
     background:var(--success-bg);padding:2px 8px;border-radius:999px;margin-left:auto}
+  .section-header.collapsible{cursor:pointer;justify-content:space-between;
+    margin-bottom:0;user-select:none}
+  .section-header.collapsible.expanded{margin-bottom:16px}
+  .section-header .chev{margin-left:auto;color:var(--black-50);
+    transition:transform .15s ease;flex-shrink:0}
+  .section-header .chev.open{transform:rotate(90deg)}
 
   /* Inputs */
   .field-label{font-size:.7rem;font-weight:700;text-transform:uppercase;

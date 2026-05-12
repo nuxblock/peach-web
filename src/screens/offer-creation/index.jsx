@@ -234,6 +234,7 @@ export default function OfferCreation({ initialType="buy" }) {
   const [form, setForm] = useState(()=>initForm(readPersistedPMSelection()));
   const [refundErrors, setRefundErrors] = useState({});
   const [refundExpanded, setRefundExpanded] = useState(false);
+  const [advancedExpanded, setAdvancedExpanded] = useState(false);
   const [savedRefund, setSavedRefund] = useState(null); // { address, label } or null
   const userTouchedRefundRef = useRef(false);
 
@@ -1394,13 +1395,35 @@ export default function OfferCreation({ initialType="buy" }) {
                 )}
               </div>
 
-              {/* §4 Attributes */}
+              {/* §4 Advanced options */}
               <div className="card-section">
-                <div className="section-header">
+                <div
+                  className={`section-header collapsible${advancedExpanded ? " expanded" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={advancedExpanded}
+                  onClick={() => setAdvancedExpanded(v => !v)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setAdvancedExpanded(v => !v);
+                    }
+                  }}
+                >
                   <div className="section-num filled">4</div>
-                  <span className="section-title">Attributes</span>
+                  <span className="section-title">Advanced options</span>
+                  <svg
+                    className={`chev${advancedExpanded ? " open" : ""}`}
+                    width="10"
+                    height="10"
+                    viewBox="0 0 10 10"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 1l4 4-4 4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </div>
 
+                {advancedExpanded && (<>
                 {/* ── INSTANT MATCH TOGGLE ── */}
                 <div className="check-row" style={{marginTop:0}}
                   onClick={()=>setForm(f=>({...f, instantMatch:!f.instantMatch,
@@ -1513,6 +1536,7 @@ export default function OfferCreation({ initialType="buy" }) {
                   onCountChange={setMultiCount}
                   onInfoClick={() => setOpenInfo("multi")}
                 />
+                </>)}
               </div>
 
               {/* §5 Refund (sell only) */}

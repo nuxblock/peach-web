@@ -1235,7 +1235,7 @@ export default function MatchesPopup({
                     <span className="offer-detail-value">{statusLabel}</span>
                   </div>
                   <div className="offer-detail-row">
-                    <span className="offer-detail-label">Attributes</span>
+                    <span className="offer-detail-label">Advanced options</span>
                     {attrChips.length === 0 ? (
                       <span
                         className="offer-detail-value"
