@@ -247,8 +247,8 @@ const CSS = `
   .chat-send-btn:hover:not(:disabled){transform:scale(1.07)}
 
   /* ── Direction badge ── */
-  .dir-buy{background:var(--success-bg);color:var(--success);border-radius:999px;padding:3px 16px;font-size:1.12rem;font-weight:800}
-  .dir-sell{background:var(--error-bg);color:var(--error);border-radius:999px;padding:3px 16px;font-size:1.12rem;font-weight:800}
+  .dir-buy{background:var(--success-bg);color:var(--success);border-radius:999px;padding:5px 14px;font-size:.8rem;font-weight:800}
+  .dir-sell{background:var(--error-bg);color:var(--error);border-radius:999px;padding:5px 14px;font-size:.8rem;font-weight:800}
 
   /* ── Badge ── */
   .badge-supertrader{background:var(--grad);color:white;border-radius:999px;padding:1px 7px;font-size:.68rem;font-weight:700}
