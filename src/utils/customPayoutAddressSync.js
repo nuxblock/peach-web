@@ -118,3 +118,24 @@ export async function extractCustomPayoutAddressFromProfile(profile, armoredPriv
     return null;
   }
 }
+
+// Fetch /v069/selfUser and decrypt the encryptedCustomPayoutAddress field.
+// Returns { address, label, confirmationPhrase, bip322Signature } or null
+// (not saved / no auth / fetch or decrypt failure). One canonical path,
+// shared by Settings (initial load) and trade-execution (toggle + submission).
+export async function fetchSavedCustomPayoutAddress(auth) {
+  if (!auth?.token || !auth?.pgpPrivKey || !auth?.baseUrl) return null;
+  try {
+    const v069Base = auth.baseUrl.replace(/\/v1$/, "/v069");
+    const res = await fetchWithSessionCheck(`${v069Base}/selfUser`, {
+      headers: { Authorization: `Bearer ${auth.token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const profile = data.user ?? data;
+    return await extractCustomPayoutAddressFromProfile(profile, auth.pgpPrivKey);
+  } catch (err) {
+    console.warn("[PayoutAddress Sync] fetchSavedCustomPayoutAddress failed:", err.message);
+    return null;
+  }
+}

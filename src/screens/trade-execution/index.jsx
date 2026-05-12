@@ -25,6 +25,7 @@ import {
   toPeaches,
 } from "../../utils/format.js";
 import { deriveEscrowPubKey, deriveReturnAddress } from "../../utils/escrow.js";
+import { fetchSavedCustomPayoutAddress } from "../../utils/customPayoutAddressSync.js";
 import { deriveDisplayStatus } from "../../data/statusConfig.js";
 import Avatar from "../../components/Avatar.jsx";
 import StatusChip from "../../components/StatusChip.jsx";
@@ -352,14 +353,34 @@ export default function TradeExecution() {
   // Bumped to remount the buyer's "I've sent the payment" slider so it
   // returns to its un-slid state when the choice modal is dismissed.
   const [paymentSliderKey, setPaymentSliderKey] = useState(0);
-  // Buyer toggle: receive to custom address. Default ON when the user has
-  // a payoutAddress saved in Settings, OFF otherwise. Ephemeral per-trade.
-  const [useCustomPayout, setUseCustomPayout] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      !!window.__PEACH_AUTH__?.profile?.payoutAddress,
-  );
+  // Saved custom payout address loaded from /v069/selfUser (decrypted).
+  // undefined = loading, null = none saved, object = { address, bip322Signature, ... }
+  const [savedCustomPayout, setSavedCustomPayout] = useState(undefined);
+  // Buyer toggle: receive to custom address. Default ON once we discover the
+  // user has a saved address (see effect below). Ephemeral per-trade.
+  const [useCustomPayout, setUseCustomPayout] = useState(false);
   const [showSetupPayoutPopup, setShowSetupPayoutPopup] = useState(false);
+
+  // Load the buyer's saved custom payout address from /v069/selfUser once
+  // on mount (canonical source: PGP-encrypted blob, same as Settings reads).
+  useEffect(() => {
+    if (!auth?.token || !auth?.pgpPrivKey) {
+      setSavedCustomPayout(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const saved = await fetchSavedCustomPayoutAddress(auth);
+      if (!cancelled) setSavedCustomPayout(saved);
+    })();
+    return () => { cancelled = true; };
+  }, [auth?.token, auth?.pgpPrivKey, auth?.baseUrl]);
+
+  // Default the toggle ON once we discover an address is saved. Fires once
+  // per load; the user can still flip it off afterwards.
+  useEffect(() => {
+    if (savedCustomPayout?.address) setUseCustomPayout(true);
+  }, [savedCustomPayout]);
 
   // Re-fetch the contract and merge the mobileAction* pending-action ids into
   // liveContract so the deep-link button picks up the new id immediately
@@ -1908,9 +1929,7 @@ export default function TradeExecution() {
                         <BuyerGroupHugDisplay />
                         <BuyerCustomAddressToggle
                           isOn={useCustomPayout}
-                          hasSavedAddress={
-                            !!window.__PEACH_AUTH__?.profile?.payoutAddress
-                          }
+                          hasSavedAddress={!!savedCustomPayout?.address}
                           onToggle={() => setUseCustomPayout((v) => !v)}
                           onRequestSetup={() => setShowSetupPayoutPopup(true)}
                         />
@@ -2123,31 +2142,20 @@ export default function TradeExecution() {
                               }
                               // (2) No release address on contract — if the
                               // buyer has the "receive to custom address"
-                              // toggle ON, fetch their saved payout address
-                              // and open the choice modal as a final
-                              // confirmation step. Toggle OFF skips this and
-                              // falls through to the mobile-signing path.
-                              if (useCustomPayout) {
-                                let savedPayout = null;
-                                try {
-                                  const meRes = await get("/user/me");
-                                  if (meRes.ok) {
-                                    const me = await meRes.json();
-                                    if (
-                                      me?.payoutAddress &&
-                                      me?.payoutAddressSignature
-                                    ) {
-                                      savedPayout = {
-                                        address: me.payoutAddress,
-                                        signature: me.payoutAddressSignature,
-                                      };
-                                    }
-                                  }
-                                } catch {}
-                                if (savedPayout) {
-                                  setPayoutChoice(savedPayout);
-                                  return;
-                                }
+                              // toggle ON and a saved address is loaded, open
+                              // the choice modal as a final confirmation
+                              // step. Toggle OFF (or no saved address) skips
+                              // this and falls through to the mobile-signing path.
+                              if (
+                                useCustomPayout &&
+                                savedCustomPayout?.address &&
+                                savedCustomPayout?.bip322Signature
+                              ) {
+                                setPayoutChoice({
+                                  address: savedCustomPayout.address,
+                                  signature: savedCustomPayout.bip322Signature,
+                                });
+                                return;
                               }
                               // (3) Fallback: original mobile-action flow.
                               const res = await post(

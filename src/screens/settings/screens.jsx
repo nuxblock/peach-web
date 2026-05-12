@@ -15,6 +15,7 @@ import {
 import {
   syncCustomPayoutAddressToServer,
   extractCustomPayoutAddressFromProfile,
+  fetchSavedCustomPayoutAddress,
 } from "../../utils/customPayoutAddressSync.js";
 import { validateBtcAddress, validateBIP322Signature, validateFeeRate } from "../../peach-validators.js";
 import { BITCOIN_NETWORK } from "../../utils/network.js";
@@ -725,24 +726,13 @@ export function PayoutWalletSubScreen({ onBack }) {
     if (!auth?.token || !auth?.pgpPrivKey) return;
     let cancelled = false;
     (async () => {
-      try {
-        const v069Base = auth.baseUrl.replace(/\/v1$/, "/v069");
-        const res = await fetchWithSessionCheck(`${v069Base}/selfUser`, {
-          headers: { Authorization: `Bearer ${auth.token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        const profile = data.user ?? data;
-        const saved = await extractCustomPayoutAddressFromProfile(profile, auth.pgpPrivKey);
-        if (cancelled || !saved) return;
-        if (saved.label)            setLabel(saved.label);
-        if (saved.address)          setAddress(saved.address);
-        if (saved.bip322Signature)  setSignature(saved.bip322Signature);
-        if (saved.address && validateBtcAddress(saved.address, btcNetwork).valid) {
-          setAddressSet(true);
-        }
-      } catch (err) {
-        console.warn("[PayoutAddress] Failed to load:", err.message);
+      const saved = await fetchSavedCustomPayoutAddress(auth);
+      if (cancelled || !saved) return;
+      if (saved.label)            setLabel(saved.label);
+      if (saved.address)          setAddress(saved.address);
+      if (saved.bip322Signature)  setSignature(saved.bip322Signature);
+      if (saved.address && validateBtcAddress(saved.address, btcNetwork).valid) {
+        setAddressSet(true);
       }
     })();
     return () => { cancelled = true; };
