@@ -926,6 +926,49 @@ export function CollapsibleAddressSection({
   );
 }
 
+// ─── GENERIC COLLAPSIBLE SECTION (title + chevron + children) ────────────────
+export function CollapsibleSection({ title, defaultOpen = false, children }) {
+  const [expanded, setExpanded] = useState(defaultOpen);
+  return (
+    <div className="panel-section">
+      <button
+        type="button"
+        className="panel-section-title"
+        onClick={() => setExpanded((v) => !v)}
+        style={{
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          width: "100%",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          color: "inherit",
+        }}
+      >
+        {title}
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            marginLeft: "auto",
+            transition: "transform .15s",
+            transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+          }}
+        >
+          <path d="M3 1l4 4-4 4" />
+        </svg>
+      </button>
+      {expanded && children}
+    </div>
+  );
+}
+
 // ─── DISPUTE FLOW ────────────────────────────────────────────────────────────
 const DISPUTE_REASONS_BUYER = [
   { key: "noPayment.buyer", label: "I HAVEN'T RECEIVED BITCOIN" },

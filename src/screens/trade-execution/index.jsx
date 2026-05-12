@@ -36,6 +36,7 @@ import {
   HorizontalStepper,
   PaymentDetailsCard,
   CollapsibleAddressSection,
+  CollapsibleSection,
   EscrowFundingCard,
   FundingDeadlinePill,
   WrongAmountFundedCard,
@@ -155,11 +156,16 @@ const CSS = `
   /* ── Trade summary ── */
   .trade-summary{
     background:var(--surface);border:1px solid var(--black-10);border-radius:12px;
-    padding:14px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  .summary-item-label{font-size:.68rem;font-weight:700;text-transform:uppercase;
-    letter-spacing:.05em;color:var(--black-65);margin-bottom:2px}
-  .summary-item-val{font-size:.9rem;font-weight:700}
-  .summary-item-sub{font-size:.72rem;color:var(--black-65);margin-top:1px}
+    padding:14px;margin-bottom:20px;display:grid;grid-template-columns:auto 1fr;
+    row-gap:12px;column-gap:16px;align-items:center}
+  .summary-item-label{font-size:.72rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.05em;color:var(--black-65)}
+  .summary-item-val{font-size:.95rem;font-weight:700;justify-self:end;text-align:right}
+  .summary-item-sub{font-size:.72rem;color:var(--black-65);margin-top:1px;justify-self:end}
+  .summary-partner{display:flex;flex-direction:column;align-items:flex-end;gap:4px;justify-self:end}
+  .summary-partner-name{font-size:.95rem;font-weight:700}
+  .summary-partner-meta{font-size:.75rem;color:var(--black-65);display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  .summary-partner-badges{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 
   /* ── Action panel ── */
   .action-panel{display:flex;flex-direction:column;gap:10px}
@@ -241,8 +247,8 @@ const CSS = `
   .chat-send-btn:hover:not(:disabled){transform:scale(1.07)}
 
   /* ── Direction badge ── */
-  .dir-buy{background:var(--success-bg);color:var(--success);border-radius:999px;padding:2px 10px;font-size:.7rem;font-weight:800}
-  .dir-sell{background:var(--error-bg);color:var(--error);border-radius:999px;padding:2px 10px;font-size:.7rem;font-weight:800}
+  .dir-buy{background:var(--success-bg);color:var(--success);border-radius:999px;padding:3px 16px;font-size:1.12rem;font-weight:800}
+  .dir-sell{background:var(--error-bg);color:var(--error);border-radius:999px;padding:3px 16px;font-size:1.12rem;font-weight:800}
 
   /* ── Badge ── */
   .badge-supertrader{background:var(--grad);color:white;border-radius:999px;padding:1px 7px;font-size:.68rem;font-weight:700}
@@ -1112,15 +1118,16 @@ export default function TradeExecution() {
     }
   }
 
-  // Premium color (perspective-aware)
-  const premColor =
-    role === "buyer"
-      ? contract.premium < 0
-        ? "var(--success)"
-        : "var(--error)"
-      : contract.premium > 0
-        ? "var(--success)"
-        : "var(--error)";
+  // Premium color: grey within 0..9% (both sides); outside that band, perspective-aware
+  const premColor = (() => {
+    const p = contract.premium;
+    if (p >= 0 && p <= 9) return "var(--black-65)";
+    if (role === "buyer") {
+      return p < 0 ? "var(--success)" : "var(--error)";
+    }
+    // seller
+    return p < 0 ? "var(--error)" : "var(--success)";
+  })();
 
   const unreadCount = liveContract?.unreadMessages ?? 0;
 
@@ -1316,63 +1323,139 @@ export default function TradeExecution() {
                   </div>
                 </div>
 
-                {/* Trade amounts — no deadline here anymore */}
+                {/* Info card — rows label-left / value-right */}
                 <div className="trade-summary">
-                  <div>
-                    <div className="summary-item-label">Amount</div>
-                    <div className="summary-item-val">
-                      <SatsAmount sats={contract.amount} size="lg" />
-                    </div>
+                  {/* Row 1: you are buying / you are selling — sats */}
+                  <div className="summary-item-label">
+                    You are {role === "buyer" ? "buying" : "selling"}
                   </div>
-                  <div>
-                    <div className="summary-item-label">
-                      You {role === "buyer" ? "pay" : "receive"}
-                    </div>
-                    <div
-                      className="summary-item-val"
-                      style={{ fontSize: "1.2rem", fontWeight: 800 }}
-                    >
-                      {contract.currency === "CHF" ? "CHF " : "€"}
-                      {contract.fiat}
-                    </div>
-                    <div className="summary-item-sub">{contract.currency}</div>
+                  <div className="summary-item-val">
+                    <SatsAmount sats={contract.amount} size="lg" />
                   </div>
-                  <div>
-                    <div className="summary-item-label">Premium</div>
-                    <div
-                      className="summary-item-val"
-                      style={{ color: premColor }}
+
+                  {/* Row 2: you pay / you receive — fiat */}
+                  <div className="summary-item-label">
+                    You {role === "buyer" ? "pay" : "receive"}
+                  </div>
+                  <div
+                    className="summary-item-val"
+                    style={{ fontSize: "1.05rem" }}
+                  >
+                    {contract.currency === "CHF" ? "CHF " : "€"}
+                    {contract.fiat}{" "}
+                    <span
+                      style={{
+                        fontSize: ".72rem",
+                        fontWeight: 600,
+                        color: "var(--black-65)",
+                      }}
                     >
+                      {contract.currency}
+                    </span>
+                  </div>
+
+                  {/* Row 3: effective price — premium % (colored) + price */}
+                  <div className="summary-item-label">Effective price</div>
+                  <div
+                    className="summary-item-val"
+                    style={{
+                      display: "flex",
+                      alignItems: "baseline",
+                      gap: 10,
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <span style={{ color: premColor }}>
                       {contract.premium > 0 ? "+" : ""}
                       {contract.premium.toFixed(1)}%
-                    </div>
-                  </div>
-                  <div>
-                    <div className="summary-item-label">Effective price</div>
-                    <div className="summary-item-val">
+                    </span>
+                    <span>
                       {contract.fiat != null && contract.amount > 0 ? (
                         <>
                           {contract.currency === "CHF" ? "CHF " : "€"}
                           {Math.round(
                             (Number(contract.fiat) / contract.amount) *
-                              100_000_000
+                              100_000_000,
                           ).toLocaleString("fr-FR")}
                         </>
                       ) : (
                         "—"
                       )}
-                    </div>
+                    </span>
                   </div>
-                  <div>
-                    <div className="summary-item-label">Method</div>
-                    <div
-                      className="summary-item-val"
-                      style={{ display: "flex", alignItems: "center", gap: 6 }}
-                    >
-                      <span className="tag-method">{contract.method}</span>
-                    </div>
+
+                  {/* Row 4: method */}
+                  <div className="summary-item-label">Method</div>
+                  <div
+                    className="summary-item-val"
+                    style={{ display: "flex", justifyContent: "flex-end" }}
+                  >
+                    <span className="tag-method">{contract.method}</span>
                   </div>
                 </div>
+
+                {/* Payment details (buyer sees seller's payment info, or vice versa) — moved ABOVE the Actions panel so a buyer about to confirm can read the seller's IBAN without scrolling past the slider. Hidden after cancellation and hidden from buyer until escrow is funded. */}
+                {paymentDetails &&
+                  ![
+                    "tradeCanceled",
+                    "confirmCancelation",
+                    "refundOrReviveRequired",
+                  ].includes(status) &&
+                  ![
+                    "createEscrow",
+                    "fundEscrow",
+                    "waitingForFunding",
+                    "escrowWaitingForConfirmation",
+                  ].includes(status) && (
+                    <>
+                      <div className="panel-section">
+                        <div className="panel-section-title">
+                          {role === "seller" ? "Buyer" : "Seller"} Payment Details
+                        </div>
+                        {status === "paymentRequired" && role === "buyer" && (
+                          <p
+                            style={{
+                              fontSize: ".83rem",
+                              color: "var(--black-65)",
+                              marginBottom: 10,
+                            }}
+                          >
+                            Send the exact fiat amount to the payment details
+                            below, then confirm using the slider.
+                          </p>
+                        )}
+                        {status !== "tradeCompleted" && (
+                          <p
+                            style={{
+                              fontSize: ".83rem",
+                              color: "var(--error)",
+                              fontWeight: 600,
+                              marginBottom: 10,
+                            }}
+                          >
+                            {role === "buyer"
+                              ? "Make sure to include the reference with your payment"
+                              : "Please, ensure that the origin of the payment matches with the payment data provided by your counterparty."}
+                          </p>
+                        )}
+                        <PaymentDetailsCard
+                          details={paymentDetails}
+                          compact={status === "tradeCompleted"}
+                        />
+                      </div>
+                      {ownPaymentDetails && (
+                        <CollapsibleSection
+                          title="Your Payment Details"
+                          defaultOpen={false}
+                        >
+                          <PaymentDetailsCard
+                            details={ownPaymentDetails}
+                            compact={status === "tradeCompleted"}
+                          />
+                        </CollapsibleSection>
+                      )}
+                    </>
+                  )}
 
                 {/* ── Actions (always first, includes deadline + escrow funding) ── */}
                 <div className="panel-section">
@@ -2208,70 +2291,6 @@ export default function TradeExecution() {
                     />
                   )}
                 </div>
-
-                {/* Payment details (buyer sees seller's payment info, or vice versa) — hidden after cancellation, and hidden from buyer until escrow is funded */}
-                {paymentDetails &&
-                  ![
-                    "tradeCanceled",
-                    "confirmCancelation",
-                    "refundOrReviveRequired",
-                  ].includes(status) &&
-                  ![
-                    "createEscrow",
-                    "fundEscrow",
-                    "waitingForFunding",
-                    "escrowWaitingForConfirmation",
-                  ].includes(status) && (
-                    <div className="panel-section">
-                      <div className="panel-section-title">
-                        {role === "seller" ? "Buyer" : "Seller"} Payment Details
-                      </div>
-                      {status === "paymentRequired" && role === "buyer" && (
-                        <p
-                          style={{
-                            fontSize: ".83rem",
-                            color: "var(--black-65)",
-                            marginBottom: 10,
-                          }}
-                        >
-                          Send the exact fiat amount to the payment details
-                          below, then confirm using the slider.
-                        </p>
-                      )}
-                      {status !== "tradeCompleted" && (
-                        <p
-                          style={{
-                            fontSize: ".83rem",
-                            color: "var(--error)",
-                            fontWeight: 600,
-                            marginBottom: 10,
-                          }}
-                        >
-                          {role === "buyer"
-                            ? "Make sure to include the reference with your payment"
-                            : "Please, ensure that the origin of the payment matches with the payment data provided by your counterparty."}
-                        </p>
-                      )}
-                      <PaymentDetailsCard
-                        details={paymentDetails}
-                        compact={status === "tradeCompleted"}
-                      />
-                      {ownPaymentDetails && (
-                        <>
-                          <div
-                            className="panel-section-title"
-                            style={{ marginTop: 16 }}
-                          >
-                            Your Payment Details
-                          </div>
-                          <PaymentDetailsCard
-                            details={ownPaymentDetails}
-                            compact={status === "tradeCompleted"}
-                          />
-                        </>
-                      )}
-                    </div>
-                  )}
 
                 {/* Payment details decryption failed — fallback message (hidden after cancellation, and hidden from buyer until escrow is funded) */}
                 {!paymentDetails &&
