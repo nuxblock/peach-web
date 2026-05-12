@@ -121,7 +121,7 @@ function loadBaseline(peachId) {
       offers:           new Map(obj.offers           ?? []),
       sellRequests:     new Map((obj.sellRequests    ?? []).map(([id, ids]) => [id, new Set(ids)])),
       matchCounts:      new Map(obj.matchCounts      ?? []),
-      preContractChats: new Map((obj.preContractChats ?? []).map(([key, ids]) => [key, new Set(ids)])),
+      offerUnread:      new Map(obj.offerUnread       ?? []),
       sentRequests:     new Map(obj.sentRequests     ?? []),
     };
   } catch { return null; }
@@ -135,7 +135,7 @@ function saveBaseline() {
       offers:           [..._prevOffers.entries()],
       sellRequests:     [..._prevSellRequests.entries()].map(([id, set]) => [id, [...set]]),
       matchCounts:      [..._prevMatchCounts.entries()],
-      preContractChats: [..._prevPreContractChats.entries()].map(([key, set]) => [key, [...set]]),
+      offerUnread:      [..._prevOfferUnread.entries()],
       sentRequests:     [..._prevSentRequests.entries()],
     };
     localStorage.setItem(k, JSON.stringify(obj));
@@ -150,7 +150,7 @@ let _prevContracts = new Map();   // id → { tradeStatus, unreadMessages }
 let _prevOffers    = new Map();   // id → tradeStatus
 let _prevSellRequests = new Map(); // sellOfferId → Set<tradeRequestId> (sell-offer trade-requests workaround for missing tradeStatus)
 let _prevMatchCounts = new Map();  // buyOfferId → totalMatches (track additional matches arriving on hasMatchesAvailable offers)
-let _prevPreContractChats = new Map(); // chatKey "offerType:offerId:userId" → Set<String(messageId)> (pre-contract chat diff)
+let _prevOfferUnread = new Map();  // offerId → boolean; sourced from offer.containsUnreadMessages
 let _prevSentRequests = new Map(); // offerId → offerType ("buyOffer" | "sellOffer") — outbound trade requests, used to detect rejection by offer owner
 let _pollTick      = 0;            // incremented every poll; chat layer runs only on even ticks (~16s cadence)
 let _isFirstPoll   = true;
@@ -176,7 +176,7 @@ function _hydrateForUser(peachId) {
     _prevOffers           = baseline.offers;
     _prevSellRequests     = baseline.sellRequests;
     _prevMatchCounts      = baseline.matchCounts;
-    _prevPreContractChats = baseline.preContractChats;
+    _prevOfferUnread      = baseline.offerUnread ?? new Map();
     _prevSentRequests     = baseline.sentRequests;
     _isFirstPoll          = false;
   } else {
@@ -184,7 +184,7 @@ function _hydrateForUser(peachId) {
     _prevOffers           = new Map();
     _prevSellRequests     = new Map();
     _prevMatchCounts      = new Map();
-    _prevPreContractChats = new Map();
+    _prevOfferUnread      = new Map();
     _prevSentRequests     = new Map();
     _isFirstPoll          = true;
   }
@@ -321,6 +321,7 @@ async function _poll(auth, base) {
       }
       for (const o of allOffers) {
         _prevOffers.set(o.id, o.tradeStatus ?? o.tradeStatusNew ?? "");
+        _prevOfferUnread.set(o.id, o.containsUnreadMessages === true);
       }
       saveBaseline();
       _notify();
@@ -400,6 +401,24 @@ async function _poll(auth, base) {
       }
 
       _prevOffers.set(o.id, status);
+    }
+
+    // ── Diff per-offer unread chat flag (replaces per-chat polling) ──
+    for (const o of allOffers) {
+      const curr = o.containsUnreadMessages === true;
+      const prev = _prevOfferUnread.get(o.id) ?? false;
+      if (curr && !prev) {
+        events.push(_makeNotif(
+          `o-${o.id}-msg-${now}`, "message",
+          "New message", "", null, o.id
+        ));
+      }
+      _prevOfferUnread.set(o.id, curr);
+    }
+    // Prune _prevOfferUnread for offers no longer present
+    const currentOfferIds = new Set(allOffers.map(o => o.id));
+    for (const id of [..._prevOfferUnread.keys()]) {
+      if (!currentOfferIds.has(id)) _prevOfferUnread.delete(id);
     }
 
     // ── Diff sell-offer trade requests (workaround: sell offers lack tradeStatus) ──
@@ -527,75 +546,6 @@ async function _poll(auth, base) {
         }
 
         _prevSentRequests = currentSent;
-      }
-    }
-
-    // ── Diff pre-contract chats (every 2nd tick ≈ 16s) ──
-    if (_pollTick % 2 === 0) {
-      // Build chat references from sell-offer trade requests (reuse Fix #3 data)
-      const chatRefs = [];
-      for (const { offerId, data } of trReqResults) {
-        if (!Array.isArray(data)) continue;
-        for (const tr of data) {
-          if (tr.userId) chatRefs.push({ offerType: "sellOffer", offerId, userId: tr.userId });
-        }
-      }
-      // Buy-offer trade-request lists (only offers in acceptTradeRequest state)
-      const buyOffersWithRequests = buyOffers.filter(o => o.tradeStatus === "acceptTradeRequest");
-      const buyTrResults = await Promise.all(
-        buyOffersWithRequests.map(o =>
-          fetchWithSessionCheck(`${v069Base}/buyOffer/${o.id}/tradeRequestReceived/`, { headers: hdrs })
-            .then(r => r.ok ? r.json() : null)
-            .catch(() => null)
-            .then(data => ({ offerId: String(o.id), data }))
-        )
-      );
-      for (const { offerId, data } of buyTrResults) {
-        const arr = Array.isArray(data) ? data : (data?.tradeRequests ?? []);
-        for (const tr of arr) {
-          if (tr.userId) chatRefs.push({ offerType: "buyOffer", offerId, userId: tr.userId });
-        }
-      }
-
-      // Fetch each pre-contract chat in parallel
-      const chatResults = await Promise.all(
-        chatRefs.map(ref =>
-          fetchWithSessionCheck(`${v069Base}/${ref.offerType}/${ref.offerId}/tradeRequestReceived/${ref.userId}/chat`, { headers: hdrs })
-            .then(r => r.ok ? r.json() : null)
-            .catch(() => null)
-            .then(data => ({ ref, data }))
-        )
-      );
-
-      for (const { ref, data } of chatResults) {
-        const msgs = Array.isArray(data) ? data : (data?.messages ?? data?.data ?? []);
-        if (!Array.isArray(msgs)) continue;
-        const theirMsgs = msgs.filter(m => m.sender === "tradeRequester");
-        const currentIds = new Set(theirMsgs.map(m => String(m.id)));
-        const chatKey = `${ref.offerType}:${ref.offerId}:${ref.userId}`;
-        const prevIds = _prevPreContractChats.get(chatKey);
-        if (prevIds === undefined) {
-          // First time seeing this chat — baseline only, no notification
-          _prevPreContractChats.set(chatKey, currentIds);
-          continue;
-        }
-        const newIds = [...currentIds].filter(id => !prevIds.has(id));
-        if (newIds.length > 0) {
-          const title = newIds.length === 1
-            ? "New message"
-            : `${newIds.length} new messages`;
-          events.push(_makeNotif(
-            `chat-${ref.offerType}-${ref.offerId}-${ref.userId}-${now}`, "message",
-            title, "", null, ref.offerId
-          ));
-        }
-        _prevPreContractChats.set(chatKey, currentIds);
-      }
-
-      // Prune _prevPreContractChats for chats no longer present
-      const currentChatKeys = new Set(chatRefs.map(r => `${r.offerType}:${r.offerId}:${r.userId}`));
-      for (const key of [..._prevPreContractChats.keys()]) {
-        if (!currentChatKeys.has(key)) _prevPreContractChats.delete(key);
       }
     }
 
