@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { clearCache } from "./useApi.js";
+import { invalidateUserPMs } from "./useUserPMs.js";
+import { resetSessionExpiredFlag } from "../utils/sessionGuard.js";
 
 export function useAuth() {
   const auth = window.__PEACH_AUTH__ ?? null;
@@ -19,6 +21,8 @@ export function useAuth() {
 
   const handleLogout = () => {
     clearCache();
+    invalidateUserPMs();
+    resetSessionExpiredFlag();
     window.__PEACH_AUTH__ = null;
     setIsLoggedIn(false);
     setShowAvatarMenu(false);

@@ -4,9 +4,10 @@ import { SideNav, Topbar, CurrencyDropdown, formatPeachId } from "../../componen
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
+import { useUserPMs } from "../../hooks/useUserPMs.js";
 import { markSentRequestCreated } from "../../hooks/useNotifications.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
-import { extractPMsFromProfile, isApiError, generateSymmetricKey, encryptForRecipients, encryptSymmetric, encryptForPublicKey, signPGPMessage, hashPaymentFields } from "../../utils/pgp.js";
+import { isApiError, generateSymmetricKey, encryptForRecipients, encryptSymmetric, encryptForPublicKey, signPGPMessage, hashPaymentFields } from "../../utils/pgp.js";
 import { getCached, setCache, clearCache } from "../../hooks/useApi.js";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat, formatTradeId, toPeaches } from "../../utils/format.js";
 import PeachRating from "../../components/PeachRating.jsx";
@@ -58,8 +59,8 @@ export default function PeachMarket() {
   // ── AUTH + API ──
   const { get, post, patch, auth } = useApi();
   const [liveOffers,   setLiveOffers]   = useState(() => getCached("market-offers")?.data ?? null);
-  const [liveUserPMs,  setLiveUserPMs]  = useState(null); // null = not yet loaded
-  const [pmError,      setPmError]      = useState(false);
+  const { pms: pmsRaw, error: pmFetchError } = useUserPMs(auth);
+  const pmError = !!pmFetchError;
   const [offersLoading, setOffersLoading] = useState(() => !!auth && !getCached("market-offers"));
   const [isRefetching, setIsRefetching] = useState(false);
   const [pmCatalogue,  setPmCatalogue]  = useState(() => getCached("pm-catalogue")?.data ?? null);
@@ -744,7 +745,7 @@ export default function PeachMarket() {
     fetchMarket();
   }
 
-  // ── LIVE MARKET OFFERS + USER PMs ──
+  // ── LIVE MARKET OFFERS POLL ──
   useEffect(() => {
     fetchMarket();
     // Poll every 30s. Mainnet has hundreds of offers; a 10s poll was costly
@@ -755,59 +756,6 @@ export default function PeachMarket() {
       if (document.visibilityState === "visible") fetchMarket();
     }
     document.addEventListener("visibilitychange", onVisible);
-
-    if (auth) {
-      const selfUserBase = auth.baseUrl.replace(/\/v1$/, '/v069');
-      fetchWithSessionCheck(`${selfUserBase}/selfUser`, {
-        headers: { Authorization: `Bearer ${auth.token}` },
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(async (data) => {
-          const profile = data?.user ?? data;
-          if (!profile || isApiError(profile)) throw new Error(`API error: ${profile?.error || profile?.message || "no data"}`);
-          const pms = auth?.pgpPrivKey
-            ? await extractPMsFromProfile(profile, auth.pgpPrivKey)
-            : null;
-          if (!pms) {
-            setLiveUserPMs([]);
-            return;
-          }
-          // Keys that belong to the PM structure — everything else is a detail field
-          const STRUCTURAL = new Set([
-            "id", "methodId", "type", "name", "label", "currencies", "hashes",
-            "details", "data", "country", "anonymous",
-          ]);
-          function shortId(raw) { return raw.replace(/-\d+$/, ""); }
-          function sweepFields(obj) {
-            const explicit = obj.data || obj.details || null;
-            if (explicit) return explicit;
-            const swept = {};
-            for (const [k, v] of Object.entries(obj)) {
-              if (!STRUCTURAL.has(k) && typeof v !== "object") swept[k] = v;
-            }
-            return swept;
-          }
-          if (Array.isArray(pms) && pms.length > 0) {
-            setLiveUserPMs(pms.map(pm => ({
-              id: pm.id,
-              type: shortId(pm.type ?? pm.id),
-              currencies: pm.currencies ?? [],
-              details: sweepFields(pm),
-            })));
-          } else if (pms && typeof pms === "object") {
-            setLiveUserPMs(Object.entries(pms).map(([key, val]) => ({
-              id: val?.id || key,
-              type: shortId(key),
-              currencies: val?.currencies ?? [],
-              details: sweepFields(val || {}),
-            })));
-          }
-        })
-        .catch((err) => {
-          console.warn("[MarketView] PM fetch failed:", err.message);
-          setPmError(true);
-        });
-    }
     return () => {
       clearInterval(iv);
       document.removeEventListener("visibilitychange", onVisible);
@@ -815,7 +763,40 @@ export default function PeachMarket() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const marketOffers = liveOffers ?? [];
-  const userPMs = liveUserPMs ?? [];
+  const userPMs = (() => {
+    if (!pmsRaw) return [];
+    const STRUCTURAL = new Set([
+      "id", "methodId", "type", "name", "label", "currencies", "hashes",
+      "details", "data", "country", "anonymous",
+    ]);
+    const shortId = (raw) => raw.replace(/-\d+$/, "");
+    const sweepFields = (obj) => {
+      const explicit = obj.data || obj.details || null;
+      if (explicit) return explicit;
+      const swept = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (!STRUCTURAL.has(k) && typeof v !== "object") swept[k] = v;
+      }
+      return swept;
+    };
+    if (Array.isArray(pmsRaw) && pmsRaw.length > 0) {
+      return pmsRaw.map(pm => ({
+        id: pm.id,
+        type: shortId(pm.type ?? pm.id),
+        currencies: pm.currencies ?? [],
+        details: sweepFields(pm),
+      }));
+    }
+    if (typeof pmsRaw === "object") {
+      return Object.entries(pmsRaw).map(([key, val]) => ({
+        id: val?.id || key,
+        type: shortId(key),
+        currencies: val?.currencies ?? [],
+        details: sweepFields(val || {}),
+      }));
+    }
+    return [];
+  })();
 
   // ── Open popup from navigation state (e.g. clicked a sent trade request on TRADES) ──
   // Once handled, clear the state so a remount/rerender doesn't reopen it.

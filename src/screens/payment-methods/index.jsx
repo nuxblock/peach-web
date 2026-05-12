@@ -8,9 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
 import { IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import { useApi } from "../../hooks/useApi.js";
-import { extractPMsFromProfile, isApiError } from "../../utils/pgp.js";
+import { useUserPMs, invalidateUserPMs } from "../../hooks/useUserPMs.js";
 import { syncPMsToServer } from "../../utils/pmSync.js";
 import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE } from "../../utils/format.js";
 import { CSS } from "./styles.js";
@@ -97,96 +96,56 @@ export default function PeachPaymentMethods() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch user's saved payment methods (authenticated)
+  // User PMs come from the shared useUserPMs hook. We mirror them into local
+  // savedMethods so the save/delete handlers below can keep their optimistic
+  // updates and post-write `invalidateUserPMs()` re-syncs everyone.
+  const { pms: pmsRaw, loading: pmsLoading, error: pmFetchError } = useUserPMs(auth);
+  useEffect(() => { setSavedLoading(pmsLoading); }, [pmsLoading]);
+  useEffect(() => { setPmError(!!pmFetchError); }, [pmFetchError]);
   useEffect(() => {
-    if (!auth?.token) return;
-
-    setSavedLoading(true);
-
-    (async () => {
-      try {
-        const selfUserBase = auth.baseUrl.replace(/\/v1$/, '/v069');
-        const res = await fetchWithSessionCheck(`${selfUserBase}/selfUser`, {
-          headers: { Authorization: `Bearer ${auth.token}` },
-        });
-        if (!res.ok) throw new Error(`${res.status}`);
-        const data = await res.json();
-        console.log("[PaymentMethods] /v069/selfUser response keys:", Object.keys(data));
-
-        const profile = data.user ?? data;
-
-        if (isApiError(profile)) throw new Error(`API error: ${profile.error || profile.message}`);
-
-        const pms = auth?.pgpPrivKey
-          ? await extractPMsFromProfile(profile, auth.pgpPrivKey)
-          : null;
-
-        console.log("[PaymentMethods] Extracted PMs:", pms);
-        if (Array.isArray(pms) && pms[0]) {
-          console.log("[PaymentMethods] First PM keys:", Object.keys(pms[0]));
-          console.log("[PaymentMethods] First PM raw:", JSON.stringify(pms[0], null, 2));
+    if (!pmsRaw) {
+      setSavedMethods([]);
+      return;
+    }
+    const STRUCTURAL = new Set([
+      "id", "methodId", "type", "name", "label", "currencies", "hashes",
+      "details", "data", "country", "anonymous",
+    ]);
+    const shortMethodId = (raw) => raw.replace(/-\d+$/, "");
+    const sweepDetails = (obj) => {
+      const explicit = obj?.details || obj?.data || null;
+      if (explicit) return explicit;
+      const swept = {};
+      if (obj && typeof obj === "object") {
+        for (const [k, v] of Object.entries(obj)) {
+          if (!STRUCTURAL.has(k) && typeof v !== "object") swept[k] = v;
         }
-
-        if (!pms) {
-          setSavedMethods([]);
-          return;
-        }
-
-        const STRUCTURAL = new Set([
-          "id", "methodId", "type", "name", "label", "currencies", "hashes",
-          "details", "data", "country", "anonymous",
-        ]);
-
-        function shortMethodId(raw) {
-          return raw.replace(/-\d+$/, "");
-        }
-
-        function sweepDetails(obj) {
-          const explicit = obj?.details || obj?.data || null;
-          if (explicit) return explicit;
-          const swept = {};
-          if (obj && typeof obj === "object") {
-            for (const [k, v] of Object.entries(obj)) {
-              if (!STRUCTURAL.has(k) && typeof v !== "object") swept[k] = v;
-            }
-          }
-          return swept;
-        }
-
-        if (Array.isArray(pms)) {
-          const normalised = pms.map((pm, i) => {
-            const rawId = pm.methodId || pm.type || pm.id || "unknown";
-            return {
-              id:         pm.id        || `api-pm-${i}`,
-              methodId:   shortMethodId(rawId),
-              name:       pm.name      || pm.label || pm.type || "Payment Method",
-              label:      pm.label     || pm.name  || "",
-              currencies: pm.currencies || [],
-              details:    sweepDetails(pm),
-            };
-          });
-          setSavedMethods(normalised);
-        } else if (pms && typeof pms === "object") {
-          const normalised = Object.entries(pms).map(([key, val]) => {
-            return {
-              id:         val?.id || key,
-              methodId:   shortMethodId(key),
-              name:       val?.name || val?.label || key,
-              label:      val?.label || val?.name || "",
-              currencies: val?.currencies || [],
-              details:    sweepDetails(val),
-            };
-          });
-          setSavedMethods(normalised);
-        }
-      } catch (err) {
-        console.warn("[PaymentMethods] Failed to fetch saved PMs:", err.message);
-        setPmError(true);
-      } finally {
-        setSavedLoading(false);
       }
-    })();
-  }, []);
+      return swept;
+    };
+    if (Array.isArray(pmsRaw)) {
+      setSavedMethods(pmsRaw.map((pm, i) => {
+        const rawId = pm.methodId || pm.type || pm.id || "unknown";
+        return {
+          id:         pm.id        || `api-pm-${i}`,
+          methodId:   shortMethodId(rawId),
+          name:       pm.name      || pm.label || pm.type || "Payment Method",
+          label:      pm.label     || pm.name  || "",
+          currencies: pm.currencies || [],
+          details:    sweepDetails(pm),
+        };
+      }));
+    } else if (typeof pmsRaw === "object") {
+      setSavedMethods(Object.entries(pmsRaw).map(([key, val]) => ({
+        id:         val?.id || key,
+        methodId:   shortMethodId(key),
+        name:       val?.name || val?.label || key,
+        label:      val?.label || val?.name || "",
+        currencies: val?.currencies || [],
+        details:    sweepDetails(val),
+      })));
+    }
+  }, [pmsRaw]);
 
   // Save handler (add or edit)
   function handleSavePM(pm) {
@@ -203,7 +162,11 @@ export default function PeachPaymentMethods() {
     });
     setShowAddFlow(false);
     setEditPM(null);
-    if (auth && nextMethods) syncPMsToServer(nextMethods, auth);
+    if (auth && nextMethods) {
+      // Invalidate AFTER the server PUT completes so the cache refetch sees
+      // the new state, not the pre-write state.
+      syncPMsToServer(nextMethods, auth).finally(() => invalidateUserPMs());
+    }
   }
 
   // Delete handler
@@ -215,7 +178,9 @@ export default function PeachPaymentMethods() {
         return nextMethods;
       });
       setDeletePM(null);
-      if (auth && nextMethods) syncPMsToServer(nextMethods, auth);
+      if (auth && nextMethods) {
+        syncPMsToServer(nextMethods, auth).finally(() => invalidateUserPMs());
+      }
     }
   }
 

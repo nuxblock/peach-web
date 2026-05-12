@@ -8,13 +8,13 @@ import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx"
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi, getCached, setCache, clearCache } from "../../hooks/useApi.js";
+import { useUserPMs } from "../../hooks/useUserPMs.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js";
 import MobileSigningModal from "../../components/MobileSigningModal.jsx";
 import Toast from "../../components/Toast.jsx";
 import { useUnread } from "../../hooks/useUnread.js";
 import {
-  extractPMsFromProfile,
   isApiError,
   generateSymmetricKey,
   encryptForRecipients,
@@ -587,7 +587,7 @@ export default function TradesDashboard() {
   const [isRefetching, setIsRefetching] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const [userPMs, setUserPMs] = useState(null); // Decrypted user payment methods for match acceptance
+  const { pms: userPMs } = useUserPMs(auth);
   const profileCacheRef = useRef(new Map()); // userId → { data, ts } — avoids re-fetching profiles every cycle
 
   // ── Tab scaling: shrink tabs proportionally to fit viewport ──
@@ -837,27 +837,8 @@ export default function TradesDashboard() {
       const v069Base = auth.baseUrl.replace(/\/v1$/, "/v069");
       const hdrs = { Authorization: `Bearer ${auth.token}` };
 
-      // ── Trading limit + PMs (rarely change) ──
-      const [limitRes] = await Promise.all([
-        get("/user/tradingLimit").catch(() => null),
-        // Fetch PMs in parallel
-        (async () => {
-          if (!auth?.pgpPrivKey) return;
-          try {
-            const res = await fetchWithSessionCheck(`${v069Base}/selfUser`, {
-              headers: hdrs,
-            });
-            if (!res.ok) return;
-            const data = await res.json();
-            const profile = data?.user ?? data;
-            if (!profile || isApiError(profile)) return;
-            const pms = await extractPMsFromProfile(profile, auth.pgpPrivKey);
-            if (pms) setUserPMs(pms);
-          } catch (err) {
-            console.warn("[Trades] PM fetch failed:", err.message);
-          }
-        })(),
-      ]);
+      // ── Trading limit (PMs come from useUserPMs hook above) ──
+      const limitRes = await get("/user/tradingLimit").catch(() => null);
       if (limitRes?.ok) {
         const limitData = await limitRes.json();
         if (limitData) setLiveLimit(limitData);

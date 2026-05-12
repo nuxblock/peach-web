@@ -9,8 +9,9 @@ import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi, clearCache } from "../../hooks/useApi.js";
 import { useMarketStats } from "../../hooks/useMarketStats.js";
+import { useUserPMs, invalidateUserPMs } from "../../hooks/useUserPMs.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
-import { extractPMsFromProfile, isApiError, hashPaymentFields, encryptForPublicKey, encryptPGPMessage, signPGPMessage } from "../../utils/pgp.js";
+import { isApiError, hashPaymentFields, encryptForPublicKey, encryptPGPMessage, signPGPMessage } from "../../utils/pgp.js";
 import { deriveEscrowPubKey, deriveReturnAddress, isReturnAddressFromXpub } from "../../utils/escrow.js";
 import { validateBtcAddress } from "../../peach-validators.js";
 import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js";
@@ -132,94 +133,74 @@ export default function OfferCreation({ initialType="buy" }) {
   const [selectedEscrowIdx, setSelectedEscrowIdx] = useState(0);
   const [multiPublishProgress, setMultiPublishProgress] = useState(null); // { done, total }
 
-  // ── FETCH LIVE SAVED PMs ──
-  useEffect(() => {
-    if (!auth) return;
-    // Clear PMs before fetching fresh data
-    setSavedMethods([]);
-    const selfUserBase = auth.baseUrl.replace(/\/v1$/, '/v069');
-    fetchWithSessionCheck(`${selfUserBase}/selfUser`, {
-      headers: { Authorization: `Bearer ${auth.token}` },
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(async (data) => {
-        const profile = data?.user ?? data;
-        if (!profile || isApiError(profile)) throw new Error(`API error: ${profile?.error || profile?.message || "no data"}`);
-        const pms = auth?.pgpPrivKey
-          ? await extractPMsFromProfile(profile, auth.pgpPrivKey)
-          : null;
-        if (!pms) {
-          setSavedMethods([]);
-          return;
-        }
-        // Keys that belong to the PM structure — everything else is a detail field
-        const STRUCTURAL = new Set([
-          "id", "methodId", "type", "name", "label", "currencies", "hashes",
-          "details", "data", "country", "anonymous",
-        ]);
-        function shortId(raw) { return raw.replace(/-\d+$/, ""); }
-        function sweepFields(obj) {
-          const explicit = obj.data || obj.details || null;
-          if (explicit) return explicit;
-          const swept = {};
-          for (const [k, v] of Object.entries(obj)) {
-            if (!STRUCTURAL.has(k) && typeof v !== "object") swept[k] = v;
-          }
-          return swept;
-        }
-        let fetched = [];
-        if (Array.isArray(pms) && pms.length > 0) {
-          fetched = pms.map((pm, i) => {
-            const rawId = pm.methodId || pm.type || pm.id || "unknown";
-            const mid = shortId(rawId);
-            return {
-              id:         pm.id || `api-pm-${i}`,
-              methodId:   mid,
-              name:       pm.name || pm.label || mid,
-              label:      pm.label || pm.name || "",
-              currencies: pm.currencies ?? [],
-              details:    sweepFields(pm),
-            };
-          });
-        } else if (pms && typeof pms === "object") {
-          fetched = Object.entries(pms).map(([key, val]) => {
-            const mid = shortId(key);
-            return {
-              id:         val?.id || key,
-              methodId:   mid,
-              name:       val?.name || val?.label || mid,
-              label:      val?.label || val?.name || "",
-              currencies: val?.currencies ?? [],
-              details:    sweepFields(val || {}),
-            };
-          });
-        }
-        setSavedMethods(fetched);
-        // Reconcile persisted selection against fetched PMs, then auto-select
-        // the only PM if exactly one exists and nothing is currently selected.
-        // First-mount only — this useEffect runs once.
-        const validIds = new Set(fetched.map(m => m.id));
-        setForm(f => {
-          const cleaned = f.selectedMethodIds.filter(id => validIds.has(id));
-          if (cleaned.length === 0 && fetched.length === 1) {
-            return { ...f, selectedMethodIds: [fetched[0].id] };
-          }
-          return cleaned.length === f.selectedMethodIds.length
-            ? f
-            : { ...f, selectedMethodIds: cleaned };
-        });
-      })
-      .catch((err) => {
-        console.warn("[OfferCreation] PM fetch failed:", err.message);
-        setPmError(true);
-      });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // PM fetch + decryption is delegated to the shared useUserPMs hook below
+  // (declared after useApi gives us `auth`). The sync effect there mirrors
+  // the decrypted list into savedMethods and reconciles persisted selection.
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
   // ── AUTH STATE ──
   const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
   const { get, post, auth } = useApi();
   const btcNetwork = BITCOIN_NETWORK;
+
+  // ── USER PMs (shared cache) ──
+  const { pms: pmsRaw, error: pmFetchError } = useUserPMs(auth);
+  useEffect(() => { setPmError(!!pmFetchError); }, [pmFetchError]);
+  useEffect(() => {
+    if (!pmsRaw) return;
+    const STRUCTURAL = new Set([
+      "id", "methodId", "type", "name", "label", "currencies", "hashes",
+      "details", "data", "country", "anonymous",
+    ]);
+    const shortId = (raw) => raw.replace(/-\d+$/, "");
+    const sweepFields = (obj) => {
+      const explicit = obj.data || obj.details || null;
+      if (explicit) return explicit;
+      const swept = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (!STRUCTURAL.has(k) && typeof v !== "object") swept[k] = v;
+      }
+      return swept;
+    };
+    let fetched = [];
+    if (Array.isArray(pmsRaw) && pmsRaw.length > 0) {
+      fetched = pmsRaw.map((pm, i) => {
+        const rawId = pm.methodId || pm.type || pm.id || "unknown";
+        const mid = shortId(rawId);
+        return {
+          id:         pm.id || `api-pm-${i}`,
+          methodId:   mid,
+          name:       pm.name || pm.label || mid,
+          label:      pm.label || pm.name || "",
+          currencies: pm.currencies ?? [],
+          details:    sweepFields(pm),
+        };
+      });
+    } else if (typeof pmsRaw === "object") {
+      fetched = Object.entries(pmsRaw).map(([key, val]) => {
+        const mid = shortId(key);
+        return {
+          id:         val?.id || key,
+          methodId:   mid,
+          name:       val?.name || val?.label || mid,
+          label:      val?.label || val?.name || "",
+          currencies: val?.currencies ?? [],
+          details:    sweepFields(val || {}),
+        };
+      });
+    }
+    setSavedMethods(fetched);
+    const validIds = new Set(fetched.map(m => m.id));
+    setForm(f => {
+      const cleaned = f.selectedMethodIds.filter(id => validIds.has(id));
+      if (cleaned.length === 0 && fetched.length === 1) {
+        return { ...f, selectedMethodIds: [fetched[0].id] };
+      }
+      return cleaned.length === f.selectedMethodIds.length
+        ? f
+        : { ...f, selectedMethodIds: cleaned };
+    });
+  }, [pmsRaw]);
   useEffect(() => {
     if (!showAvatarMenu) return;
     const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
@@ -517,7 +498,9 @@ export default function OfferCreation({ initialType="buy" }) {
       setF("selectedMethodIds",[...form.selectedMethodIds, pm.id]);
       setShowAddModal(false);
     }
-    if (auth && nextList) syncPMsToServer(nextList, auth);
+    if (auth && nextList) {
+      syncPMsToServer(nextList, auth).finally(() => invalidateUserPMs());
+    }
   }
 
 

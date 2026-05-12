@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import SessionExpiredModal from './components/SessionExpiredModal.jsx'
 import TamperDetectedModal from './components/TamperDetectedModal.jsx'
 import { clearCache } from './hooks/useApi.js'
+import { invalidateUserPMs } from './hooks/useUserPMs.js'
 import { resetSessionExpiredFlag, isTokenExpired } from './utils/sessionGuard.js'
 import PeachAuth from './screens/peach-auth.jsx'
 import PeachHome from './screens/peach-home.jsx'
@@ -92,6 +93,7 @@ export default function App() {
   function handleReauth() {
     window.__PEACH_AUTH__ = null;
     clearCache();
+    invalidateUserPMs();
     resetSessionExpiredFlag();
     try { localStorage.setItem("peach_logged_in", "false"); } catch {}
     try { sessionStorage.removeItem("peach_auth"); } catch {}
