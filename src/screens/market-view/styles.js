@@ -214,6 +214,16 @@ export const CSS = `
     border-radius:8px;padding:7px 14px;
     margin:0 20px 4px;
   }
+  .info-sentence.collapsible{
+    display:flex;align-items:center;gap:8px;cursor:pointer;
+  }
+  .info-sentence.collapsible.collapsed{white-space:nowrap}
+  .info-sentence.collapsible.collapsed .info-sentence-text{
+    overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;display:block;
+  }
+  .info-sentence-chev{
+    flex-shrink:0;font-size:.7rem;color:var(--primary);font-weight:800;
+  }
 
   /* ── PREMIUM — colors depend on perspective ── */
   /* buy tab: negative = good (green), positive = bad (red) */
@@ -302,6 +312,118 @@ export const CSS = `
   .search-inp{width:180px;border:1.5px solid var(--black-10);border-radius:8px;padding:5px 12px;font-family:var(--font);font-size:.8rem;font-weight:600;color:var(--black);background:var(--surface);outline:none;transition:border-color .14s}
   .search-inp:focus{border-color:var(--primary)}
   .search-inp::placeholder{color:var(--black-25);font-weight:500}
+  .search-inp.search-inp-full{width:100%;box-sizing:border-box}
+
+  /* ── REFRESH BUTTON ── */
+  .refresh-btn{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:34px;height:34px;border-radius:8px;border:1.5px solid var(--black-10);
+    background:var(--surface);color:var(--black-65);
+    font-family:var(--font);font-size:1rem;font-weight:700;cursor:pointer;
+    transition:border-color .14s,color .14s;
+  }
+  .refresh-btn:hover{border-color:var(--primary);color:var(--primary-dark)}
+  .refresh-btn:disabled{cursor:not-allowed}
+
+  /* ── MOBILE FILTERS / SORT PILL BUTTONS ── */
+  .filters-btn,.sort-btn{
+    display:none;align-items:center;gap:6px;
+    border:1.5px solid var(--black-10);border-radius:999px;
+    background:var(--surface);color:var(--black);
+    font-family:var(--font);font-size:.82rem;font-weight:700;
+    padding:7px 14px;cursor:pointer;
+    transition:border-color .14s,color .14s;white-space:nowrap;
+  }
+  .filters-btn:hover,.sort-btn:hover{border-color:var(--primary);color:var(--primary-dark)}
+  .filters-btn-count{
+    background:var(--primary);color:white;font-size:.62rem;font-weight:800;
+    padding:1px 6px;border-radius:999px;line-height:1.4;
+  }
+  .filters-btn-arrow,.sort-btn-arrow{font-size:.6rem;color:var(--black-65)}
+
+  /* ── BOTTOM SHEET ── */
+  .sheet-backdrop{
+    position:fixed;inset:0;background:rgba(43,25,17,.45);
+    z-index:550;animation:fadeIn .15s ease;
+  }
+  .filter-sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:551;
+    background:var(--surface);
+    border-top-left-radius:18px;border-top-right-radius:18px;
+    height:75vh;display:flex;flex-direction:column;
+    box-shadow:0 -8px 28px rgba(43,25,17,.18);
+    animation:sheetUp .22s cubic-bezier(.34,1.2,.64,1);
+  }
+  .mobile-filter-row{display:flex;gap:8px;flex-basis:100%;flex-wrap:wrap}
+  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+  .sheet-handle{
+    width:38px;height:4px;border-radius:999px;background:var(--black-10);
+    margin:8px auto 4px;
+  }
+  .sheet-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:6px 18px 10px;
+    font-size:.95rem;font-weight:800;color:var(--black);
+  }
+  .sheet-close{
+    width:30px;height:30px;border-radius:8px;border:none;background:var(--black-5);
+    color:var(--black-65);cursor:pointer;font-family:var(--font);font-size:1rem;
+    display:flex;align-items:center;justify-content:center;transition:background .12s;
+  }
+  .sheet-close:hover{background:var(--black-10);color:var(--black)}
+  .sheet-body{
+    flex:1;min-height:0;
+    display:flex;flex-direction:column;gap:12px;
+    padding:8px 18px 16px;overflow-y:auto;
+  }
+  .sheet-body .ms-wrap{width:100%}
+  .sheet-body .ms-trigger{width:100%;min-width:0;padding:10px 14px;font-size:.88rem}
+  .sheet-body .ms-panel{width:100%;left:0;right:0;max-height:50vh}
+  .sheet-footer{
+    display:flex;gap:10px;padding:12px 18px 18px;
+    border-top:1px solid var(--black-10);
+  }
+  .sheet-clear{
+    flex:1;padding:11px;border-radius:999px;
+    background:var(--black-5);color:var(--black-65);border:none;
+    font-family:var(--font);font-size:.85rem;font-weight:800;cursor:pointer;
+    transition:background .12s,color .12s;
+  }
+  .sheet-clear:hover{background:var(--black-10);color:var(--black)}
+  .sheet-done{
+    flex:2;padding:11px;border-radius:999px;
+    background:var(--grad);color:white;border:none;
+    font-family:var(--font);font-size:.85rem;font-weight:800;cursor:pointer;
+    transition:transform .1s;
+  }
+  .sheet-done:hover{transform:translateY(-1px)}
+
+  /* ── SORT ROWS (inside sheet) ── */
+  .sort-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 18px;border-radius:10px;
+    background:var(--surface);border:1.5px solid var(--black-10);
+    cursor:pointer;font-family:var(--font);font-size:.88rem;font-weight:600;
+    color:var(--black);transition:border-color .12s,background .12s;
+  }
+  .sort-row:hover{border-color:var(--primary)}
+  .sort-row.selected{
+    border-color:var(--primary);background:var(--primary-mild);color:var(--primary-dark);font-weight:800;
+  }
+  .sort-row-check{color:var(--primary-dark);font-weight:800}
+
+  /* ── PULL TO REFRESH ── */
+  .ptr-host{position:relative;will-change:transform}
+  .ptr-indicator{
+    position:absolute;left:0;right:0;top:-46px;height:46px;
+    display:flex;align-items:center;justify-content:center;
+    pointer-events:none;
+  }
+  .ptr-spinner{
+    width:24px;height:24px;border-radius:50%;
+    border:2.5px solid var(--black-10);border-top-color:var(--primary);
+  }
+  .ptr-spinner.ptr-spin{animation:refresh-indicator-spin .8s linear infinite}
 
   /* ── CTA WRAP ── */
   .cta-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;margin-left:auto}
@@ -323,6 +445,9 @@ export const CSS = `
     .sidenav-price-slot{display:block}   /* visible inside sidenav on mobile only */
     .cta-btn{padding:6px 14px;font-size:.78rem}
     .stat-pill.hide-mobile{display:none}
+    .filters-desktop{display:none}
+    .filters-btn,.sort-btn{display:inline-flex}
+    .refresh-btn{display:none}
   }
   @media(max-width:767px){
     .sidenav{

@@ -56,6 +56,28 @@ export default function PeachMarket() {
   const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
+  // ── Mobile UI state ──
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = (e) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sortOpen, setSortOpen]       = useState(false);
+  const [bannerOpen, setBannerOpen]   = useState(true);
+
+  // ── Pull-to-refresh (mobile) ──
+  const ptrStartY = useRef(0);
+  const ptrActiveTouch = useRef(false);
+  const [ptrPull, setPtrPull] = useState(0);
+  const [ptrRefreshing, setPtrRefreshing] = useState(false);
+  const PTR_THRESHOLD = 70;
+
   // ── AUTH + API ──
   const { get, post, patch, auth } = useApi();
   const [liveOffers,   setLiveOffers]   = useState(() => getCached("market-offers")?.data ?? null);
@@ -743,6 +765,65 @@ export default function PeachMarket() {
     setLiveOffers(null);
     setOffersLoading(true);
     fetchMarket();
+  }
+
+  // ── Pull-to-refresh touch handlers (only attached on mobile) ──
+  function onPtrTouchStart(e) {
+    if (typeof window === "undefined" || window.scrollY > 0) {
+      ptrActiveTouch.current = false;
+      return;
+    }
+    ptrActiveTouch.current = true;
+    ptrStartY.current = e.touches[0].clientY;
+  }
+  function onPtrTouchMove(e) {
+    if (!ptrActiveTouch.current) return;
+    const delta = e.touches[0].clientY - ptrStartY.current;
+    if (delta <= 0) { setPtrPull(0); return; }
+    setPtrPull(Math.min(delta * 0.5, 110));
+  }
+  function onPtrTouchEnd() {
+    if (!ptrActiveTouch.current) return;
+    ptrActiveTouch.current = false;
+    if (ptrPull >= PTR_THRESHOLD && !ptrRefreshing) {
+      setPtrRefreshing(true);
+      handleRefreshOffers();
+    }
+    setPtrPull(0);
+  }
+  // Drop refreshing flag once the refresh finishes (offersLoading transitions back to false)
+  useEffect(() => {
+    if (ptrRefreshing && !offersLoading) {
+      const t = setTimeout(() => setPtrRefreshing(false), 250);
+      return () => clearTimeout(t);
+    }
+  }, [ptrRefreshing, offersLoading]);
+
+  // ── Active filter / sort helpers (mobile UI) ──
+  const activeFilterCount =
+    selCurrencies.length + selPaymentTypes.length + selMethods.length + (searchQuery ? 1 : 0);
+  function clearAllFilters() {
+    setSelCurrencies([]);
+    setSelPaymentTypes([]);
+    setSelMethods([]);
+    setSearchQuery("");
+  }
+  // For "rep", existing sort code reverses (b.rep - a.rep), so sortDir=1 yields descending.
+  // Compute the display arrow accordingly so the button reflects the visible order.
+  const sortDisplayAsc = sortKey === "rep" ? sortDir === -1 : sortDir === 1;
+  const sortLabelMap = { premium: "Price", amount: "Amount", rep: "Reputation" };
+  const sortOptions = [
+    { label: "Price — low to high",       key: "premium", dir: 1 },
+    { label: "Price — high to low",       key: "premium", dir: -1 },
+    { label: "Amount — low to high",      key: "amount",  dir: 1 },
+    { label: "Amount — high to low",      key: "amount",  dir: -1 },
+    { label: "Reputation — high to low",  key: "rep",     dir: 1 },
+    { label: "Reputation — low to high",  key: "rep",     dir: -1 },
+  ];
+  function pickSort(key, dir) {
+    setSortKey(key);
+    setSortDir(dir);
+    setSortOpen(false);
   }
 
   // ── LIVE MARKET OFFERS POLL ──
@@ -1610,35 +1691,54 @@ export default function PeachMarket() {
               </div>
             )}
 
-            {/* Filters */}
-            <MultiSelect
-              label="Currency"
-              options={currencyOptions}
-              value={selCurrencies}
-              onChange={setSelCurrencies}
-              searchable
-              searchPlaceholder="Search currencies…"
-            />
-            <MultiSelect
-              label="Payment type"
-              options={paymentTypeOptions}
-              value={selPaymentTypes}
-              onChange={setSelPaymentTypes}
-            />
-            <MultiSelect
-              label="Payment method"
-              options={methodOptions}
-              value={selMethods}
-              onChange={setSelMethods}
-              searchable
-              searchPlaceholder="Search payment methods…"
-            />
-            <input
-              className="search-inp"
-              placeholder="Search offers…"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
+            {/* Filters — desktop inline row (hidden on mobile via isMobile gate) */}
+            {!isMobile && (
+              <>
+                <MultiSelect
+                  label="Currency"
+                  options={currencyOptions}
+                  value={selCurrencies}
+                  onChange={setSelCurrencies}
+                  searchable
+                  searchPlaceholder="Search currencies…"
+                />
+                <MultiSelect
+                  label="Payment type"
+                  options={paymentTypeOptions}
+                  value={selPaymentTypes}
+                  onChange={setSelPaymentTypes}
+                />
+                <MultiSelect
+                  label="Payment method"
+                  options={methodOptions}
+                  value={selMethods}
+                  onChange={setSelMethods}
+                  searchable
+                  searchPlaceholder="Search payment methods…"
+                />
+                <input
+                  className="search-inp"
+                  placeholder="Search offers…"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </>
+            )}
+
+            {/* Filters + Sort — mobile pill buttons (open bottom sheets) */}
+            {isMobile && (
+              <div className="mobile-filter-row">
+                <button className="filters-btn" onClick={() => setFiltersOpen(true)}>
+                  <span>Filters</span>
+                  {activeFilterCount > 0 && <span className="filters-btn-count">{activeFilterCount}</span>}
+                  <span className="filters-btn-arrow">▼</span>
+                </button>
+                <button className="sort-btn" onClick={() => setSortOpen(true)}>
+                  <span>Sort: {sortLabelMap[sortKey]} {sortDisplayAsc ? "↑" : "↓"}</span>
+                  <span className="sort-btn-arrow">▼</span>
+                </button>
+              </div>
+            )}
 
             <div className="my-offers-wrap" ref={infoRef}>
               <label className={`my-offers-check${!isLoggedIn ? " my-offers-check-disabled" : ""}`}>
@@ -1762,10 +1862,38 @@ export default function PeachMarket() {
             )}
           </div>
 
-          {/* ── MOBILE CARDS ── */}
+          {/* ── MOBILE CARDS (wrapped in pull-to-refresh host) ── */}
+          <div
+            className="ptr-host"
+            onTouchStart={isMobile ? onPtrTouchStart : undefined}
+            onTouchMove={isMobile ? onPtrTouchMove : undefined}
+            onTouchEnd={isMobile ? onPtrTouchEnd : undefined}
+            style={{
+              transform: ptrPull ? `translateY(${ptrPull}px)` : undefined,
+              transition: ptrPull === 0 ? "transform .22s ease" : "none",
+            }}
+          >
+            {isMobile && (ptrPull > 0 || ptrRefreshing) && (
+              <div className="ptr-indicator">
+                <div
+                  className={`ptr-spinner${ptrRefreshing ? " ptr-spin" : ""}`}
+                  style={{
+                    opacity: ptrRefreshing ? 1 : Math.min(ptrPull / PTR_THRESHOLD, 1),
+                    transform: ptrRefreshing ? undefined : `rotate(${ptrPull * 4}deg)`,
+                  }}
+                />
+              </div>
+            )}
           <div className="cards">
-            <div className="info-sentence" style={{margin:"0 0 4px"}}>
-              Request as many trades as you want. You'll enter a trade with the first {isSellTab ? "buyer" : "seller"} who accepts your request, and your other requests will be automatically cancelled.
+            <div
+              className={`info-sentence${isMobile ? " collapsible" : ""}${isMobile && !bannerOpen ? " collapsed" : ""}`}
+              style={{margin:"0 0 4px"}}
+              onClick={() => isMobile && setBannerOpen(v => !v)}
+            >
+              <span className="info-sentence-text">
+                Request as many trades as you want. You'll enter a trade with the first {isSellTab ? "buyer" : "seller"} who accepts your request, and your other requests will be automatically cancelled.
+              </span>
+              {isMobile && <span className="info-sentence-chev">{bannerOpen ? "▴" : "▾"}</span>}
             </div>
             {offersLoading && auth ? (
               <div className="empty">
@@ -1853,6 +1981,84 @@ export default function PeachMarket() {
               </div>
             ))}
           </div>
+          </div>
+
+          {/* ── MOBILE FILTERS BOTTOM SHEET ── */}
+          {isMobile && filtersOpen && (
+            <>
+              <div className="sheet-backdrop" onClick={() => setFiltersOpen(false)} />
+              <div className="filter-sheet" role="dialog" aria-label="Filters">
+                <div className="sheet-handle" />
+                <div className="sheet-header">
+                  <span>Filters</span>
+                  <button className="sheet-close" onClick={() => setFiltersOpen(false)} aria-label="Close">×</button>
+                </div>
+                <div className="sheet-body">
+                  <MultiSelect
+                    label="Currency"
+                    options={currencyOptions}
+                    value={selCurrencies}
+                    onChange={setSelCurrencies}
+                    searchable
+                    searchPlaceholder="Search currencies…"
+                  />
+                  <MultiSelect
+                    label="Payment type"
+                    options={paymentTypeOptions}
+                    value={selPaymentTypes}
+                    onChange={setSelPaymentTypes}
+                  />
+                  <MultiSelect
+                    label="Payment method"
+                    options={methodOptions}
+                    value={selMethods}
+                    onChange={setSelMethods}
+                    searchable
+                    searchPlaceholder="Search payment methods…"
+                  />
+                  <input
+                    className="search-inp search-inp-full"
+                    placeholder="Search offers…"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="sheet-footer">
+                  <button className="sheet-clear" onClick={clearAllFilters}>Clear all</button>
+                  <button className="sheet-done" onClick={() => setFiltersOpen(false)}>Done</button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── MOBILE SORT BOTTOM SHEET ── */}
+          {isMobile && sortOpen && (
+            <>
+              <div className="sheet-backdrop" onClick={() => setSortOpen(false)} />
+              <div className="filter-sheet" role="dialog" aria-label="Sort">
+                <div className="sheet-handle" />
+                <div className="sheet-header">
+                  <span>Sort by</span>
+                  <button className="sheet-close" onClick={() => setSortOpen(false)} aria-label="Close">×</button>
+                </div>
+                <div className="sheet-body">
+                  {sortOptions.map(opt => {
+                    const isSel = opt.key === sortKey && opt.dir === sortDir;
+                    return (
+                      <div
+                        key={`${opt.key}-${opt.dir}`}
+                        className={`sort-row${isSel ? " selected" : ""}`}
+                        onClick={() => pickSort(opt.key, opt.dir)}
+                      >
+                        <span>{opt.label}</span>
+                        {isSel && <span className="sort-row-check">✓</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
 
         </div>
       </div>
