@@ -216,6 +216,8 @@ body{font-family:var(--font);background:var(--primary-bg);color:var(--black)}
 .topbar-center{display:flex;align-items:center;justify-content:center}
 .topbar-logo-desktop{height:55px;display:block}
 .topbar-logo-mobile{display:none}
+.topbar-logo-btn{background:none;border:none;padding:0;margin:0;cursor:pointer;display:inline-flex;align-items:center;line-height:0}
+.topbar-logo-btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px}
 .topbar-price,.price-pill{
   display:flex;align-items:center;gap:8px;
   background:linear-gradient(90deg,#FFBFA8,#FFD5BF);border-radius:999px;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { IcoBtc } from "./BitcoinAmount.jsx";
 import { useUnread } from "../hooks/useUnread.js";
 import { useUrgentCount } from "../hooks/useUrgentCount.js";
@@ -201,7 +201,14 @@ export function Topbar({
   const session = useSessionTimer();
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const satsPerCur = btcPrice > 0 ? Math.round(100_000_000 / btcPrice) : 0;
+
+  const handleLogoClick = () => {
+    if (location.pathname === "/home") return;
+    const loggedIn = !!window.__PEACH_AUTH__;
+    navigate(loggedIn ? "/home" : "/");
+  };
 
   // Close notification panel on outside click or Escape
   useEffect(() => {
@@ -254,11 +261,25 @@ export function Topbar({
     <header className="topbar">
       <div className="topbar-left">
         <button className="burger-btn" onClick={onBurgerClick}><IconBurger/></button>
-        <img src={peachLogo} alt="Peach" className="topbar-logo-desktop" />
+        <button
+          type="button"
+          className="topbar-logo-btn"
+          onClick={handleLogoClick}
+          aria-label="Go to homepage"
+        >
+          <img src={peachLogo} alt="Peach" className="topbar-logo-desktop" />
+        </button>
       </div>
 
       <div className="topbar-center">
-        <img src={peachLogo} alt="Peach" className="topbar-logo-mobile" />
+        <button
+          type="button"
+          className="topbar-logo-btn"
+          onClick={handleLogoClick}
+          aria-label="Go to homepage"
+        >
+          <img src={peachLogo} alt="Peach" className="topbar-logo-mobile" />
+        </button>
         {showPrice && (
           <div className="topbar-price">
             <IcoBtc size={18}/>
@@ -332,6 +353,13 @@ export function Topbar({
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="5.5" r="2.6"/><path d="M2.8 13.4c.7-2.6 2.8-4 5.2-4s4.5 1.4 5.2 4"/></svg>
                   Profile
+                </button>
+                <button
+                  className="avatar-menu-item"
+                  onClick={() => { setShowAvatarMenu(false); navigate("/payment-methods"); }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5"/><path d="M1.5 6.5h13"/><path d="M3.5 10.5h2"/></svg>
+                  Payment methods
                 </button>
                 <button
                   className="avatar-menu-item"
