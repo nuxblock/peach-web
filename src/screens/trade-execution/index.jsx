@@ -1351,7 +1351,7 @@ export default function TradeExecution() {
                 <div className="trade-summary">
                   {/* Row 1: you are buying / you are selling — sats */}
                   <div className="summary-item-label">
-                    You are {role === "buyer" ? "buying" : "selling"}
+                    {role === "buyer" ? "Buying" : "Selling"}
                   </div>
                   <div className="summary-item-val">
                     <SatsAmount sats={contract.amount} size="lg" />
@@ -1359,7 +1359,7 @@ export default function TradeExecution() {
 
                   {/* Row 2: you pay / you receive — fiat */}
                   <div className="summary-item-label">
-                    You {role === "buyer" ? "pay" : "receive"}
+                    {role === "buyer" ? "Paying" : "Receiving"}
                   </div>
                   <div
                     className="summary-item-val"
@@ -1379,7 +1379,7 @@ export default function TradeExecution() {
                   </div>
 
                   {/* Row 3: effective price — premium % (colored) + price */}
-                  <div className="summary-item-label">Effective price</div>
+                  <div className="summary-item-label">Price/BTC</div>
                   <div
                     className="summary-item-val"
                     style={{
@@ -1412,8 +1412,13 @@ export default function TradeExecution() {
                   <div className="summary-item-label">Method</div>
                   <div
                     className="summary-item-val"
-                    style={{ display: "flex", justifyContent: "flex-end" }}
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      gap: 6,
+                    }}
                   >
+                    <span className="tag-currency">{contract.currency}</span>
                     <span className="tag-method">{contract.method}</span>
                   </div>
                 </div>
