@@ -1647,6 +1647,7 @@ export function EscrowFundingCard({
         borderRadius: 14,
         overflow: "hidden",
         marginBottom: 16,
+        maxWidth: 530,
       }}
     >
       {/* Header */}
@@ -2706,7 +2707,8 @@ export function FundingDeadlinePill({ deadline, role }) {
         border: "1.5px solid rgba(196,81,4,.2)",
         borderRadius: 12,
         padding: "12px 16px",
-        marginBottom: 12,
+        marginBottom: 20,
+        maxWidth: 400,
       }}
     >
       <span style={{ fontSize: "1.5rem", flexShrink: 0 }}>⏳</span>

@@ -124,6 +124,23 @@ const CSS = `
   }
   .split-left-full{width:100%;border-right:none;max-width:600px;margin:0 auto}
   .split-left-inner{max-width:780px;margin:0 auto}
+  .split-left-inner-wide{max-width:900px;container-type:inline-size}
+  .funding-two-col{display:contents}
+  .funding-left-col{display:contents}
+  .funding-right-col{display:contents}
+  .funding-passthrough{display:contents}
+  @container (min-width: 820px){
+    .funding-two-col{
+      display:grid;
+      grid-template-columns:1fr 530px;
+      gap:24px;
+      align-items:start;
+    }
+    .funding-left-col{display:flex;flex-direction:column;align-items:stretch}
+    .funding-left-col .counterparty-card,
+    .funding-left-col .trade-summary{max-width:none;margin-left:0;margin-right:0;margin-bottom:20px}
+    .funding-right-col{display:flex;flex-direction:column}
+  }
   .split-right{flex:0 0 40%;max-width:560px;display:flex;flex-direction:column;overflow:hidden;min-width:0;padding-bottom:var(--stepper-h)}
 
   /* ── Mobile tabs ── */
@@ -156,6 +173,7 @@ const CSS = `
     display:flex;align-items:center;gap:12px;
     background:var(--surface);border:1px solid var(--black-10);
     border-radius:12px;padding:12px 14px;margin-bottom:20px;
+    max-width:400px;margin-left:auto;margin-right:auto;
   }
   .cp-name{font-size:.9rem;font-weight:700}
   .cp-meta{font-size:.75rem;color:var(--black-65);display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px}
@@ -164,7 +182,8 @@ const CSS = `
   .trade-summary{
     background:var(--surface);border:1px solid var(--black-10);border-radius:12px;
     padding:14px;margin-bottom:20px;display:grid;grid-template-columns:auto 1fr;
-    row-gap:12px;column-gap:16px;align-items:center}
+    row-gap:12px;column-gap:16px;align-items:center;max-width:400px;
+    margin-left:auto;margin-right:auto}
   .summary-item-label{font-size:.72rem;font-weight:700;text-transform:uppercase;
     letter-spacing:.05em;color:var(--black-65)}
   .summary-item-val{font-size:.95rem;font-weight:700;justify-self:end;text-align:right}
@@ -820,6 +839,10 @@ export default function TradeExecution() {
     badges: [],
     online: false,
   };
+  const isFundingStage =
+    status === "fundEscrow" ||
+    status === "createEscrow" ||
+    status === "waitingForFunding";
 
   useEffect(() => {
     if (!contract?.id) return;
@@ -1320,6 +1343,123 @@ export default function TradeExecution() {
     </>
   );
 
+  const counterpartyCard = (
+    <div
+      className="counterparty-card"
+      onClick={() => counterparty.id && counterparty.id !== "unknown" && navigate(`/user/${counterparty.id}`)}
+      style={{ cursor: counterparty.id && counterparty.id !== "unknown" ? "pointer" : "default" }}
+      title={counterparty.id && counterparty.id !== "unknown" ? "View user profile" : undefined}
+    >
+      <Avatar
+        peachId={counterparty.id}
+        size={44}
+        online={counterparty.online}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="cp-name">{counterparty.name}</div>
+        <div className="cp-meta">
+          <PeachRating rep={counterparty.rep ?? 0} size={14} trades={counterparty.trades} />
+          <span>·</span>
+          <span>{counterparty.trades} trades</span>
+        </div>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 4,
+          flexShrink: 0,
+        }}
+      >
+        {counterparty.badges?.includes("supertrader") && (
+          <span className="badge-supertrader">🏆 Supertrader</span>
+        )}
+        {counterparty.badges?.includes("fast") && (
+          <span className="badge-fast">⚡ Fast</span>
+        )}
+        <RepeatTraderBadge userId={counterparty.id} />
+      </div>
+    </div>
+  );
+
+  const tradeSummaryCard = (
+    <div className="trade-summary">
+      {/* Row 1: you are buying / you are selling — sats */}
+      <div className="summary-item-label">
+        {role === "buyer" ? "Buying" : "Selling"}
+      </div>
+      <div className="summary-item-val">
+        <SatsAmount sats={contract.amount} size="lg" />
+      </div>
+
+      {/* Row 2: you pay / you receive — fiat */}
+      <div className="summary-item-label">
+        {role === "buyer" ? "Paying" : "Receiving"}
+      </div>
+      <div
+        className="summary-item-val"
+        style={{ fontSize: "1.05rem" }}
+      >
+        {contract.currency === "CHF" ? "CHF " : "€"}
+        {contract.fiat}{" "}
+        <span
+          style={{
+            fontSize: ".72rem",
+            fontWeight: 600,
+            color: "var(--black-65)",
+          }}
+        >
+          {contract.currency}
+        </span>
+      </div>
+
+      {/* Row 3: effective price — premium % (colored) + price */}
+      <div className="summary-item-label">Price/BTC</div>
+      <div
+        className="summary-item-val"
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 10,
+          justifyContent: "flex-end",
+        }}
+      >
+        <span style={{ color: premColor }}>
+          {contract.premium > 0 ? "+" : ""}
+          {contract.premium.toFixed(1)}%
+        </span>
+        <span>
+          {contract.fiat != null && contract.amount > 0 ? (
+            <>
+              {contract.currency === "CHF" ? "CHF " : "€"}
+              {Math.round(
+                (Number(contract.fiat) / contract.amount) *
+                  100_000_000,
+              ).toLocaleString("fr-FR")}
+            </>
+          ) : (
+            "—"
+          )}
+        </span>
+      </div>
+
+      {/* Row 4: method */}
+      <div className="summary-item-label">Method</div>
+      <div
+        className="summary-item-val"
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 6,
+        }}
+      >
+        <span className="tag-currency">{contract.currency}</span>
+        <span className="tag-method">{contract.method}</span>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <style>{CSS}</style>
@@ -1473,7 +1613,7 @@ export default function TradeExecution() {
               <div
                 className={`split-left${mobileTab === "chat" ? " mobile-hidden" : ""}`}
               >
-                <div className="split-left-inner">
+                <div className={`split-left-inner${isFundingStage ? " split-left-inner-wide" : ""}`}>
                 {/* Dispute open / resolved — status banner sits above the
                     counterparty card. Inline onAction handles only the two
                     dispute API calls DisputeBanner triggers. */}
@@ -1772,120 +1912,19 @@ export default function TradeExecution() {
                     </div>
                   )}
 
-                {/* Counterparty */}
-                <div
-                  className="counterparty-card"
-                  onClick={() => counterparty.id && counterparty.id !== "unknown" && navigate(`/user/${counterparty.id}`)}
-                  style={{ cursor: counterparty.id && counterparty.id !== "unknown" ? "pointer" : "default" }}
-                  title={counterparty.id && counterparty.id !== "unknown" ? "View user profile" : undefined}
-                >
-                  <Avatar
-                    peachId={counterparty.id}
-                    size={44}
-                    online={counterparty.online}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="cp-name">{counterparty.name}</div>
-                    <div className="cp-meta">
-                      <PeachRating rep={counterparty.rep ?? 0} size={14} trades={counterparty.trades} />
-                      <span>·</span>
-                      <span>{counterparty.trades} trades</span>
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-end",
-                      gap: 4,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {counterparty.badges?.includes("supertrader") && (
-                      <span className="badge-supertrader">🏆 Supertrader</span>
-                    )}
-                    {counterparty.badges?.includes("fast") && (
-                      <span className="badge-fast">⚡ Fast</span>
-                    )}
-                    <RepeatTraderBadge userId={counterparty.id} />
-                  </div>
-                </div>
-
-                {/* Info card — rows label-left / value-right */}
-                <div className="trade-summary">
-                  {/* Row 1: you are buying / you are selling — sats */}
-                  <div className="summary-item-label">
-                    {role === "buyer" ? "Buying" : "Selling"}
-                  </div>
-                  <div className="summary-item-val">
-                    <SatsAmount sats={contract.amount} size="lg" />
-                  </div>
-
-                  {/* Row 2: you pay / you receive — fiat */}
-                  <div className="summary-item-label">
-                    {role === "buyer" ? "Paying" : "Receiving"}
-                  </div>
-                  <div
-                    className="summary-item-val"
-                    style={{ fontSize: "1.05rem" }}
-                  >
-                    {contract.currency === "CHF" ? "CHF " : "€"}
-                    {contract.fiat}{" "}
-                    <span
-                      style={{
-                        fontSize: ".72rem",
-                        fontWeight: 600,
-                        color: "var(--black-65)",
-                      }}
-                    >
-                      {contract.currency}
-                    </span>
-                  </div>
-
-                  {/* Row 3: effective price — premium % (colored) + price */}
-                  <div className="summary-item-label">Price/BTC</div>
-                  <div
-                    className="summary-item-val"
-                    style={{
-                      display: "flex",
-                      alignItems: "baseline",
-                      gap: 10,
-                      justifyContent: "flex-end",
-                    }}
-                  >
-                    <span style={{ color: premColor }}>
-                      {contract.premium > 0 ? "+" : ""}
-                      {contract.premium.toFixed(1)}%
-                    </span>
-                    <span>
-                      {contract.fiat != null && contract.amount > 0 ? (
-                        <>
-                          {contract.currency === "CHF" ? "CHF " : "€"}
-                          {Math.round(
-                            (Number(contract.fiat) / contract.amount) *
-                              100_000_000,
-                          ).toLocaleString("fr-FR")}
-                        </>
-                      ) : (
-                        "—"
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Row 4: method */}
-                  <div className="summary-item-label">Method</div>
-                  <div
-                    className="summary-item-val"
-                    style={{
-                      display: "flex",
-                      justifyContent: "flex-end",
-                      gap: 6,
-                    }}
-                  >
-                    <span className="tag-currency">{contract.currency}</span>
-                    <span className="tag-method">{contract.method}</span>
-                  </div>
-                </div>
+                {/* Funding-stage two-column wrapper. Outside funding stage the
+                    wrappers use display:contents and disappear from layout. */}
+                <div className={isFundingStage ? "funding-two-col" : "funding-passthrough"}>
+                <div className={isFundingStage ? "funding-left-col" : "funding-passthrough"}>
+                  {isFundingStage && (
+                    <FundingDeadlinePill
+                      deadline={contract.fundingExpectedBy}
+                      role={role}
+                    />
+                  )}
+                  {isFundingStage ? tradeSummaryCard : counterpartyCard}
+                  {isFundingStage ? counterpartyCard : tradeSummaryCard}
+                </div> {/* /funding-left-col */}
 
                 {/* Payment details (buyer sees seller's payment info, or vice versa) — moved ABOVE the Actions panel so a buyer about to confirm can read the seller's IBAN without scrolling past the slider. Hidden after cancellation and hidden from buyer until escrow is funded. */}
                 {paymentDetails &&
@@ -1951,19 +1990,10 @@ export default function TradeExecution() {
                   )}
 
                 {/* ── Actions (always first, includes deadline + escrow funding) ── */}
+                <div className={isFundingStage ? "funding-right-col" : "funding-passthrough"}>
                 <div className="panel-section">
                   {status !== "tradeCompleted" && status !== "rateUser" && (
                     <div className="panel-section-title">Actions</div>
-                  )}
-
-                  {/* Funding deadline pill — while seller still needs to fund (or tx is in mempool) */}
-                  {(status === "fundEscrow" ||
-                    status === "createEscrow" ||
-                    status === "waitingForFunding") && (
-                    <FundingDeadlinePill
-                      deadline={contract.fundingExpectedBy}
-                      role={role}
-                    />
                   )}
 
                   {/* Escrow funding card — inside actions for seller */}
@@ -2577,6 +2607,8 @@ export default function TradeExecution() {
                     )}
 
                 </div>
+                </div> {/* /funding-right-col */}
+                </div> {/* /funding-two-col */}
 
                 {/* Payment details decryption failed — fallback message (hidden after cancellation, and hidden from buyer until escrow is funded) */}
                 {!paymentDetails &&
