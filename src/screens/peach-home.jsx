@@ -325,20 +325,46 @@ export default function PeachHome() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    const retryTimers = [];
+
     async function fetchPrices() {
       try {
         const res = await get('/market/prices');
         const data = await res.json();
         if (data && typeof data === "object") {
-          setAllPrices(data);
-          setAvailableCurrencies(Object.keys(data).sort());
-          setCache("market-prices", data);
+          if (!cancelled) {
+            setAllPrices(data);
+            setAvailableCurrencies(Object.keys(data).sort());
+            setCache("market-prices", data);
+          }
+          return true;
         }
-      } catch {}
+        return false;
+      } catch (err) {
+        console.warn('[market/prices] fetch failed:', err);
+        return false;
+      }
     }
-    fetchPrices();
+
+    async function initialFetchWithRetry() {
+      if (await fetchPrices()) return;
+      for (const delay of [500, 1000, 2000, 4000]) {
+        if (cancelled) return;
+        await new Promise((r) => retryTimers.push(setTimeout(r, delay)));
+        if (cancelled) return;
+        if (await fetchPrices()) return;
+      }
+    }
+
+    initialFetchWithRetry();
     const iv = setInterval(fetchPrices, 30000);
-    return () => clearInterval(iv);
+
+    return () => {
+      cancelled = true;
+      retryTimers.forEach(clearTimeout);
+      clearInterval(iv);
+    };
   }, []);
 
   // ── MARKET OFFERS STATS (public, platform-wide) ──
