@@ -1641,6 +1641,7 @@ export function EscrowFundingCard({
 
   return (
     <div
+      className="escrow-funding-card"
       style={{
         background: "var(--surface)",
         border: "1.5px solid var(--black-10)",
@@ -2699,6 +2700,7 @@ export function FundingDeadlinePill({ deadline, role }) {
 
   return (
     <div
+      className="funding-deadline-pill"
       style={{
         display: "flex",
         alignItems: "center",

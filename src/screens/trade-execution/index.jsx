@@ -129,6 +129,8 @@ const CSS = `
   .funding-left-col{display:contents}
   .funding-right-col{display:contents}
   .funding-passthrough{display:contents}
+  .funding-deadline-pill{margin-left:auto;margin-right:auto}
+  .escrow-funding-card{margin-left:auto;margin-right:auto}
   @container (min-width: 820px){
     .funding-two-col{
       display:grid;
@@ -139,7 +141,9 @@ const CSS = `
     .funding-left-col{display:flex;flex-direction:column;align-items:stretch}
     .funding-left-col .counterparty-card,
     .funding-left-col .trade-summary{max-width:none;margin-left:0;margin-right:0;margin-bottom:20px}
+    .funding-left-col .funding-deadline-pill{margin-left:0;margin-right:0}
     .funding-right-col{display:flex;flex-direction:column}
+    .funding-right-col .escrow-funding-card{margin-left:0;margin-right:0}
   }
   .split-right{flex:0 0 40%;max-width:560px;display:flex;flex-direction:column;overflow:hidden;min-width:0;padding-bottom:var(--stepper-h)}
 
