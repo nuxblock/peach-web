@@ -93,6 +93,7 @@ export function normalizeContract(c, { peachId = null } = {}) {
       });
   return {
     id: c.id,
+    offerId: c.offerId ?? null,
     tradeId: formatTradeId(c.id),
     kind: "contract",
     direction,

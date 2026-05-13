@@ -135,6 +135,13 @@ export default function PeachMarket() {
   const pendingTimerRef = useRef(null);
   useEffect(() => () => { if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current); }, []);
 
+  // Popup-session signals used to disambiguate "request disappeared because
+  // counterparty accepted (contract lagging in /contracts/summary)" vs "request
+  // disappeared because counterparty rejected (no contract will ever appear)".
+  // Mirrors the two-tick confirmation pattern in useNotifications.js.
+  const popupRequestSeenRef    = useRef(false);
+  const popupRequestMissingRef = useRef(0);
+
   const isSellTab = tab === "sell";
 
   // Derive current BTC price in selected currency
@@ -148,6 +155,8 @@ export default function PeachMarket() {
     setPopupCurrency(offer.currencies.length === 1 ? offer.currencies[0] : null);
     setEditingPremium(false); setEditError(null);
     setWithdrawConfirm(false); setWithdrawError(null);
+    popupRequestSeenRef.current = false;
+    popupRequestMissingRef.current = 0;
     setPopupOffer(offer);
   }
   function closePopup() {
@@ -165,6 +174,8 @@ export default function PeachMarket() {
     setWithdrawConfirm(false); setWithdrawError(null);
     setDetailsLoading(false);
     setOfferDetails(null);
+    popupRequestSeenRef.current = false;
+    popupRequestMissingRef.current = 0;
   }
 
   // ── Fetch details when a sell offer is opened, then poll every 10s ──
@@ -224,14 +235,20 @@ export default function PeachMarket() {
             }
           }
         }
-        // Match a contract back to this offer via the composite contract id.
+        // Match a contract back to this offer. Primary: ContractSummary.offerId
+        // (mobile-canonical, mirrors useNotifications.js). Fallback: c.id
+        // dash-split (legacy convention, may not hold — see
+        // notification-poller-false-rejection-bug.md).
         let acceptedContractId = null;
         let contractsConfirmedNoMatch = false;
         if (contractsRes && contractsRes.ok) {
           const list = await contractsRes.json().catch(() => null);
           if (Array.isArray(list)) {
             const offerIdStr = String(offerId);
-            const match = list.find(c => String(c.id).split("-").includes(offerIdStr));
+            const match = list.find(c =>
+              (c.offerId != null && String(c.offerId) === offerIdStr) ||
+              String(c.id).split("-").includes(offerIdStr)
+            );
             if (match) acceptedContractId = String(match.id);
             else contractsConfirmedNoMatch = true;
           }
@@ -244,18 +261,37 @@ export default function PeachMarket() {
             const m = new Map(prev); m.set(offerId, acceptedContractId); return m;
           });
         }
-        // Reconcile local optimistic state with server truth. Only remove from
-        // localRequested when contracts/summary has confirmed no matching
-        // contract — otherwise we race the popup-component swap when the
-        // counterparty accepts (request endpoint goes empty before the new
-        // contract is visible in the summary).
+        // Reconcile local optimistic state with server truth, with a tolerance
+        // window for the acceptance/rejection ambiguity once the request body
+        // disappears. See the notification poller's two-tick pattern for prior art.
         if (tradeReqExists) {
+          popupRequestSeenRef.current = true;
+          popupRequestMissingRef.current = 0;
           setLocalRequested(prev => prev.has(offerId) ? prev : new Set([...prev, offerId]));
         } else if (!isOwn && contractsConfirmedNoMatch) {
-          setLocalRequested(prev => {
-            if (!prev.has(offerId)) return prev;
-            const s = new Set(prev); s.delete(offerId); return s;
-          });
+          if (popupRequestSeenRef.current) {
+            // Request was alive earlier in this popup; now gone, no contract
+            // matched. Could be (a) acceptance + lagging /contracts/summary,
+            // (b) rejection, or (c) linkage still broken (see
+            // notification-poller-false-rejection-bug.md). Tolerate ~30s.
+            popupRequestMissingRef.current += 1;
+            if (
+              popupRequestMissingRef.current >= 3 &&
+              !acceptedContracts.has(offerId)
+            ) {
+              setLocalRequested(prev => {
+                if (!prev.has(offerId)) return prev;
+                const s = new Set(prev); s.delete(offerId); return s;
+              });
+              closePopup();
+            }
+          } else {
+            // Never saw a live request in this popup — stale optimistic state.
+            setLocalRequested(prev => {
+              if (!prev.has(offerId)) return prev;
+              const s = new Set(prev); s.delete(offerId); return s;
+            });
+          }
         }
       } catch {
         // Swallow — popup still shows cached offer data on failure.

@@ -1760,12 +1760,15 @@ export default function TradesDashboard() {
         openOfferDetail(offerItem);
         return;
       }
-      // 3. Offer already accepted → find its contract and go to trade execution
-      //    Contract IDs are "buyOfferId-sellOfferId", so check if either part matches
+      // 3. Offer already accepted → find its contract and go to trade execution.
+      //    Primary: contract.offerId (mobile-canonical, mirrors useNotifications.js).
+      //    Fallback: c.id dash-split (legacy convention, may not hold — see
+      //    notification-poller-false-rejection-bug.md).
       const contract = liveItems.find(
         (t) =>
           t.kind === "contract" &&
-          String(t.id).split("-").includes(String(offerId)),
+          ((t.offerId != null && String(t.offerId) === String(offerId)) ||
+            String(t.id).split("-").includes(String(offerId))),
       );
       if (contract) {
         clearState();

@@ -4,6 +4,7 @@ import { fetchWithSessionCheck } from "../utils/sessionGuard.js";
 import { API_V1 } from "../utils/network.js";
 import { getCached, setCache } from "./useApi.js";
 import { normalizeOffer, normalizeContract } from "../utils/tradesNormalize.js";
+import { hasOfferTurnedToMyContract } from "../utils/peach069.js";
 
 // ── Seller-specific overrides (keyed by status) ─────────────────────────────
 const SELLER_OVERRIDE = {
@@ -123,7 +124,16 @@ function loadBaseline(peachId) {
       matchCounts:      new Map(obj.matchCounts      ?? []),
       offerUnread:      new Map(obj.offerUnread       ?? []),
       sentRequests:     new Map(obj.sentRequests     ?? []),
-      rejectionCandidates: new Set(obj.rejectionCandidates ?? []),
+      rejectionCandidates: (() => {
+        const v = obj.rejectionCandidates ?? [];
+        // Migrate old format (array of bare offerId strings) to Map(offerId → offerType).
+        // Old-format candidates lose their offerType — they're re-evaluated on
+        // the next rejection tick once _prevSentRequests has the full info.
+        if (v.length > 0 && typeof v[0] === "string") {
+          return new Map(v.map(id => [id, null]));
+        }
+        return new Map(v);
+      })(),
     };
   } catch { return null; }
 }
@@ -138,7 +148,7 @@ function saveBaseline() {
       matchCounts:      [..._prevMatchCounts.entries()],
       offerUnread:      [..._prevOfferUnread.entries()],
       sentRequests:     [..._prevSentRequests.entries()],
-      rejectionCandidates: [..._rejectionCandidates],
+      rejectionCandidates: [..._rejectionCandidates.entries()],
     };
     localStorage.setItem(k, JSON.stringify(obj));
   } catch { /* quota or other — silently skip */ }
@@ -154,7 +164,7 @@ let _prevTradeRequestCount = new Map(); // offerId → totalTradeRequests (open 
 let _prevMatchCounts = new Map();  // buyOfferId → totalMatches (track additional matches arriving on hasMatchesAvailable offers)
 let _prevOfferUnread = new Map();  // offerId → boolean; sourced from offer.containsUnreadMessages
 let _prevSentRequests = new Map(); // offerId → offerType ("buyOffer" | "sellOffer") — outbound trade requests, used to detect rejection by offer owner
-let _rejectionCandidates = new Set(); // offerIds suspected of being rejected; emitted only on second consecutive confirmation tick (suppresses race between browse-list and /contracts/summary propagation)
+let _rejectionCandidates = new Map(); // offerId → offerType ("buyOffer" | "sellOffer") — outbound requests suspected of rejection; only emitted on the second consecutive confirmation tick (race protection)
 let _pollTick      = 0;            // incremented every poll; chat layer runs only on even ticks (~16s cadence)
 let _isFirstPoll   = true;
 let _hydratedPeachId = null;
@@ -181,7 +191,7 @@ function _hydrateForUser(peachId) {
     _prevMatchCounts        = baseline.matchCounts;
     _prevOfferUnread        = baseline.offerUnread ?? new Map();
     _prevSentRequests       = baseline.sentRequests;
-    _rejectionCandidates    = baseline.rejectionCandidates ?? new Set();
+    _rejectionCandidates    = baseline.rejectionCandidates ?? new Map();
     _isFirstPoll            = false;
   } else {
     _prevContracts          = new Map();
@@ -190,7 +200,7 @@ function _hydrateForUser(peachId) {
     _prevMatchCounts        = new Map();
     _prevOfferUnread        = new Map();
     _prevSentRequests       = new Map();
-    _rejectionCandidates    = new Set();
+    _rejectionCandidates    = new Map();
     _isFirstPoll            = true;
   }
   _updateTitle();
@@ -222,8 +232,8 @@ function _updateTitle() {
   }
 }
 
-function _makeNotif(id, type, title, body, contractId, offerId) {
-  return { id, type, title, body, contractId: contractId || null, offerId: offerId || null, createdAt: Date.now() };
+function _makeNotif(id, type, title, body, contractId, offerId, offerType) {
+  return { id, type, title, body, contractId: contractId || null, offerId: offerId || null, offerType: offerType || null, createdAt: Date.now() };
 }
 
 async function _poll(auth, base) {
@@ -260,28 +270,38 @@ async function _poll(auth, base) {
     // Auto-dismiss stale tradeRequest notifications: once a contract has been
     // created from an offer, the original "Trade request received" notification
     // is no longer actionable — clicking it would reopen an empty popup.
-    // Primary linkage: ContractSummary.offerId (mobile-canonical). Fallback: c.id
-    // split (legacy convention, may or may not hold) — both contribute to the set.
+    // Authoritative linkage via /v069/{buyOffer|sellOffer}/:id/hasTurnedToMyContract:
+    // v069 numeric ids and v1 contract.id parts live in different namespaces,
+    // so the only reliable "did this offer become a contract for me" signal is
+    // the dedicated endpoint. Notifs persisted before offerType existed are
+    // skipped here and age out via MAX_NOTIFS / markRead.
     {
-      const offerIdsWithContract = new Set();
-      for (const c of contracts) {
-        if (c.offerId != null) offerIdsWithContract.add(String(c.offerId));
-        for (const part of String(c.id).split("-")) offerIdsWithContract.add(part);
-      }
-      let dismissedAny = false;
-      for (const n of _state.notifications) {
-        if (n.type === "tradeRequest" && n.offerId
-            && offerIdsWithContract.has(String(n.offerId))
-            && !_state.readIds.has(n.id)) {
-          _state.readIds.add(n.id);
-          dismissedAny = true;
+      const candidates = _state.notifications.filter(
+        n => n.type === "tradeRequest"
+          && n.offerId
+          && n.offerType
+          && !_state.readIds.has(n.id)
+      );
+      if (candidates.length > 0) {
+        const checks = await Promise.all(
+          candidates.map(n =>
+            hasOfferTurnedToMyContract(n.offerId, n.offerType, auth)
+              .then(r => ({ n, accepted: r.accepted }))
+          )
+        );
+        let dismissedAny = false;
+        for (const { n, accepted } of checks) {
+          if (accepted === true && !_state.readIds.has(n.id)) {
+            _state.readIds.add(n.id);
+            dismissedAny = true;
+          }
         }
-      }
-      if (dismissedAny) {
-        _state.unreadCount = _state.notifications.filter(n => !_state.readIds.has(n.id)).length;
-        saveReadIds(_state.readIds, _state.notifications);
-        _updateTitle();
-        _notify();
+        if (dismissedAny) {
+          _state.unreadCount = _state.notifications.filter(n => !_state.readIds.has(n.id)).length;
+          saveReadIds(_state.readIds, _state.notifications);
+          _updateTitle();
+          _notify();
+        }
       }
     }
 
@@ -449,7 +469,8 @@ async function _poll(auth, base) {
           : `${delta} trade requests received`;
         events.push(_makeNotif(
           `o-${o.id}-tradeReq-${now}`, "tradeRequest",
-          title, "Review and accept or decline.", null, o.id
+          title, "Review and accept or decline.", null, o.id,
+          o._dir === "buy" ? "buyOffer" : "sellOffer"
         ));
       }
       _prevTradeRequestCount.set(o.id, current);
@@ -525,25 +546,51 @@ async function _poll(auth, base) {
         for (const o of browseBuyArr)  if (o.hasPerformedTradeRequest) currentSent.set(String(o.id), "buyOffer");
         for (const o of browseSellArr) if (o.hasPerformedTradeRequest) currentSent.set(String(o.id), "sellOffer");
 
-        // Build set of offer ids that became contracts.
-        // Primary linkage: ContractSummary.offerId (mobile-canonical). Fallback: c.id
-        // split (legacy convention) — both contribute to maximize match coverage.
-        const offerIdsWithContract = new Set();
-        for (const c of contracts) {
-          if (c.offerId != null) offerIdsWithContract.add(String(c.offerId));
-          for (const part of String(c.id).split("-")) offerIdsWithContract.add(part);
+        // Authoritative "did this v069 offer become my contract?" check via
+        // /v069/{buyOffer|sellOffer}/:id/hasTurnedToMyContract. Mirrors mobile
+        // (ExpressBuyTradeRequestToSellOffer.tsx). Replaces the earlier attempt
+        // to derive linkage from /contracts/summary — v069 numeric offer ids
+        // and v1 contract.id parts live in different namespaces, so dash-split
+        // and c.offerId checks were unreliable and produced false rejections.
+        //
+        // Tri-state result (true | false | null):
+        //   true  → accepted into a contract; never emit rejection
+        //   false → endpoint says no contract; eligible for rejection (still
+        //           gated by the two-tick confirmation below)
+        //   null  → endpoint error; treat as unknown, recheck next tick
+        const candidateMap = new Map(); // offerId → offerType
+        for (const [offerId, offerType] of _rejectionCandidates) {
+          if (!currentSent.has(offerId)) candidateMap.set(offerId, offerType);
+        }
+        for (const [offerId, offerType] of _prevSentRequests) {
+          if (!currentSent.has(offerId) && !candidateMap.has(offerId)) {
+            candidateMap.set(offerId, offerType);
+          }
         }
 
-        // Two-tick confirmation: a "disappeared without contract" signal can be a race
-        // between browse-list (acceptance) and /contracts/summary (which may lag a tick).
-        // We only emit "declined" if the same offerId is still missing — and still not in
-        // any contract — on the next rejection-check tick.
+        const acceptanceMap = new Map(); // offerId → (true | false | null)
+        if (candidateMap.size > 0) {
+          const entries = [...candidateMap.entries()];
+          const results = await Promise.all(
+            entries.map(([id, type]) =>
+              type
+                ? hasOfferTurnedToMyContract(id, type, auth).then(r => r.accepted)
+                : Promise.resolve(null)
+            )
+          );
+          entries.forEach(([id], i) => acceptanceMap.set(id, results[i]));
+        }
 
-        // 1. Confirm previously-suspicious candidates from the prior rejection tick.
+        // Two-tick confirmation: only emit "declined" when the offer is missing
+        // AND hasTurnedToMyContract definitively returned `false` on this
+        // (second) tick. Race protection against transient endpoint errors and
+        // brief windows where browse-list updates faster than the contract is
+        // visible to the endpoint.
         const confirmedRejections = new Set();
-        for (const offerId of _rejectionCandidates) {
-          if (currentSent.has(offerId)) continue;            // came back — false alarm
-          if (offerIdsWithContract.has(offerId)) continue;   // contract showed up — was an acceptance
+        for (const [offerId] of _rejectionCandidates) {
+          if (currentSent.has(offerId)) continue;             // came back — false alarm
+          if (acceptanceMap.get(offerId) === true) continue;  // accepted into contract
+          if (acceptanceMap.get(offerId) !== false) continue; // null/undefined → unknown
           confirmedRejections.add(offerId);
         }
         for (const offerId of confirmedRejections) {
@@ -558,13 +605,21 @@ async function _poll(auth, base) {
           });
         }
 
-        // 2. Identify new suspicious offers this tick (will be confirmed/cleared next tick).
-        const nextCandidates = new Set();
-        for (const [offerId] of _prevSentRequests) {
+        // Carry forward unresolved candidates (missing AND not confirmed
+        // accepted). Stored with offerType so the next rejection tick can
+        // re-check via hasTurnedToMyContract even after _prevSentRequests rotates.
+        const nextCandidates = new Map();
+        for (const [offerId, offerType] of _prevSentRequests) {
           if (currentSent.has(offerId)) continue;
-          if (offerIdsWithContract.has(offerId)) continue;
+          if (acceptanceMap.get(offerId) === true) continue;
           if (confirmedRejections.has(offerId)) continue;
-          nextCandidates.add(offerId);
+          nextCandidates.set(offerId, offerType);
+        }
+        for (const [offerId, offerType] of _rejectionCandidates) {
+          if (currentSent.has(offerId)) continue;
+          if (acceptanceMap.get(offerId) === true) continue;
+          if (confirmedRejections.has(offerId)) continue;
+          if (!nextCandidates.has(offerId)) nextCandidates.set(offerId, offerType);
         }
         _rejectionCandidates = nextCandidates;
 

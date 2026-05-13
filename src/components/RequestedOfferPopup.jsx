@@ -198,7 +198,14 @@ export default function RequestedOfferPopup({
               const list = await cRes.json().catch(() => null);
               if (Array.isArray(list)) {
                 const offerIdStr = String(offer.id);
-                const match = list.find(c => String(c.id).split("-").includes(offerIdStr));
+                // Primary: ContractSummary.offerId (mobile-canonical, mirrors
+                // useNotifications.js). Fallback: c.id dash-split (legacy
+                // convention, may not hold — see
+                // notification-poller-false-rejection-bug.md).
+                const match = list.find(c =>
+                  (c.offerId != null && String(c.offerId) === offerIdStr) ||
+                  String(c.id).split("-").includes(offerIdStr)
+                );
                 if (match && onAccepted) onAccepted(String(match.id));
               }
             }
