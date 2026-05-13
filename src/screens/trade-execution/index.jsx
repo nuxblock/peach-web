@@ -49,6 +49,9 @@ import {
   BuyerGroupHugDisplay,
   BuyerCustomAddressToggle,
   SuccessBanner,
+  ActionBanner,
+  IconClock,
+  DisputeBanner,
 } from "./components.jsx";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -209,10 +212,16 @@ const CSS = `
   .payout-celeb-card{
     width:100%;max-width:440px;
     transform-origin:center;
+    pointer-events:auto;
     filter:drop-shadow(0 24px 60px rgba(0,0,0,.35));
     animation:payoutCelebIn .35s cubic-bezier(.34,1.56,.64,1),
               payoutCelebOut .4s ease 2s forwards;
   }
+  .payout-batching-link{
+    background:none;border:none;padding:0;font:inherit;
+    color:var(--primary-dark);text-decoration:underline;cursor:pointer;
+  }
+  .payout-batching-link:hover{opacity:.8}
   /* The SuccessBanner already provides marginBottom: 12 inline — drop it
      inside the modal so the card sits flush in the center. */
   .payout-celeb-card > div{margin-bottom:0!important}
@@ -1293,6 +1302,23 @@ export default function TradeExecution() {
 
   const unreadCount = liveContract?.unreadMessages ?? 0;
 
+  const payoutPendingSubtitle = (
+    <>
+      Your sats are on their way to your wallet. This may take a few minutes,
+      especially if you use Group Hug. Accelerate your payout in the{" "}
+      <button
+        type="button"
+        className="payout-batching-link"
+        onClick={() =>
+          navigate("/settings", { state: { openSection: "tx-batching" } })
+        }
+      >
+        settings
+      </button>{" "}
+      for a small extra fee.
+    </>
+  );
+
   return (
     <>
       <style>{CSS}</style>
@@ -1446,13 +1472,303 @@ export default function TradeExecution() {
               <div
                 className={`split-left${mobileTab === "chat" ? " mobile-hidden" : ""}`}
               >
+                {/* Dispute open / resolved — status banner sits above the
+                    counterparty card. Inline onAction handles only the two
+                    dispute API calls DisputeBanner triggers. */}
+                {(status === "dispute" || status === "disputeWithoutEscrowFunded") && (
+                  <div style={{ marginBottom: 12 }}>
+                    <DisputeBanner
+                      scenario={scenario}
+                      onAction={async (action, arg) => {
+                        if (action === "dispute_ack_email") {
+                          try {
+                            const res = await post(
+                              "/contract/" + contract.id + "/dispute/acknowledge",
+                              { email: arg },
+                            );
+                            if (res.ok) {
+                              setLiveContract((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      isEmailRequired: false,
+                                      disputeAcknowledgedByCounterParty: true,
+                                    }
+                                  : prev,
+                              );
+                              return true;
+                            }
+                          } catch {}
+                          return false;
+                        }
+                        if (action === "dispute_ack_outcome") {
+                          try {
+                            const res = await post(
+                              "/contract/" + contract.id + "/dispute/acknowledgeOutcome",
+                            );
+                            if (res.ok) {
+                              const myRole =
+                                scenario.role === "buyer" ? "buyer" : "seller";
+                              setLiveContract((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      disputeOutcomeAcknowledgedBy: [
+                                        ...(prev.disputeOutcomeAcknowledgedBy ?? []),
+                                        myRole,
+                                      ],
+                                    }
+                                  : prev,
+                              );
+                              return true;
+                            }
+                          } catch {}
+                          return false;
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Confirm payment — buyer: waiting for seller to confirm */}
+                {status === "confirmPaymentRequired" && role === "buyer" && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      background: "rgba(5,168,90,.08)",
+                      border: "1px solid rgba(5,168,90,.18)",
+                      borderRadius: 12,
+                      padding: "10px 14px",
+                      marginBottom: 12,
+                      fontSize: ".85rem",
+                      color: "var(--success)",
+                      fontWeight: 600,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <IconClock />
+                    <span>You've sent payment. Waiting for the seller to confirm.</span>
+                  </div>
+                )}
+
+                {/* Payment too late — buyer POV */}
+                {status === "paymentTooLate" && role === "buyer" && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      background: "var(--error-bg)",
+                      border: "1px solid rgba(223,50,31,.15)",
+                      borderRadius: 8,
+                      padding: "10px 12px",
+                      marginBottom: 12,
+                      fontSize: ".83rem",
+                      color: "var(--error)",
+                      fontWeight: 600,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <IconClock />
+                    <span>
+                      You did not pay on time. The seller can now decide to give you
+                      more time or cancel the trade. In either case, your reputation has
+                      been impacted.
+                    </span>
+                  </div>
+                )}
+
                 {/* Payout pending — buyer: sats arriving */}
                 {status === "payoutPending" && role === "buyer" && (
                   <SuccessBanner
                     title="Congrats! The seller released the escrow."
-                    subtitle="Your sats are on their way to your wallet. This may take a few minutes."
+                    subtitle={payoutPendingSubtitle}
                   />
                 )}
+
+                {/* Trade complete success card */}
+                {(status === "tradeCompleted" || status === "rateUser") && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      background: "var(--success-bg)",
+                      border: "1px solid rgba(5,168,90,.2)",
+                      borderRadius: 12,
+                      padding: "12px 16px",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        width: 28,
+                        height: 28,
+                        borderRadius: "50%",
+                        background: "var(--success)",
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "1rem",
+                        fontWeight: 800,
+                        lineHeight: 1,
+                      }}
+                      aria-hidden="true"
+                    >
+                      ✓
+                    </span>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: "1rem",
+                          fontWeight: 800,
+                          color: "var(--success)",
+                          marginBottom: 2,
+                        }}
+                      >
+                        Trade Complete!{role === "buyer" ? " 🎉" : ""}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: ".8rem",
+                          fontWeight: 500,
+                          color: "var(--black-65)",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {role === "buyer"
+                          ? "Your sats are on their way"
+                          : "You've successfully sold Bitcoin"}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rating panel — both roles rate after bitcoin is released */}
+                {status === "rateUser" && (
+                  <RatingPanel
+                    counterparty={counterparty}
+                    onRate={handleRate}
+                  />
+                )}
+
+                {/* Ratings exchanged on this contract */}
+                {(() => {
+                  const ratingGiven =
+                    role === "seller"
+                      ? contract.ratingBuyer
+                      : contract.ratingSeller;
+                  const ratingReceived =
+                    role === "seller"
+                      ? contract.ratingSeller
+                      : contract.ratingBuyer;
+                  const toLabel = role === "seller" ? "buyer" : "seller";
+                  const isRated = (r) => r === 1 || r === -1;
+                  const emoji = (r) => (r === 1 ? "👍" : "👎");
+                  if (!isRated(ratingGiven) && !isRated(ratingReceived))
+                    return null;
+                  return (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                        background: "var(--black-3)",
+                        border: "1px solid var(--black-10)",
+                        borderRadius: 8,
+                        padding: "10px 12px",
+                        marginBottom: 12,
+                        fontSize: ".85rem",
+                        fontWeight: 600,
+                        color: "var(--black-65)",
+                      }}
+                    >
+                      {isRated(ratingGiven) && (
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <span>Rating given to the {toLabel}</span>
+                          <span>{emoji(ratingGiven)}</span>
+                        </div>
+                      )}
+                      {isRated(ratingReceived) && (
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <span>Rating given to you</span>
+                          <span>{emoji(ratingReceived)}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Seller: buyer has marked payment as sent — heads-up to check bank account */}
+                {(status === "confirmPaymentRequired" ||
+                  status === "releaseEscrow") &&
+                  role === "seller" && (
+                    <ActionBanner
+                      title="Payment made. Confirm if you received it."
+                      subtitle="The buyer has marked the payment as sent. Check your account and confirm once the funds have arrived."
+                    />
+                  )}
+
+                {/* Payment deadline pill — only meaningful while the buyer still needs to send fiat */}
+                {deadlineStr &&
+                  status === "paymentRequired" &&
+                  role === "buyer" &&
+                  !scenario.paymentTimedOut &&
+                  !scenario.cancelationRequested && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        background: "var(--primary-mild)",
+                        border: "1.5px solid rgba(196,81,4,.2)",
+                        borderRadius: 12,
+                        padding: "12px 16px",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <span style={{ fontSize: "1.5rem", flexShrink: 0 }}>
+                        ⏳
+                      </span>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: ".72rem",
+                            fontWeight: 700,
+                            color: "var(--primary-dark)",
+                            textTransform: "uppercase",
+                            letterSpacing: ".05em",
+                            marginBottom: 1,
+                          }}
+                        >
+                          Payment deadline
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "1.05rem",
+                            fontWeight: 800,
+                            color: "var(--primary-dark)",
+                          }}
+                        >
+                          {deadlineStr} remaining
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                 {/* Counterparty */}
                 <div
@@ -1634,7 +1950,9 @@ export default function TradeExecution() {
 
                 {/* ── Actions (always first, includes deadline + escrow funding) ── */}
                 <div className="panel-section">
-                  <div className="panel-section-title">Actions</div>
+                  {status !== "tradeCompleted" && status !== "rateUser" && (
+                    <div className="panel-section-title">Actions</div>
+                  )}
 
                   {/* Funding deadline pill — while seller still needs to fund (or tx is in mempool) */}
                   {(status === "fundEscrow" ||
@@ -1645,170 +1963,6 @@ export default function TradeExecution() {
                       role={role}
                     />
                   )}
-
-                  {/* Payment deadline pill — only meaningful while the buyer still needs to send fiat */}
-                  {deadlineStr &&
-                    status === "paymentRequired" &&
-                    role === "buyer" &&
-                    !scenario.paymentTimedOut &&
-                    !scenario.cancelationRequested && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                          background: "var(--primary-mild)",
-                          border: "1.5px solid rgba(196,81,4,.2)",
-                          borderRadius: 12,
-                          padding: "12px 16px",
-                          marginBottom: 12,
-                        }}
-                      >
-                        <span style={{ fontSize: "1.5rem", flexShrink: 0 }}>
-                          ⏳
-                        </span>
-                        <div>
-                          <div
-                            style={{
-                              fontSize: ".72rem",
-                              fontWeight: 700,
-                              color: "var(--primary-dark)",
-                              textTransform: "uppercase",
-                              letterSpacing: ".05em",
-                              marginBottom: 1,
-                            }}
-                          >
-                            Payment deadline
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "1.05rem",
-                              fontWeight: 800,
-                              color: "var(--primary-dark)",
-                            }}
-                          >
-                            {deadlineStr} remaining
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                  {/* Trade complete success card */}
-                  {(status === "tradeCompleted" || status === "rateUser") && (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        background: "var(--success-bg)",
-                        border: "1px solid rgba(5,168,90,.2)",
-                        borderRadius: 12,
-                        padding: "12px 16px",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <span
-                        style={{
-                          flexShrink: 0,
-                          width: 28,
-                          height: 28,
-                          borderRadius: "50%",
-                          background: "var(--success)",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "1rem",
-                          fontWeight: 800,
-                          lineHeight: 1,
-                        }}
-                        aria-hidden="true"
-                      >
-                        ✓
-                      </span>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: "1rem",
-                            fontWeight: 800,
-                            color: "var(--success)",
-                            marginBottom: 2,
-                          }}
-                        >
-                          Trade Complete!{role === "buyer" ? " 🎉" : ""}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: ".8rem",
-                            fontWeight: 500,
-                            color: "var(--black-65)",
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          {role === "buyer"
-                            ? "Your sats are on their way"
-                            : "You've successfully sold Bitcoin"}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Ratings exchanged on this contract */}
-                  {(() => {
-                    const ratingGiven =
-                      role === "seller"
-                        ? contract.ratingBuyer
-                        : contract.ratingSeller;
-                    const ratingReceived =
-                      role === "seller"
-                        ? contract.ratingSeller
-                        : contract.ratingBuyer;
-                    const toLabel = role === "seller" ? "buyer" : "seller";
-                    const isRated = (r) => r === 1 || r === -1;
-                    const emoji = (r) => (r === 1 ? "👍" : "👎");
-                    if (!isRated(ratingGiven) && !isRated(ratingReceived))
-                      return null;
-                    return (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 4,
-                          background: "var(--black-3)",
-                          border: "1px solid var(--black-10)",
-                          borderRadius: 8,
-                          padding: "10px 12px",
-                          marginBottom: 12,
-                          fontSize: ".85rem",
-                          fontWeight: 600,
-                          color: "var(--black-65)",
-                        }}
-                      >
-                        {isRated(ratingGiven) && (
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            <span>Rating given to the {toLabel}</span>
-                            <span>{emoji(ratingGiven)}</span>
-                          </div>
-                        )}
-                        {isRated(ratingReceived) && (
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            <span>Rating given to you</span>
-                            <span>{emoji(ratingReceived)}</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
 
                   {/* Escrow funding card — inside actions for seller */}
                   {role === "seller" &&
@@ -2420,13 +2574,6 @@ export default function TradeExecution() {
                       />
                     )}
 
-                  {/* Rating panel — both roles rate after bitcoin is released */}
-                  {status === "rateUser" && (
-                    <RatingPanel
-                      counterparty={counterparty}
-                      onRate={handleRate}
-                    />
-                  )}
                 </div>
 
                 {/* Payment details decryption failed — fallback message (hidden after cancellation, and hidden from buyer until escrow is funded) */}
@@ -2613,7 +2760,7 @@ export default function TradeExecution() {
           <div className="payout-celeb-card">
             <SuccessBanner
               title="Congrats! The seller released the escrow."
-              subtitle="Your sats are on their way to your wallet. This may take a few minutes."
+              subtitle={payoutPendingSubtitle}
             />
           </div>
         </div>

@@ -2420,7 +2420,7 @@ const OUTCOME_LABELS = {
     "The dispute has been resolved — the buyer will receive the payout.",
 };
 
-function DisputeBanner({ scenario, onAction }) {
+export function DisputeBanner({ scenario, onAction }) {
   const {
     role,
     disputeActive,
@@ -2746,8 +2746,8 @@ export function SuccessBanner({ title, subtitle }) {
         display: "flex",
         alignItems: "center",
         gap: 12,
-        background: "var(--primary-mild)",
-        border: "1.5px solid rgba(196,81,4,.2)",
+        background: "var(--success-bg)",
+        border: "1px solid rgba(5,168,90,.2)",
         borderRadius: 12,
         padding: "12px 16px",
         marginBottom: 12,
@@ -2760,7 +2760,7 @@ export function SuccessBanner({ title, subtitle }) {
           width: 28,
           height: 28,
           borderRadius: "50%",
-          background: "#1FB86B",
+          background: "var(--success)",
           color: "#fff",
           display: "flex",
           alignItems: "center",
@@ -2777,7 +2777,7 @@ export function SuccessBanner({ title, subtitle }) {
           style={{
             fontSize: "1rem",
             fontWeight: 800,
-            color: "var(--primary-dark)",
+            color: "var(--success)",
             marginBottom: 2,
           }}
         >
@@ -2800,7 +2800,7 @@ export function SuccessBanner({ title, subtitle }) {
 
 // Same shape as SuccessBanner but with an orange "!" — used when the user
 // still has an action to take, not when a step is already complete.
-function ActionBanner({ title, subtitle }) {
+export function ActionBanner({ title, subtitle }) {
   return (
     <div
       style={{
@@ -3121,10 +3121,6 @@ export function ActionPanel({
         {(status === "confirmPaymentRequired" || status === "releaseEscrow") &&
           role === "seller" && (
             <>
-              <ActionBanner
-                title="Payment made. Confirm if you received it."
-                subtitle="The buyer has marked the payment as sent. Check your account and confirm once the funds have arrived."
-              />
               {pendingTask === "release" ? (
                 <PendingBtn
                   label="Confirm release in mobile app"
@@ -3148,19 +3144,16 @@ export function ActionPanel({
             </>
           )}
 
-        {/* Buyer: waiting for seller to confirm payment */}
+        {/* Buyer: waiting for seller to confirm payment — status card now
+            rendered above the counterparty card in index.jsx. Dispute button
+            stays here in the actions panel. */}
         {status === "confirmPaymentRequired" && role === "buyer" && (
-          <>
-            <div className="action-hint">
-              You've sent payment. Waiting for the seller to confirm.
-            </div>
-            <Btn
-              label="Open Dispute"
-              bg="var(--error-bg)"
-              color="var(--error)"
-              onClick={() => onAction("dispute")}
-            />
-          </>
+          <Btn
+            label="Open Dispute"
+            bg="var(--error-bg)"
+            color="var(--error)"
+            onClick={() => onAction("dispute")}
+          />
         )}
 
         {/* Payout pending — buyer: banner now rendered above the counterparty
@@ -3351,31 +3344,8 @@ export function ActionPanel({
           </>
         )}
 
-        {/* Payment too late — buyer POV */}
-        {status === "paymentTooLate" && role === "buyer" && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "var(--error-bg)",
-              border: "1px solid rgba(223,50,31,.15)",
-              borderRadius: 8,
-              padding: "10px 12px",
-              fontSize: ".83rem",
-              color: "var(--error)",
-              fontWeight: 600,
-              lineHeight: 1.5,
-            }}
-          >
-            <IconClock />
-            <span>
-              You did not pay on time. The seller can now decide to give you
-              more time or cancel the trade. In either case, your reputation has
-              been impacted.
-            </span>
-          </div>
-        )}
+        {/* Payment too late — buyer POV: status card now rendered above the
+            counterparty card in index.jsx (status, not action). */}
 
         {/* Trade cancelled — final state */}
         {(status === "tradeCanceled" || status === "confirmCancelation") && (
@@ -3457,10 +3427,8 @@ export function ActionPanel({
           </>
         )}
 
-        {/* Dispute states */}
-        {(status === "dispute" || status === "disputeWithoutEscrowFunded") && (
-          <DisputeBanner scenario={scenario} onAction={onAction} />
-        )}
+        {/* Dispute states — DisputeBanner now rendered above the counterparty
+            card in index.jsx (status, not action). */}
 
         {/* Cancel trade — available during active trade phases for buyer only (seller cancels at offer level or via dispute) */}
         {[

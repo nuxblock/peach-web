@@ -530,10 +530,13 @@ export function TxBatchingSubScreen({ onBack }) {
           </div>
         </>
       )}
-      <div style={{ background:"var(--surface)", border:"1px solid var(--black-10)", borderRadius:12, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+      <div style={{ background:"var(--surface)", border:"1px solid var(--black-10)", borderRadius:12, padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
         <span style={{ fontSize:".9rem", fontWeight:700, color:"var(--black)" }}>transaction batching</span>
         <Toggle checked={batching} onChange={handleBatchingChange}/>
       </div>
+      <p style={{ fontSize:".85rem", fontWeight:500, color:"var(--black-75)", lineHeight:1.55, margin:"0 4px 20px" }}>
+        Un-toggle to accelerate your pending payouts. This will incur a small fee.
+      </p>
       <div style={{ background:"var(--black-5)", borderRadius:10, padding:"12px 16px" }}>
         <p style={{ fontSize:".76rem", color:"var(--black-65)", lineHeight:1.5, margin:0 }}>
           Transaction batching (GroupHug) combines multiple payouts into a single Bitcoin transaction, reducing on-chain fees per payout. When disabled, your escrow payout is broadcast immediately as its own transaction.
