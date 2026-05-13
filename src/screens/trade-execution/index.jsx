@@ -43,10 +43,12 @@ import {
   WrongAmountFundedCard,
   ActionPanel,
   RatingPanel,
+  TradeCompleteModal,
   ChatPanel,
   DisputeFlow,
   BuyerGroupHugDisplay,
   BuyerCustomAddressToggle,
+  SuccessBanner,
 } from "./components.jsx";
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -195,6 +197,80 @@ const CSS = `
   .rating-btn:hover{border-color:var(--primary-mild)}
   .rating-selected-good{background:var(--success-bg)!important;border-color:var(--success)!important;color:var(--success)!important}
   .rating-selected-bad{background:var(--error-bg)!important;border-color:var(--error)!important;color:var(--error)!important}
+
+  /* ── Payout pending celebration (auto-dismiss after 2s) ── */
+  .payout-celeb-backdrop{
+    position:fixed;inset:0;z-index:700;
+    background:rgba(0,0,0,.35);
+    display:flex;align-items:center;justify-content:center;padding:20px;
+    pointer-events:none;
+    animation:fadeIn .2s ease, payoutCelebBackdropOut .4s ease 2s forwards;
+  }
+  .payout-celeb-card{
+    width:100%;max-width:440px;
+    transform-origin:center;
+    filter:drop-shadow(0 24px 60px rgba(0,0,0,.35));
+    animation:payoutCelebIn .35s cubic-bezier(.34,1.56,.64,1),
+              payoutCelebOut .4s ease 2s forwards;
+  }
+  /* The SuccessBanner already provides marginBottom: 12 inline — drop it
+     inside the modal so the card sits flush in the center. */
+  .payout-celeb-card > div{margin-bottom:0!important}
+  @keyframes payoutCelebIn{
+    from{opacity:0;transform:scale(.7)}
+    to  {opacity:1;transform:scale(1)}
+  }
+  @keyframes payoutCelebOut{
+    from{opacity:1;transform:scale(1)}
+    to  {opacity:0;transform:scale(.4)}
+  }
+  @keyframes payoutCelebBackdropOut{
+    from{opacity:1}
+    to  {opacity:0}
+  }
+
+  /* ── Trade Complete celebration modal ── */
+  .tc-modal-backdrop{
+    position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.55);
+    display:flex;align-items:center;justify-content:center;padding:20px;
+    animation:fadeIn .18s ease;
+  }
+  .tc-modal-card{
+    position:relative;background:var(--surface);
+    border:1.5px solid var(--success);
+    border-radius:20px;padding:36px 28px 24px;
+    max-width:460px;width:100%;
+    box-shadow:0 24px 70px rgba(0,0,0,.28);
+    animation:modalIn .22s ease;
+    text-align:center;
+  }
+  .tc-close{
+    position:absolute;top:10px;right:12px;
+    width:30px;height:30px;border-radius:50%;
+    border:none;background:transparent;color:var(--black-65);
+    cursor:pointer;font-size:1rem;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .tc-close:hover{background:var(--black-5);color:var(--black)}
+  .tc-icon{
+    width:72px;height:72px;margin:0 auto 12px;
+    border-radius:50%;background:var(--success-bg);
+    color:var(--success);font-size:2.4rem;font-weight:800;
+    display:flex;align-items:center;justify-content:center;
+    animation:celebrationPop .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  .tc-headline{
+    font-size:1.6rem;font-weight:800;color:var(--success);
+    animation:celebrationPop .4s cubic-bezier(.34,1.56,.64,1) .05s both;
+  }
+  .tc-sub{font-size:.95rem;color:var(--black-65);margin-top:4px}
+  .tc-divider{height:1px;background:var(--black-10);margin:20px 0 16px}
+  .tc-rating-prompt{font-size:.92rem;color:var(--black-75);margin-bottom:12px}
+  .tc-rating-row{display:flex;gap:12px;margin-bottom:14px}
+  .tc-submit{width:100%}
+  .tc-err{margin-top:10px;font-size:.8rem;color:var(--error)}
+  .tc-thanks{padding:30px 0;animation:celebrationPop .4s cubic-bezier(.34,1.56,.64,1);font-weight:700;color:var(--success)}
+  .tc-checkmark{font-size:2.6rem;color:var(--success);font-weight:800;margin-bottom:6px}
 
   /* ── Chat ── */
   .chat-panel{display:flex;flex-direction:column;flex:1;overflow:hidden}
@@ -363,6 +439,9 @@ export default function TradeExecution() {
   // user has a saved address (see effect below). Ephemeral per-trade.
   const [useCustomPayout, setUseCustomPayout] = useState(false);
   const [showSetupPayoutPopup, setShowSetupPayoutPopup] = useState(false);
+  const [celebrationOpen, setCelebrationOpen] = useState(false);
+  const [celebrationDismissed, setCelebrationDismissed] = useState(null);
+  const [payoutCelebOpen, setPayoutCelebOpen] = useState(false);
 
   // Load the buyer's saved custom payout address from /v069/selfUser once
   // on mount (canonical source: PGP-encrypted blob, same as Settings reads).
@@ -730,6 +809,65 @@ export default function TradeExecution() {
     trades: 0,
     badges: [],
     online: false,
+  };
+
+  useEffect(() => {
+    if (!contract?.id) return;
+    if (status === "rateUser" && contract.id !== celebrationDismissed) {
+      setCelebrationOpen(true);
+    } else if (status !== "rateUser") {
+      setCelebrationOpen(false);
+    }
+  }, [status, contract?.id, celebrationDismissed]);
+
+  useEffect(() => {
+    if (!contract?.id) return;
+    if (status !== "payoutPending" || role !== "buyer") return;
+    const key = `peach-payout-celebrated-${contract.id}`;
+    try {
+      if (localStorage.getItem(key) === "1") return;
+    } catch {}
+    setPayoutCelebOpen(true);
+    const t = setTimeout(() => {
+      setPayoutCelebOpen(false);
+      try { localStorage.setItem(key, "1"); } catch {}
+    }, 2400);
+    return () => clearTimeout(t);
+  }, [status, role, contract?.id]);
+
+  const handleRate = async (r) => {
+    const rating = r === 5 ? 1 : -1;
+    const ratedUserId = counterparty.id;
+    if (!ratedUserId || ratedUserId === "unknown") {
+      throw new Error("Counterparty id is missing");
+    }
+    if (!auth?.pgpPrivKey) {
+      throw new Error("PGP private key unavailable");
+    }
+    // Key order is load-bearing: backend reconstructs the
+    // signed payload as contractId → rating → ratedUserId.
+    const payload = {
+      contractId: contract.id,
+      rating,
+      ratedUserId,
+    };
+    const pgpSignature = await signPGPMessage(
+      JSON.stringify(payload),
+      auth.pgpPrivKey,
+    );
+    if (!pgpSignature) {
+      throw new Error("Failed to sign rating");
+    }
+    const res = await post(
+      `/contract/${contract.id}/user/rate`,
+      { rating, pgpSignature },
+    );
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(
+        `Rating failed (${res.status})${text ? ": " + text : ""}`,
+      );
+    }
   };
 
   useEffect(() => {
@@ -1308,6 +1446,14 @@ export default function TradeExecution() {
               <div
                 className={`split-left${mobileTab === "chat" ? " mobile-hidden" : ""}`}
               >
+                {/* Payout pending — buyer: sats arriving */}
+                {status === "payoutPending" && role === "buyer" && (
+                  <SuccessBanner
+                    title="Congrats! The seller released the escrow."
+                    subtitle="Your sats are on their way to your wallet. This may take a few minutes."
+                  />
+                )}
+
                 {/* Counterparty */}
                 <div
                   className="counterparty-card"
@@ -1548,7 +1694,7 @@ export default function TradeExecution() {
                     )}
 
                   {/* Trade complete success card */}
-                  {status === "tradeCompleted" && (
+                  {(status === "tradeCompleted" || status === "rateUser") && (
                     <div
                       style={{
                         display: "flex",
@@ -2278,40 +2424,7 @@ export default function TradeExecution() {
                   {status === "rateUser" && (
                     <RatingPanel
                       counterparty={counterparty}
-                      onRate={async (r) => {
-                        const rating = r === 5 ? 1 : -1;
-                        const ratedUserId = counterparty.id;
-                        if (!ratedUserId || ratedUserId === "unknown") {
-                          throw new Error("Counterparty id is missing");
-                        }
-                        if (!auth?.pgpPrivKey) {
-                          throw new Error("PGP private key unavailable");
-                        }
-                        // Key order is load-bearing: backend reconstructs the
-                        // signed payload as contractId → rating → ratedUserId.
-                        const payload = {
-                          contractId: contract.id,
-                          rating,
-                          ratedUserId,
-                        };
-                        const pgpSignature = await signPGPMessage(
-                          JSON.stringify(payload),
-                          auth.pgpPrivKey,
-                        );
-                        if (!pgpSignature) {
-                          throw new Error("Failed to sign rating");
-                        }
-                        const res = await post(
-                          `/contract/${contract.id}/user/rate`,
-                          { rating, pgpSignature },
-                        );
-                        if (!res.ok) {
-                          const text = await res.text().catch(() => "");
-                          throw new Error(
-                            `Rating failed (${res.status})${text ? ": " + text : ""}`,
-                          );
-                        }
-                      }}
+                      onRate={handleRate}
                     />
                   )}
                 </div>
@@ -2480,6 +2593,31 @@ export default function TradeExecution() {
         description={signingModal?.description}
         onCancel={() => setSigningModal(null)}
       />
+
+      {/* ── TRADE COMPLETE CELEBRATION MODAL ── */}
+      {celebrationOpen && status === "rateUser" && contract?.id && (
+        <TradeCompleteModal
+          role={role}
+          counterpartyName={counterparty.name}
+          onRate={handleRate}
+          onClose={() => {
+            setCelebrationDismissed(contract.id);
+            setCelebrationOpen(false);
+          }}
+        />
+      )}
+
+      {/* ── PAYOUT PENDING CELEBRATION (auto-dismiss after 2s) ── */}
+      {payoutCelebOpen && (
+        <div className="payout-celeb-backdrop" aria-hidden="true">
+          <div className="payout-celeb-card">
+            <SuccessBanner
+              title="Congrats! The seller released the escrow."
+              subtitle="Your sats are on their way to your wallet. This may take a few minutes."
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── CUSTOM PAYOUT ADDRESS NOT SET POPUP (buyer toggle empty state) ── */}
       {showSetupPayoutPopup && (

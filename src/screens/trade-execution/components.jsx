@@ -2739,7 +2739,7 @@ export function FundingDeadlinePill({ deadline, role }) {
 
 // Orange-mild card with a green check, bold title, and subtext.
 // Used for "completed step" hints in the seller and buyer flows.
-function SuccessBanner({ title, subtitle }) {
+export function SuccessBanner({ title, subtitle }) {
   return (
     <div
       style={{
@@ -3163,13 +3163,9 @@ export function ActionPanel({
           </>
         )}
 
-        {/* Payout pending — buyer: sats arriving */}
-        {status === "payoutPending" && role === "buyer" && (
-          <SuccessBanner
-            title="Congrats! The seller released the escrow."
-            subtitle="Your sats are on their way to your wallet. This may take a few minutes."
-          />
-        )}
+        {/* Payout pending — buyer: banner now rendered above the counterparty
+            card in index.jsx so it sits in the trade-details column, not the
+            actions column. */}
 
         {/* Payout pending — seller: trade done, release broadcasting */}
         {status === "payoutPending" && role === "seller" && (
@@ -3589,6 +3585,101 @@ export function RatingPanel({ counterparty, onRate }) {
           {error}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── TRADE COMPLETE MODAL ─────────────────────────────────────────────────────
+export function TradeCompleteModal({ role, counterpartyName, onRate, onClose }) {
+  const [rating, setRating] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!submitted) return;
+    const t = setTimeout(onClose, 1500);
+    return () => clearTimeout(t);
+  }, [submitted, onClose]);
+
+  const submit = async () => {
+    if (!rating || submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await onRate(rating);
+      setSubmitted(true);
+    } catch (e) {
+      setError(e?.message || "Could not submit rating");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="tc-modal-backdrop" onClick={onClose}>
+      <div className="tc-modal-card" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="tc-close"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+
+        {!submitted ? (
+          <>
+            <div className="tc-icon" aria-hidden="true">✓</div>
+            <div className="tc-headline">Trade Complete!</div>
+            <div className="tc-sub">
+              {role === "buyer"
+                ? "Your sats are on their way"
+                : "You've successfully sold Bitcoin"}
+            </div>
+
+            <div className="tc-divider" />
+
+            <div className="tc-rating-prompt">
+              How was trading with <strong>{counterpartyName}</strong>?
+            </div>
+            <div className="tc-rating-row">
+              <button
+                type="button"
+                className={`rating-btn${rating === 5 ? " rating-selected-good" : ""}`}
+                onClick={() => setRating(5)}
+                disabled={submitting}
+              >
+                <IconThumbUp />
+                <span>Positive</span>
+              </button>
+              <button
+                type="button"
+                className={`rating-btn${rating === 1 ? " rating-selected-bad" : ""}`}
+                onClick={() => setRating(1)}
+                disabled={submitting}
+              >
+                <IconThumbDown />
+                <span>Negative</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="action-btn-grad tc-submit"
+              onClick={submit}
+              disabled={!rating || submitting}
+            >
+              {submitting ? "Submitting…" : "Submit Rating"}
+            </button>
+            {error && <div className="tc-err">{error}</div>}
+          </>
+        ) : (
+          <div className="tc-thanks">
+            <div className="tc-checkmark" aria-hidden="true">✓</div>
+            <div>Thanks!</div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
