@@ -18,7 +18,7 @@ const SELLER_OVERRIDE = {
 const STATUS_NOTIF = {
   hasMatchesAvailable:          { title: "New trade requests available",   body: "Review and select a trade request.",             type: "match" },
   offerHiddenWithMatchesAvailable: { title: "New trade requests available", body: "Review and select a trade request.",            type: "match" },
-  acceptTradeRequest:           { title: "Trade request received",  body: "Review and accept or decline.",          type: "tradeRequest" },
+  // acceptTradeRequest: owned by the totalTradeRequests counter diff — single source of truth for trade-request bells.
   fundEscrow:                   { title: "Trade accepted",          body: "Waiting for seller to fund escrow.",     type: "statusChange" },
   waitingForFunding:            { title: "Trade accepted",          body: "Waiting for seller to fund escrow.",     type: "statusChange" },
   escrowWaitingForConfirmation: { title: "Escrow funded",           body: "Waiting for blockchain confirmation.",   type: "statusChange" },
@@ -34,7 +34,7 @@ const STATUS_NOTIF = {
   paymentTooLate:               { title: "Payment overdue",         body: "Payment deadline has passed.",           type: "statusChange" },
   confirmCancelation:           { title: "Cancellation requested",  body: "Review the cancellation request.",       type: "statusChange" },
   rateUser:                     { title: "Trade completed! Rate your trade partner",  body: "",                                      type: "statusChange" },
-  createEscrow:                 { title: "Create escrow",            body: "Fun the escrow for this contract.",     type: "statusChange" },
+  createEscrow:                 { title: "Its a match ! Create escrow",            body: "Fund the escrow for this contract.",     type: "statusChange" },
   fundingAmountDifferent:       { title: "Wrong funding amount",     body: "Escrow funded with unexpected amount.",   type: "warning" },
   payoutPending:                { title: "Payout pending",           body: "Bitcoin is being sent to your wallet.",   type: "statusChange" },
   refundAddressRequired:        { title: "Refund address needed",    body: "Provide a refund address to continue.",   type: "warning" },
@@ -119,10 +119,11 @@ function loadBaseline(peachId) {
     return {
       contracts:        new Map(obj.contracts        ?? []),
       offers:           new Map(obj.offers           ?? []),
-      sellRequests:     new Map((obj.sellRequests    ?? []).map(([id, ids]) => [id, new Set(ids)])),
+      tradeRequestCount: new Map(obj.tradeRequestCount ?? []),
       matchCounts:      new Map(obj.matchCounts      ?? []),
       offerUnread:      new Map(obj.offerUnread       ?? []),
       sentRequests:     new Map(obj.sentRequests     ?? []),
+      rejectionCandidates: new Set(obj.rejectionCandidates ?? []),
     };
   } catch { return null; }
 }
@@ -133,10 +134,11 @@ function saveBaseline() {
     const obj = {
       contracts:        [..._prevContracts.entries()],
       offers:           [..._prevOffers.entries()],
-      sellRequests:     [..._prevSellRequests.entries()].map(([id, set]) => [id, [...set]]),
+      tradeRequestCount: [..._prevTradeRequestCount.entries()],
       matchCounts:      [..._prevMatchCounts.entries()],
       offerUnread:      [..._prevOfferUnread.entries()],
       sentRequests:     [..._prevSentRequests.entries()],
+      rejectionCandidates: [..._rejectionCandidates],
     };
     localStorage.setItem(k, JSON.stringify(obj));
   } catch { /* quota or other — silently skip */ }
@@ -148,10 +150,11 @@ let _listeners     = new Set();
 let _state         = { notifications: [], unreadCount: 0, readIds: new Set() };
 let _prevContracts = new Map();   // id → { tradeStatus, unreadMessages }
 let _prevOffers    = new Map();   // id → tradeStatus
-let _prevSellRequests = new Map(); // sellOfferId → Set<tradeRequestId> (sell-offer trade-requests workaround for missing tradeStatus)
+let _prevTradeRequestCount = new Map(); // offerId → totalTradeRequests (open incoming trade-request counter, populated for both buy and sell offers)
 let _prevMatchCounts = new Map();  // buyOfferId → totalMatches (track additional matches arriving on hasMatchesAvailable offers)
 let _prevOfferUnread = new Map();  // offerId → boolean; sourced from offer.containsUnreadMessages
 let _prevSentRequests = new Map(); // offerId → offerType ("buyOffer" | "sellOffer") — outbound trade requests, used to detect rejection by offer owner
+let _rejectionCandidates = new Set(); // offerIds suspected of being rejected; emitted only on second consecutive confirmation tick (suppresses race between browse-list and /contracts/summary propagation)
 let _pollTick      = 0;            // incremented every poll; chat layer runs only on even ticks (~16s cadence)
 let _isFirstPoll   = true;
 let _hydratedPeachId = null;
@@ -172,21 +175,23 @@ function _hydrateForUser(peachId) {
   };
   const baseline = loadBaseline(peachId);
   if (baseline) {
-    _prevContracts        = baseline.contracts;
-    _prevOffers           = baseline.offers;
-    _prevSellRequests     = baseline.sellRequests;
-    _prevMatchCounts      = baseline.matchCounts;
-    _prevOfferUnread      = baseline.offerUnread ?? new Map();
-    _prevSentRequests     = baseline.sentRequests;
-    _isFirstPoll          = false;
+    _prevContracts          = baseline.contracts;
+    _prevOffers             = baseline.offers;
+    _prevTradeRequestCount  = baseline.tradeRequestCount ?? new Map();
+    _prevMatchCounts        = baseline.matchCounts;
+    _prevOfferUnread        = baseline.offerUnread ?? new Map();
+    _prevSentRequests       = baseline.sentRequests;
+    _rejectionCandidates    = baseline.rejectionCandidates ?? new Set();
+    _isFirstPoll            = false;
   } else {
-    _prevContracts        = new Map();
-    _prevOffers           = new Map();
-    _prevSellRequests     = new Map();
-    _prevMatchCounts      = new Map();
-    _prevOfferUnread      = new Map();
-    _prevSentRequests     = new Map();
-    _isFirstPoll          = true;
+    _prevContracts          = new Map();
+    _prevOffers             = new Map();
+    _prevTradeRequestCount  = new Map();
+    _prevMatchCounts        = new Map();
+    _prevOfferUnread        = new Map();
+    _prevSentRequests       = new Map();
+    _rejectionCandidates    = new Set();
+    _isFirstPoll            = true;
   }
   _updateTitle();
   if (_listeners.size > 0) _notify();
@@ -255,10 +260,12 @@ async function _poll(auth, base) {
     // Auto-dismiss stale tradeRequest notifications: once a contract has been
     // created from an offer, the original "Trade request received" notification
     // is no longer actionable — clicking it would reopen an empty popup.
-    // Contract IDs are composite "buyOfferId-sellOfferId", so both halves count.
+    // Primary linkage: ContractSummary.offerId (mobile-canonical). Fallback: c.id
+    // split (legacy convention, may or may not hold) — both contribute to the set.
     {
       const offerIdsWithContract = new Set();
       for (const c of contracts) {
+        if (c.offerId != null) offerIdsWithContract.add(String(c.offerId));
         for (const part of String(c.id).split("-")) offerIdsWithContract.add(part);
       }
       let dismissedAny = false;
@@ -285,14 +292,19 @@ async function _poll(auth, base) {
       ...buyOffers.map(o => ({ ...o, _dir: "buy" })),
       ...sellOffers.map(o => ({ ...o, _dir: "sell" })),
     ];
+    const offersArr = offersSummaryRes
+      ? (Array.isArray(offersSummaryRes) ? offersSummaryRes : (offersSummaryRes.offers ?? []))
+      : [];
+
+    // ── totalTradeRequests lookup: /offers/summary for sells, buyOffer?ownOffers=true for buys ──
+    const trReqLookup = new Map();
+    for (const o of offersArr) trReqLookup.set(String(o.id), o.totalTradeRequests ?? 0);
+    for (const o of buyOffers) trReqLookup.set(String(o.id), o.totalTradeRequests ?? 0);
 
     // ── Populate trades-items / trades-pending caches so trades-dashboard hydrates instantly ──
     // Mirrors the merge in trades-dashboard fast-tier: /offers/summary canonical for sells,
     // /v069/buyOffer overlays buys (carrying over v1's `prices` when v069 omits them).
     {
-      const offersArr = offersSummaryRes
-        ? (Array.isArray(offersSummaryRes) ? offersSummaryRes : (offersSummaryRes.offers ?? []))
-        : [];
       const buyTagged = buyOffers.map(o => ({ ...o, _direction: "buy" }));
       const byId = new Map();
       offersArr.forEach(o => byId.set(o.id, o));
@@ -322,6 +334,7 @@ async function _poll(auth, base) {
       for (const o of allOffers) {
         _prevOffers.set(o.id, o.tradeStatus ?? o.tradeStatusNew ?? "");
         _prevOfferUnread.set(o.id, o.containsUnreadMessages === true);
+        _prevTradeRequestCount.set(o.id, trReqLookup.get(String(o.id)) ?? 0);
       }
       saveBaseline();
       _notify();
@@ -421,42 +434,31 @@ async function _poll(auth, base) {
       if (!currentOfferIds.has(id)) _prevOfferUnread.delete(id);
     }
 
-    // ── Diff sell-offer trade requests (workaround: sell offers lack tradeStatus) ──
-    const trReqResults = await Promise.all(
-      sellOffers.map(o =>
-        fetchWithSessionCheck(`${v069Base}/sellOffer/${o.id}/tradeRequestReceived/`, { headers: hdrs })
-          .then(r => r.ok ? r.json() : null)
-          .catch(() => null)
-          .then(data => ({ offerId: String(o.id), data }))
-      )
-    );
-
-    for (const { offerId, data } of trReqResults) {
-      if (!Array.isArray(data)) continue;
-      const currentIds = new Set(data.map(tr => String(tr.id)));
-      const prevIds = _prevSellRequests.get(offerId);
-      if (prevIds === undefined) {
-        // First time seeing this offer — baseline only, no notification
-        _prevSellRequests.set(offerId, currentIds);
+    // ── Diff trade-request counts on own offers (buy + sell, via totalTradeRequests counter) ──
+    for (const o of allOffers) {
+      const current = trReqLookup.get(String(o.id)) ?? 0;
+      const prev = _prevTradeRequestCount.get(o.id);
+      if (prev === undefined) {
+        _prevTradeRequestCount.set(o.id, current);
         continue;
       }
-      const newIds = [...currentIds].filter(id => !prevIds.has(id));
-      if (newIds.length > 0) {
-        const title = newIds.length === 1
+      const delta = current - prev;
+      if (delta > 0) {
+        const title = delta === 1
           ? "Trade request received"
-          : `${newIds.length} trade requests received`;
+          : `${delta} trade requests received`;
         events.push(_makeNotif(
-          `o-${offerId}-tradeReq-${now}`, "tradeRequest",
-          title, "Review and accept or decline.", null, offerId
+          `o-${o.id}-tradeReq-${now}`, "tradeRequest",
+          title, "Review and accept or decline.", null, o.id
         ));
       }
-      _prevSellRequests.set(offerId, currentIds);
+      _prevTradeRequestCount.set(o.id, current);
     }
 
-    // Prune _prevSellRequests for sell offers no longer present
-    const currentSellIds = new Set(sellOffers.map(o => String(o.id)));
-    for (const id of [..._prevSellRequests.keys()]) {
-      if (!currentSellIds.has(id)) _prevSellRequests.delete(id);
+    // Prune _prevTradeRequestCount for offers no longer present
+    const currentAllOfferIds = new Set(allOffers.map(o => o.id));
+    for (const id of [..._prevTradeRequestCount.keys()]) {
+      if (!currentAllOfferIds.has(id)) _prevTradeRequestCount.delete(id);
     }
 
     // ── Diff buy-offer match counts (notify on additional matches arriving) ──
@@ -523,17 +525,28 @@ async function _poll(auth, base) {
         for (const o of browseBuyArr)  if (o.hasPerformedTradeRequest) currentSent.set(String(o.id), "buyOffer");
         for (const o of browseSellArr) if (o.hasPerformedTradeRequest) currentSent.set(String(o.id), "sellOffer");
 
-        // Build set of offer ids that became contracts (composite "buyOfferId-sellOfferId")
+        // Build set of offer ids that became contracts.
+        // Primary linkage: ContractSummary.offerId (mobile-canonical). Fallback: c.id
+        // split (legacy convention) — both contribute to maximize match coverage.
         const offerIdsWithContract = new Set();
         for (const c of contracts) {
+          if (c.offerId != null) offerIdsWithContract.add(String(c.offerId));
           for (const part of String(c.id).split("-")) offerIdsWithContract.add(part);
         }
 
-        // Emit rejection events for offers that disappeared without becoming a contract.
-        // The offer is gone, so the notification is inert (noNavigate) — clicking it does nothing.
-        for (const [offerId] of _prevSentRequests) {
-          if (currentSent.has(offerId)) continue;
-          if (offerIdsWithContract.has(offerId)) continue;
+        // Two-tick confirmation: a "disappeared without contract" signal can be a race
+        // between browse-list (acceptance) and /contracts/summary (which may lag a tick).
+        // We only emit "declined" if the same offerId is still missing — and still not in
+        // any contract — on the next rejection-check tick.
+
+        // 1. Confirm previously-suspicious candidates from the prior rejection tick.
+        const confirmedRejections = new Set();
+        for (const offerId of _rejectionCandidates) {
+          if (currentSent.has(offerId)) continue;            // came back — false alarm
+          if (offerIdsWithContract.has(offerId)) continue;   // contract showed up — was an acceptance
+          confirmedRejections.add(offerId);
+        }
+        for (const offerId of confirmedRejections) {
           events.push({
             ..._makeNotif(
               `o-${offerId}-tradeReqRejected-${now}`, "tradeRequest",
@@ -544,6 +557,16 @@ async function _poll(auth, base) {
             noNavigate: true,
           });
         }
+
+        // 2. Identify new suspicious offers this tick (will be confirmed/cleared next tick).
+        const nextCandidates = new Set();
+        for (const [offerId] of _prevSentRequests) {
+          if (currentSent.has(offerId)) continue;
+          if (offerIdsWithContract.has(offerId)) continue;
+          if (confirmedRejections.has(offerId)) continue;
+          nextCandidates.add(offerId);
+        }
+        _rejectionCandidates = nextCandidates;
 
         _prevSentRequests = currentSent;
       }
@@ -596,6 +619,7 @@ function _markRead(notifId) {
 export function markSentRequestSelfCancelled(offerId) {
   if (offerId == null) return;
   _prevSentRequests.delete(String(offerId));
+  _rejectionCandidates.delete(String(offerId));
   saveBaseline();
 }
 
@@ -605,6 +629,7 @@ export function markSentRequestSelfCancelled(offerId) {
 export function markSentRequestCreated(offerId, offerType) {
   if (offerId == null || !offerType) return;
   _prevSentRequests.set(String(offerId), offerType);
+  _rejectionCandidates.delete(String(offerId));
   saveBaseline();
 }
 
