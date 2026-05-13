@@ -6,6 +6,7 @@ import { useAuth } from "../hooks/useAuth.js";
 import { useApi, getCached, setCache } from "../hooks/useApi.js";
 import { useUrgentCount } from "../hooks/useUrgentCount.js";
 import { STATUS_CONFIG, FINISHED_STATUSES } from "../data/statusConfig.js";
+import { methodDisplayName } from "../data/paymentMethodMeta.js";
 import { BTC_PRICE_FALLBACK as BTC_PRICE, fmt as formatSats, fmtPct, relTime, toPeaches } from "../utils/format.js";
 import PeachRating from "../components/PeachRating.jsx";
 import Avatar from "../components/Avatar.jsx";
@@ -98,6 +99,26 @@ const css = `
   .method-bar{height:100%;border-radius:999px;background:var(--grad)}
   .method-pct{font-size:.72rem;font-weight:600;color:var(--black-65);min-width:30px;text-align:right}
   .method-count{font-size:.68rem;font-weight:500;color:var(--black-25);min-width:40px;text-align:right}
+
+  /* ── MARKET TOP CARD (combined PMs + Currencies) ── */
+  .market-section-label{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--black-40);margin-bottom:6px}
+  .market-list{display:flex;flex-direction:column;gap:6px}
+  .market-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:.84rem}
+  .market-name{font-weight:700;color:var(--black)}
+  .market-count{font-size:.72rem;font-weight:500;color:var(--black-65)}
+  .market-empty{padding:8px 0;color:var(--black-40);font-size:.78rem;font-weight:600}
+
+  /* ── SEE-ALL POPUP ── */
+  .seeall-overlay{position:fixed;inset:0;background:rgba(43,25,17,.55);display:flex;align-items:center;justify-content:center;z-index:600;animation:seeallFadeIn .12s ease-out}
+  .seeall-popup{background:#fff;border-radius:16px;width:min(92vw,520px);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;animation:seeallSlideUp .18s ease-out}
+  .seeall-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 12px;border-bottom:1px solid var(--black-5)}
+  .seeall-title{font-size:1rem;font-weight:800;color:var(--black);text-transform:uppercase;letter-spacing:.08em}
+  .seeall-close{background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--black-65);padding:4px 8px;line-height:1}
+  .seeall-close:hover{color:var(--black)}
+  .seeall-body{padding:14px 22px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:18px}
+  .seeall-col-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--black-40);margin-bottom:8px}
+  @keyframes seeallFadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes seeallSlideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
   /* ── PROFILE CARD ── */
   .profile-top{display:flex;align-items:center;gap:14px}
@@ -273,9 +294,18 @@ export default function PeachHome() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [marketStats, setMarketStats] = useState(null);
   const [contractsData, setContractsData] = useState([]);
+  // Market-wide PM + currency breakdown (counts of outstanding offers).
+  // Fetched once on home mount from /v069/{buyOffer,sellOffer}?ownOffers=false.
+  const [marketBreakdown, setMarketBreakdown] = useState({ pms: [], currencies: [] });
+  const [seeAllOpen, setSeeAllOpen] = useState(false);
   const [athData, setAthData]       = useState(null);
   const [athPeriod, setAthPeriod]   = useState("24h");
   const [athCurrency, setAthCurrency] = useState("EUR");
+  const [news, setNews] = useState([
+    { text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.", shareText: "", url: "https://peachbitcoin.com" },
+    { text: "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.", shareText: "", url: "https://peachbitcoin.com" },
+    { text: "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.", shareText: "", url: "https://peachbitcoin.com" },
+  ]);
 
   // ── AUTH ──
   const { auth, isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
@@ -383,6 +413,22 @@ export default function PeachHome() {
     return () => clearInterval(iv);
   }, []);
 
+  // ── NEWS (public, platform-wide) ──
+  useEffect(() => {
+    async function fetchNews() {
+      try {
+        const res = await get('/info/news');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) setNews(data);
+        }
+      } catch {}
+    }
+    fetchNews();
+    const iv = setInterval(fetchNews, 5 * 60 * 1000);
+    return () => clearInterval(iv);
+  }, []);
+
   // ── ATH PRICE DATA (public endpoint — no auth headers, always via proxy) ──
   useEffect(() => {
     async function fetchAth() {
@@ -463,12 +509,69 @@ export default function PeachHome() {
     return () => clearInterval(iv);
   }, [auth]);
 
+  useEffect(() => {
+    if (!seeAllOpen) return;
+    function onKey(e) { if (e.key === "Escape") setSeeAllOpen(false); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [seeAllOpen]);
+
+  // ── MARKET BREAKDOWN: top PMs + currencies across all outstanding offers ──
+  // Fired once on home mount. Counts each offer once toward every PM and
+  // currency it lists, so an offer accepting SEPA in EUR and USD adds 1 to
+  // SEPA, 1 to EUR, 1 to USD.
+  useEffect(() => {
+    if (!auth) {
+      setMarketBreakdown({ pms: [], currencies: [] });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const v069Base = auth.baseUrl.replace(/\/v1$/, "/v069");
+        const headers = { Authorization: `Bearer ${auth.token}` };
+        const [buyRes, sellRes] = await Promise.all([
+          fetch(`${v069Base}/buyOffer?ownOffers=false`, { headers }).catch(() => null),
+          fetch(`${v069Base}/sellOffer?ownOffers=false`, { headers }).catch(() => null),
+        ]);
+        const parse = async (r) => {
+          if (!r || !r.ok) return [];
+          const j = await r.json().catch(() => null);
+          return Array.isArray(j) ? j : (j?.offers ?? []);
+        };
+        const all = [...(await parse(buyRes)), ...(await parse(sellRes))];
+        const pmCounts  = new Map();
+        const curCounts = new Map();
+        for (const o of all) {
+          const mop = o.meansOfPayment ?? {};
+          const currencies = Object.keys(mop);
+          const methods = [...new Set(Object.values(mop).flat())];
+          for (const c of currencies) curCounts.set(c, (curCounts.get(c) ?? 0) + 1);
+          for (const m of methods)    pmCounts.set(m,  (pmCounts.get(m)  ?? 0) + 1);
+        }
+        const toSorted = (m) =>
+          [...m.entries()].sort((a, b) => b[1] - a[1])
+            .map(([name, count]) => ({ name, count }));
+        if (!cancelled) {
+          setMarketBreakdown({ pms: toSorted(pmCounts), currencies: toSorted(curCounts) });
+        }
+      } catch {
+        if (!cancelled) setMarketBreakdown({ pms: [], currencies: [] });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [auth]);
+
   // ── DERIVED DATA FROM CONTRACTS ──
   const completedContracts = contractsData.filter(c => c.tradeStatus === "tradeCompleted");
   const totalVolumeSats = completedContracts.reduce((s, c) => s + (c.amount ?? 0), 0);
   const lastTradeDate = completedContracts.length
     ? new Date(Math.max(...completedContracts.map(c => new Date(c.lastModified).getTime())))
     : null;
+
+  // ── DERIVED: top 5 from market breakdown (full lists go to See-all popup) ──
+  const topPms        = marketBreakdown.pms.slice(0, 5);
+  const topCurrencies = marketBreakdown.currencies.slice(0, 5);
 
   const satsPerCur  = Math.round(100_000_000 / btcPrice);
   const navWidth = isMobile ? 0 : 68;
@@ -611,29 +714,34 @@ export default function PeachHome() {
             </div>
 
             {/* ── NEWS CARD ── */}
-            <div className="card" style={{width:"100%",marginBottom:4}}>
-              <div className="card-header">
-                <span className="card-title">Latest from Peach</span>
-                <span className="card-link" style={{color:"var(--black-25)",cursor:"default"}} title="Coming soon">See all →</span>
+            {news.length > 0 && (
+              <div className="card" style={{width:"100%",marginBottom:4}}>
+                <div className="card-header">
+                  <span className="card-title">Latest from Peach</span>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:0}}>
+                  {news.map((item, i, arr) => (
+                    <div key={i} style={{
+                      display:"flex",alignItems:"center",gap:16,
+                      padding:"11px 0",
+                      borderBottom: i < arr.length-1 ? "1px solid var(--black-5)" : "none",
+                    }}>
+                      <span style={{fontSize:".85rem",fontWeight:600,color:"var(--black)",flex:1}}>{item.text}</span>
+                      {item.url ? (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{fontSize:".78rem",fontWeight:700,color:"var(--primary)",whiteSpace:"nowrap",paddingLeft:42,textDecoration:"none"}}
+                        >
+                          Read →
+                        </a>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{display:"flex",flexDirection:"column",gap:0}}>
-                {[
-                  { date:"26 Feb 2026", headline:"Peach now supports Strike payments across all EU markets" },
-                  { date:"18 Feb 2026", headline:"New trading limits: anonymous trades up to €1 000/month" },
-                  { date:"05 Feb 2026", headline:"Web app beta is live — trade from any browser, no install needed" },
-                ].map((item, i, arr) => (
-                  <div key={i} style={{
-                    display:"flex",alignItems:"center",gap:16,
-                    padding:"11px 0",
-                    borderBottom: i < arr.length-1 ? "1px solid var(--black-5)" : "none",
-                  }}>
-                    <span style={{fontSize:".7rem",fontWeight:600,color:"var(--black-25)",whiteSpace:"nowrap",minWidth:80}}>{item.date}</span>
-                    <span style={{fontSize:".85rem",fontWeight:600,color:"var(--black)",flex:1}}>{item.headline}</span>
-                    <span style={{fontSize:".78rem",fontWeight:700,color:"var(--black-25)",whiteSpace:"nowrap",paddingLeft:42}} title="Coming soon">Read →</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* ── PROFILE + PEACH STATS ROW ── */}
             <div className="cards-row" style={{display:"flex",gap:18,alignItems:"flex-start",flexWrap:"wrap"}}>
@@ -753,20 +861,32 @@ export default function PeachHome() {
               <div className="cards-row" style={{display:"flex",gap:18,flexWrap:"wrap"}}>
                 <div className="card" style={{flex:"1 1 280px",minWidth:260,width:"auto"}}>
                   <div className="card-header">
-                    <span className="card-title">Top Payment Methods</span>
-                    <span className="card-link" onClick={() => navigate("/payment-methods")}>See all →</span>
+                    <span className="card-title" style={{fontSize:".9rem"}}>Market Top</span>
+                    <span className="card-link" onClick={() => setSeeAllOpen(true)}>See all →</span>
                   </div>
-                  <div className="methods-list">
-                    <div style={{padding:"18px 0",textAlign:"center",color:"var(--black-40)",fontSize:".82rem",fontWeight:600}}>No data yet</div>
-                  </div>
-                </div>
 
-                <div className="card" style={{flex:"1 1 220px",minWidth:200,width:"auto"}}>
-                  <div className="card-header">
-                    <span className="card-title">Top Currencies</span>
+                  <div className="market-section-label">Payment Methods</div>
+                  <div className="market-list">
+                    {topPms.length === 0 ? (
+                      <div className="market-empty">No outstanding offers</div>
+                    ) : topPms.map(({ name, count }) => (
+                      <div className="market-row" key={`pm-${name}`}>
+                        <span className="market-name">{methodDisplayName(name)}</span>
+                        <span className="market-count">{count} offer{count === 1 ? "" : "s"}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="methods-list">
-                    <div style={{padding:"18px 0",textAlign:"center",color:"var(--black-40)",fontSize:".82rem",fontWeight:600}}>No data yet</div>
+
+                  <div className="market-section-label" style={{marginTop:14}}>Currencies</div>
+                  <div className="market-list">
+                    {topCurrencies.length === 0 ? (
+                      <div className="market-empty">No outstanding offers</div>
+                    ) : topCurrencies.map(({ name, count }) => (
+                      <div className="market-row" key={`cur-${name}`}>
+                        <span className="market-name">{name}</span>
+                        <span className="market-count">{count} offer{count === 1 ? "" : "s"}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -833,6 +953,45 @@ export default function PeachHome() {
         )}
 
       </div>
+
+      {seeAllOpen && (
+        <div className="seeall-overlay" onClick={() => setSeeAllOpen(false)}>
+          <div className="seeall-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="seeall-header">
+              <span className="seeall-title">Market — outstanding offers</span>
+              <button className="seeall-close" onClick={() => setSeeAllOpen(false)} aria-label="Close">×</button>
+            </div>
+            <div className="seeall-body">
+              <div>
+                <div className="seeall-col-label">Payment Methods ({marketBreakdown.pms.length})</div>
+                <div className="market-list">
+                  {marketBreakdown.pms.length === 0 ? (
+                    <div className="market-empty">No outstanding offers</div>
+                  ) : marketBreakdown.pms.map(({ name, count }) => (
+                    <div className="market-row" key={`pm-all-${name}`}>
+                      <span className="market-name">{methodDisplayName(name)}</span>
+                      <span className="market-count">{count} offer{count === 1 ? "" : "s"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="seeall-col-label">Currencies ({marketBreakdown.currencies.length})</div>
+                <div className="market-list">
+                  {marketBreakdown.currencies.length === 0 ? (
+                    <div className="market-empty">No outstanding offers</div>
+                  ) : marketBreakdown.currencies.map(({ name, count }) => (
+                    <div className="market-row" key={`cur-all-${name}`}>
+                      <span className="market-name">{name}</span>
+                      <span className="market-count">{count} offer{count === 1 ? "" : "s"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
