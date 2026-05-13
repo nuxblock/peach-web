@@ -118,12 +118,13 @@ const CSS = `
   /* ── Split layout ── */
   .split-layout{display:flex;flex:1;overflow:hidden}
   .split-left{
-    width:42%;min-width:320px;flex-shrink:0;
+    flex:1;min-width:320px;
     overflow-y:auto;padding:24px 24px calc(24px + var(--stepper-h));
     border-right:1px solid var(--black-10);
   }
   .split-left-full{width:100%;border-right:none;max-width:600px;margin:0 auto}
-  .split-right{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;padding-bottom:var(--stepper-h)}
+  .split-left-inner{max-width:780px;margin:0 auto}
+  .split-right{flex:0 0 40%;max-width:560px;display:flex;flex-direction:column;overflow:hidden;min-width:0;padding-bottom:var(--stepper-h)}
 
   /* ── Mobile tabs ── */
   .mobile-tabs{display:none}
@@ -1472,6 +1473,7 @@ export default function TradeExecution() {
               <div
                 className={`split-left${mobileTab === "chat" ? " mobile-hidden" : ""}`}
               >
+                <div className="split-left-inner">
                 {/* Dispute open / resolved — status banner sits above the
                     counterparty card. Inline onAction handles only the two
                     dispute API calls DisputeBanner triggers. */}
@@ -2665,6 +2667,7 @@ export default function TradeExecution() {
                     </>
                   )}
 
+                </div>
               </div>
 
               {/* ── RIGHT: Chat ── */}
