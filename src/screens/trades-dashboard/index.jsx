@@ -1102,7 +1102,7 @@ export default function TradesDashboard() {
       !isRefundActionPending(i) &&
       (i.disputeActive ||
         (!FINISHED_STATUSES.has(i.tradeStatus) &&
-          !PENDING_STATUSES.has(i.tradeStatus))),
+          (i.kind === "contract" || !PENDING_STATUSES.has(i.tradeStatus)))),
   );
   const historyItems = allItems.filter(
     (i) =>
