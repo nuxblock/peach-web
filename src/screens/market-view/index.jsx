@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { SideNav, Topbar, CurrencyDropdown, formatPeachId } from "../../components/Navbars.jsx";
-import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
+import { formatPeachId } from "../../components/Navbars.jsx";
+import { SatsAmount } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi } from "../../hooks/useApi.js";
+import { useCurrency } from "../../components/AppLayout.jsx";
 import { useUserPMs } from "../../hooks/useUserPMs.js";
 import { markSentRequestCreated } from "../../hooks/useNotifications.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import { isApiError, generateSymmetricKey, encryptForRecipients, encryptSymmetric, encryptForPublicKey, signPGPMessage, hashPaymentFields } from "../../utils/pgp.js";
 import { getCached, setCache, clearCache } from "../../hooks/useApi.js";
-import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtPct, fmtFiat, formatTradeId, toPeaches } from "../../utils/format.js";
+import { fmtPct, fmtFiat, formatTradeId, toPeaches } from "../../utils/format.js";
 import PeachRating from "../../components/PeachRating.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import RepeatTraderBadge from "../../components/RepeatTraderBadge.jsx";
@@ -51,13 +52,9 @@ export default function PeachMarket() {
   useEffect(() => { setCache("market-show-my-offers", showMyOffers); }, [showMyOffers]);
   const [showMyOffersInfo,    setShowMyOffersInfo]    = useState(false);
   const infoRef = useRef(null);
-  const [allPrices,           setAllPrices]           = useState(() => getCached("market-prices")?.data ?? null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
-    const cached = getCached("market-prices")?.data;
-    return cached ? Object.keys(cached).sort() : ["EUR"];
-  });
-  const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
-  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
+  // Currency state lives in AppLayout. Read btcPrice + selectedCurrency
+  // for fiat conversions; the topbar dropdown is rendered by AppLayout.
+  const { btcPrice, selectedCurrency } = useCurrency();
 
   // ── Mobile UI state ──
   const [isMobile, setIsMobile] = useState(() =>
@@ -90,13 +87,8 @@ export default function PeachMarket() {
   const [isRefetching, setIsRefetching] = useState(false);
   const [pmCatalogue,  setPmCatalogue]  = useState(() => getCached("pm-catalogue")?.data ?? null);
 
-  const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
-  useEffect(() => {
-    if (!showAvatarMenu) return;
-    const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [showAvatarMenu]);
+  // AppLayout owns Topbar/SideNav state. Market only needs isLoggedIn for popup gating.
+  const { isLoggedIn } = useAuth();
 
   // Close info popup on outside click
   useEffect(() => {
@@ -146,10 +138,6 @@ export default function PeachMarket() {
   const popupRequestMissingRef = useRef(0);
 
   const isSellTab = tab === "sell";
-
-  // Derive current BTC price in selected currency
-  const pricesLoaded = allPrices !== null;
-  const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? BTC_PRICE);
 
   // ── Popup helpers ──
   function openPopup(offer) {
@@ -638,25 +626,6 @@ export default function PeachMarket() {
     }
   }
 
-
-  useEffect(() => {
-    async function fetchPrices() {
-      try {
-        const res = await get('/market/prices');
-        const data = await res.json();
-        if (data && typeof data === "object") {
-          setAllPrices(data);
-          setAvailableCurrencies(Object.keys(data).sort());
-          setCache("market-prices", data);
-        }
-      } catch {
-        // keep existing prices on failure
-      }
-    }
-    fetchPrices();
-    const iv = setInterval(fetchPrices, 30000);
-    return () => clearInterval(iv);
-  }, []);
 
   // Fetch Peach's full payment-method catalogue (used so filter dropdowns can
   // show every supported currency/method when no filters are active, not just
@@ -1207,7 +1176,6 @@ export default function PeachMarket() {
   }
 
   const stats      = premiumStats(filtered);
-  const satsPerCur  = Math.round(100_000_000 / btcPrice);
 
   // For stat pill: avg color follows the same perspective logic
   function statColor(val) {
@@ -1656,7 +1624,6 @@ export default function PeachMarket() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="app">
 
         {/* ── POPUP ── */}
         {popupContent}
@@ -1666,43 +1633,6 @@ export default function PeachMarket() {
 
         {/* ── TOAST ── */}
         <Toast message={toast} tone={toastTone} />
-
-        {/* ── TOP BAR ── */}
-        <Topbar
-          onBurgerClick={() => setSidebarMobileOpen(o => !o)}
-          isLoggedIn={isLoggedIn}
-          handleLogin={handleLogin}
-          handleLogout={handleLogout}
-          showAvatarMenu={showAvatarMenu}
-          setShowAvatarMenu={setShowAvatarMenu}
-          btcPrice={btcPrice}
-          pricesLoaded={pricesLoaded}
-          selectedCurrency={selectedCurrency}
-          availableCurrencies={availableCurrencies}
-          onCurrencyChange={c => setSelectedCurrency(c)}
-        />
-
-        <SideNav
-          active="market"
-          mobileOpen={sidebarMobileOpen}
-          onClose={() => setSidebarMobileOpen(false)}
-          onNavigate={navigate}
-          mobilePriceSlot={
-            <div className="mobile-price-pill">
-              <IcoBtc size={16}/>
-              <div className="mobile-price-text">
-                <span className="mobile-price-main">{pricesLoaded ? btcPrice.toLocaleString("fr-FR") : "?"} {selectedCurrency}</span>
-                <span className="mobile-price-sats">{pricesLoaded ? satsPerCur.toLocaleString() : "?"} sats / {selectedCurrency.toLowerCase()}</span>
-              </div>
-              <CurrencyDropdown
-                className="mobile-cur-select"
-                value={selectedCurrency}
-                options={availableCurrencies}
-                onChange={setSelectedCurrency}
-              />
-            </div>
-          }
-        />
 
         <div className="page-wrap" style={{ marginTop:"var(--topbar)", marginLeft: 68, display:"flex", flexDirection:"column", flex:1 }}>
 
@@ -2100,7 +2030,6 @@ export default function PeachMarket() {
           )}
 
         </div>
-      </div>
     </>
   );
 }

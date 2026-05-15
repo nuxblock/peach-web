@@ -4,10 +4,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
-import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
+import { SatsAmount } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi, clearCache, getCached } from "../../hooks/useApi.js";
+import { useApi, clearCache } from "../../hooks/useApi.js";
+import { useCurrency } from "../../components/AppLayout.jsx";
 import { useMarketStats } from "../../hooks/useMarketStats.js";
 import { useUserPMs, invalidateUserPMs } from "../../hooks/useUserPMs.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
@@ -16,7 +16,7 @@ import { deriveEscrowPubKey, deriveReturnAddress, isReturnAddressFromXpub } from
 import { validateBtcAddress } from "../../peach-validators.js";
 import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js";
 import { QRCodeSVG } from "qrcode.react";
-import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE_INIT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur, formatTradeId, truncateAddress } from "../../utils/format.js";
+import { SAT, fmt, satsToFiatRaw as satsToFiat, fmtFiat as fmtEur, formatTradeId, truncateAddress } from "../../utils/format.js";
 import { extractCustomRefundAddressFromProfile } from "../../utils/customRefundAddressSync.js";
 import { BITCOIN_NETWORK } from "../../utils/network.js";
 import { CSS } from "./styles.js";
@@ -100,14 +100,8 @@ export default function OfferCreation({ initialType="buy" }) {
   const typeFromUrl = searchParams.get("type") === "sell" ? "sell" : initialType;
   const [type,         setType]         = useState(typeFromUrl);
   const [step,         setStep]         = useState(0);
-  const [allPrices,           setAllPrices]           = useState(() => getCached("market-prices")?.data ?? null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
-    const cached = getCached("market-prices")?.data;
-    return cached ? Object.keys(cached).sort() : ["EUR","CHF","GBP"];
-  });
-  const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
-  const pricesLoaded = allPrices !== null;
-  const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? BTC_PRICE_INIT);
+  // Currency state lives in AppLayout. Read btcPrice + selectedCurrency for offer math.
+  const { btcPrice, selectedCurrency, pricesLoaded } = useCurrency();
   const [done,         setDone]         = useState(false);
   const [copiedAddr,   setCopiedAddr]   = useState(false);
   const [qrWithAmount, setQrWithAmount] = useState(true);
@@ -141,10 +135,10 @@ export default function OfferCreation({ initialType="buy" }) {
   // PM fetch + decryption is delegated to the shared useUserPMs hook below
   // (declared after useApi gives us `auth`). The sync effect there mirrors
   // the decrypted list into savedMethods and reconciles persisted selection.
-  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
   // ── AUTH STATE ──
-  const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
+  // AppLayout owns Topbar/SideNav state. Offer creation only needs auth/isLoggedIn for guards.
+  const { isLoggedIn, handleLogin } = useAuth();
   const { get, post, auth } = useApi();
   const btcNetwork = BITCOIN_NETWORK;
 
@@ -206,12 +200,6 @@ export default function OfferCreation({ initialType="buy" }) {
         : { ...f, selectedMethodIds: cleaned };
     });
   }, [pmsRaw]);
-  useEffect(() => {
-    if (!showAvatarMenu) return;
-    const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [showAvatarMenu]);
 
   const initForm = (selectedMethodIds=[])=>({amtFixed:MIN_SATS,
     selectedMethodIds,premium:"0",instantMatch:false,noNewUsers:false,
@@ -271,22 +259,6 @@ export default function OfferCreation({ initialType="buy" }) {
 
   // Live market stats (competing offers + avg premium of completed trades).
   const marketStats = useMarketStats({ type, pms: selectedSaved, premium: prem });
-
-  useEffect(() => {
-    async function fetchPrices() {
-      try {
-        const res = await get('/market/prices');
-        const data = await res.json();
-        if (data && typeof data === "object") {
-          setAllPrices(data);
-          setAvailableCurrencies(Object.keys(data).sort());
-        }
-      } catch {}
-    }
-    fetchPrices();
-    const iv = setInterval(fetchPrices, 30000);
-    return () => clearInterval(iv);
-  }, []);
 
   // ── FETCH PAYMENT METHOD CATALOGUE (for AddPMFlow) ──
   const fetchCatalogue = async () => {
@@ -985,41 +957,6 @@ export default function OfferCreation({ initialType="buy" }) {
   if(done&&!isSell) return (
     <>
       <style>{CSS}</style>
-      <Topbar
-        onBurgerClick={() => setSidebarMobileOpen(o => !o)}
-        isLoggedIn={isLoggedIn}
-        handleLogin={handleLogin}
-        handleLogout={handleLogout}
-        showAvatarMenu={showAvatarMenu}
-        setShowAvatarMenu={setShowAvatarMenu}
-        btcPrice={btcPrice}
-        pricesLoaded={pricesLoaded}
-        selectedCurrency={selectedCurrency}
-        availableCurrencies={availableCurrencies}
-        onCurrencyChange={c => setSelectedCurrency(c)}
-        showPrice={false}
-      />
-      <SideNav
-        active="create"
-        mobileOpen={sidebarMobileOpen}
-        onClose={() => setSidebarMobileOpen(false)}
-        onNavigate={navigate}
-        mobilePriceSlot={
-          <div className="mobile-price-pill">
-            <IcoBtc size={16}/>
-            <div className="mobile-price-text">
-              <span className="mobile-price-main">{pricesLoaded ? btcPrice.toLocaleString("fr-FR") : "?"} {selectedCurrency}</span>
-              <span className="mobile-price-sats">{pricesLoaded ? Math.round(SAT/btcPrice).toLocaleString() : "?"} sats / {selectedCurrency.toLowerCase()}</span>
-            </div>
-            <CurrencyDropdown
-              className="mobile-cur-select"
-              value={selectedCurrency}
-              options={availableCurrencies}
-              onChange={setSelectedCurrency}
-            />
-          </div>
-        }
-      />
       <div style={{display:"flex",flexDirection:"column",alignItems:"center",
         justifyContent:"center",minHeight:"100vh",gap:22,padding:40,
         marginLeft: 68,
@@ -1082,42 +1019,6 @@ export default function OfferCreation({ initialType="buy" }) {
           </InfoPopup>
         );
       })()}
-      <Topbar
-        onBurgerClick={() => setSidebarMobileOpen(o => !o)}
-        isLoggedIn={isLoggedIn}
-        handleLogin={handleLogin}
-        handleLogout={handleLogout}
-        showAvatarMenu={showAvatarMenu}
-        setShowAvatarMenu={setShowAvatarMenu}
-        btcPrice={btcPrice}
-        pricesLoaded={pricesLoaded}
-        selectedCurrency={selectedCurrency}
-        availableCurrencies={availableCurrencies}
-        onCurrencyChange={c => setSelectedCurrency(c)}
-      />
-
-      <SideNav
-        active="create"
-        mobileOpen={sidebarMobileOpen}
-        onClose={() => setSidebarMobileOpen(false)}
-        onNavigate={navigate}
-        mobilePriceSlot={
-          <div className="mobile-price-pill">
-            <IcoBtc size={16}/>
-            <div className="mobile-price-text">
-              <span className="mobile-price-main">{pricesLoaded ? btcPrice.toLocaleString("fr-FR") : "?"} {selectedCurrency}</span>
-              <span className="mobile-price-sats">{pricesLoaded ? Math.round(SAT/btcPrice).toLocaleString() : "?"} sats / {selectedCurrency.toLowerCase()}</span>
-            </div>
-            <CurrencyDropdown
-              className="mobile-cur-select"
-              value={selectedCurrency}
-              options={availableCurrencies}
-              onChange={setSelectedCurrency}
-            />
-          </div>
-        }
-      />
-
       <div className="layout" style={{marginLeft: 68}}>
         {/* ── WIZARD ── */}
         <div className="wizard">

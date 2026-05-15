@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { SideNav, Topbar, formatPeachId } from "../../components/Navbars.jsx";
+import { formatPeachId } from "../../components/Navbars.jsx";
 import { SatsAmount } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi, getCached } from "../../hooks/useApi.js";
+import { useApi } from "../../hooks/useApi.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import PeachRating from "../../components/PeachRating.jsx";
 import Avatar from "../../components/Avatar.jsx";
 import RepeatTraderBadge from "../../components/RepeatTraderBadge.jsx";
-import { BTC_PRICE_FALLBACK as BTC_PRICE, fmtFiat, formatTradeId, toPeaches } from "../../utils/format.js";
+import { fmtFiat, formatTradeId, toPeaches } from "../../utils/format.js";
 import { methodDisplayName } from "../../data/paymentMethodMeta.js";
 
 const CSS = `
@@ -147,17 +147,8 @@ export default function OtherUserPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
   const { get, put, del, auth } = useApi();
-  const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
-  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
-
-  const [allPrices, setAllPrices] = useState(() => getCached("market-prices")?.data ?? null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
-    const cached = getCached("market-prices")?.data;
-    return cached ? Object.keys(cached).sort() : ["EUR"];
-  });
-  const [selectedCurrency, setSelectedCurrency] = useState("EUR");
-  const pricesLoaded = allPrices !== null;
-  const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? BTC_PRICE);
+  // AppLayout owns Topbar/SideNav state + currency. Other-user only needs isLoggedIn + handleLogin.
+  const { isLoggedIn, handleLogin } = useAuth();
 
   const [user, setUser] = useState(null);
   const [userError, setUserError] = useState(null);
@@ -172,22 +163,6 @@ export default function OtherUserPage() {
   const [blockError, setBlockError] = useState(null);
 
   const isSelf = auth?.peachId && userId && auth.peachId.toLowerCase() === userId.toLowerCase();
-
-  useEffect(() => {
-    async function fetchPrices() {
-      try {
-        const res = await get('/market/prices');
-        const data = await res.json();
-        if (data && typeof data === "object") {
-          setAllPrices(data);
-          setAvailableCurrencies(Object.keys(data).sort());
-        }
-      } catch {}
-    }
-    fetchPrices();
-    const iv = setInterval(fetchPrices, 30000);
-    return () => clearInterval(iv);
-  }, []);
 
   useEffect(() => {
     if (!userId) return;
@@ -315,27 +290,6 @@ export default function OtherUserPage() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="app">
-        <Topbar
-          onBurgerClick={() => setSidebarMobileOpen(o => !o)}
-          isLoggedIn={isLoggedIn}
-          handleLogin={handleLogin}
-          handleLogout={handleLogout}
-          showAvatarMenu={showAvatarMenu}
-          setShowAvatarMenu={setShowAvatarMenu}
-          btcPrice={btcPrice}
-          pricesLoaded={pricesLoaded}
-          selectedCurrency={selectedCurrency}
-          availableCurrencies={availableCurrencies}
-          onCurrencyChange={c => setSelectedCurrency(c)}
-        />
-        <SideNav
-          active=""
-          mobileOpen={sidebarMobileOpen}
-          onClose={() => setSidebarMobileOpen(false)}
-          onNavigate={navigate}
-        />
-
         <div className="page-wrap">
           <div className="content">
 
@@ -479,7 +433,6 @@ export default function OtherUserPage() {
 
           </div>
         </div>
-      </div>
     </>
   );
 }

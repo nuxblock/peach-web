@@ -3,14 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { useQRAuth } from "../hooks/useQRAuth.js";
 import {
-  SideNav,
-  Topbar,
   PeachIcon,
   NAV_ROUTES,
 } from "../components/Navbars.jsx";
-import { IcoBtc } from "../components/BitcoinAmount.jsx";
-import { API_URL, API_V1, MOBILE_APP_SCHEME } from "../utils/network.js";
-import { getCached } from "../hooks/useApi.js";
+import { API_URL, MOBILE_APP_SCHEME } from "../utils/network.js";
 
 // ─── QR CODE DISPLAY ─────────────────────────────────────────────────────────
 const QRDisplay = ({ qrPayload, size = 189 }) => {
@@ -289,14 +285,6 @@ const Step = ({ n, children }) => (
 export default function PeachAuth() {
   const navigate = useNavigate();
   const TOTAL = 30;
-  const [allPrices, setAllPrices] = useState(() => getCached("market-prices")?.data ?? null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
-    const cached = getCached("market-prices")?.data;
-    return cached ? Object.keys(cached).sort() : ["EUR", "CHF", "GBP"];
-  });
-  const [selectedCurrency, setSelectedCurrency] = useState("EUR");
-  const pricesLoaded = allPrices !== null;
-  const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? 87432);
   const [isMobile, setIsMobile] = useState(false);
 
   // Phone detection (UA-based — heuristic, but good enough for our gating)
@@ -344,23 +332,6 @@ export default function PeachAuth() {
     setTimeout(() => setConnIdCopied(false), 2000);
   }
 
-  useEffect(() => {
-    async function fetchPrices() {
-      try {
-        const res = await fetch(`${API_V1}/market/prices`);
-        const data = await res.json();
-        if (data && typeof data === "object") {
-          setAllPrices(data);
-          setAvailableCurrencies(Object.keys(data).sort());
-        }
-      } catch {}
-    }
-    fetchPrices();
-    const iv = setInterval(fetchPrices, 30000);
-    return () => clearInterval(iv);
-  }, []);
-
-  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [desktopShowCode, setDesktopShowCode] = useState(false);
   const [mobileShowQR, setMobileShowQR] = useState(false);
   const [appNotInstalled, setAppNotInstalled] = useState(false);
@@ -452,8 +423,6 @@ export default function PeachAuth() {
   const secs_ = String(secsLeft % 60).padStart(2, "0");
   const urgent = secsLeft <= 10 && phase === "waiting";
 
-  const satsPerCur = btcPrice > 0 ? Math.round(100_000_000 / btcPrice) : 0;
-
   // ─── MOBILE VIEW ──────────────────────────────────────────────────────────
   if (isMobile) {
     return (
@@ -469,59 +438,6 @@ export default function PeachAuth() {
             20%{transform:translateX(-6px)}60%{transform:translateX(6px)}80%{transform:translateX(-3px)}
           }
         `}</style>
-        <Topbar
-          onBurgerClick={() => setSidebarMobileOpen((o) => !o)}
-          isLoggedIn={false}
-          handleLogin={() => {}}
-          handleLogout={() => {}}
-          showAvatarMenu={false}
-          setShowAvatarMenu={() => {}}
-          btcPrice={btcPrice}
-          pricesLoaded={pricesLoaded}
-          selectedCurrency={selectedCurrency}
-          availableCurrencies={availableCurrencies}
-          onCurrencyChange={(c) => setSelectedCurrency(c)}
-          hideLoginCta
-        />
-        <SideNav
-          mobileOpen={sidebarMobileOpen}
-          onClose={() => setSidebarMobileOpen(false)}
-          onNavigate={navigate}
-          mobilePriceSlot={
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "4px 0",
-              }}
-            >
-              <IcoBtc size={16} />
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <span
-                  style={{
-                    fontSize: ".78rem",
-                    fontWeight: 800,
-                    color: "var(--black)",
-                  }}
-                >
-                  {pricesLoaded ? btcPrice.toLocaleString("fr-FR") : "?"}{" "}
-                  {selectedCurrency}
-                </span>
-                <span
-                  style={{
-                    fontSize: ".65rem",
-                    fontWeight: 500,
-                    color: "var(--black-65)",
-                  }}
-                >
-                  {pricesLoaded ? satsPerCur.toLocaleString() : "?"} sats /{" "}
-                  {selectedCurrency.toLowerCase()}
-                </span>
-              </div>
-            </div>
-          }
-        />
 
         <div
           style={{
@@ -1210,25 +1126,6 @@ export default function PeachAuth() {
           20%{transform:translateX(-6px)}60%{transform:translateX(6px)}80%{transform:translateX(-3px)}
         }
       `}</style>
-      <Topbar
-        onBurgerClick={() => setSidebarMobileOpen((o) => !o)}
-        isLoggedIn={false}
-        handleLogin={() => {}}
-        handleLogout={() => {}}
-        showAvatarMenu={false}
-        setShowAvatarMenu={() => {}}
-        btcPrice={btcPrice}
-        pricesLoaded={pricesLoaded}
-        selectedCurrency={selectedCurrency}
-        availableCurrencies={availableCurrencies}
-        onCurrencyChange={(c) => setSelectedCurrency(c)}
-        hideLoginCta
-      />
-      <SideNav
-        mobileOpen={sidebarMobileOpen}
-        onClose={() => setSidebarMobileOpen(false)}
-        onNavigate={navigate}
-      />
 
       {/* Ghost market */}
       <div

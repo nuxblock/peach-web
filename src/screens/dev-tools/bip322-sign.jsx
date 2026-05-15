@@ -15,10 +15,8 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { SideNav, Topbar } from "../../components/Navbars.jsx";
-import { IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi, getCached } from "../../hooks/useApi.js";
+import { useApi } from "../../hooks/useApi.js";
 import { getSigningPeachId } from "../../utils/format.js";
 import {
   deriveAndSign,
@@ -49,9 +47,9 @@ function CopyButton({ text }) {
 
 export default function Bip322SignerScreen() {
   const navigate = useNavigate();
-  const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
-  const { auth, get } = useApi();
-  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
+  // AppLayout owns Topbar/SideNav state + currency. Dev-tools only needs auth + isLoggedIn for the regtest gate.
+  const { isLoggedIn, handleLogin } = useAuth();
+  const { auth } = useApi();
 
   // ── Form state ──
   const [mnemonic, setMnemonic] = useState("");
@@ -65,32 +63,6 @@ export default function Bip322SignerScreen() {
   const [signature, setSignature] = useState("");
   const [selfVerified, setSelfVerified] = useState(null);
   const [error, setError] = useState("");
-
-  // ── Currency / pricing for topbar ──
-  const [allPrices, setAllPrices] = useState(() => getCached("market-prices")?.data ?? null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
-    const cached = getCached("market-prices")?.data;
-    return cached ? Object.keys(cached).sort() : ["EUR","CHF","GBP"];
-  });
-  const [selectedCurrency, setSelectedCurrency] = useState("EUR");
-  const pricesLoaded = allPrices !== null;
-  const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? 87432);
-
-  useEffect(() => {
-    let alive = true;
-    async function fetchPrices() {
-      try {
-        const res = await get('/market/prices');
-        const data = await res.json();
-        if (alive && data && typeof data === "object") {
-          setAllPrices(data);
-          setAvailableCurrencies(Object.keys(data).sort());
-        }
-      } catch {}
-    }
-    fetchPrices();
-    return () => { alive = false; };
-  }, []);
 
   // Live preview of the derived address as soon as mnemonic + path parse cleanly.
   // Pure read — no signing — so it's safe to run on every keystroke.
@@ -164,28 +136,6 @@ export default function Bip322SignerScreen() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="app">
-        <Topbar
-          onBurgerClick={() => setSidebarMobileOpen(o => !o)}
-          isLoggedIn={isLoggedIn}
-          handleLogin={handleLogin}
-          handleLogout={handleLogout}
-          showAvatarMenu={showAvatarMenu}
-          setShowAvatarMenu={setShowAvatarMenu}
-          btcPrice={btcPrice}
-          pricesLoaded={pricesLoaded}
-          selectedCurrency={selectedCurrency}
-          availableCurrencies={availableCurrencies}
-          onCurrencyChange={c => setSelectedCurrency(c)}
-        />
-
-        <SideNav
-          active="settings"
-          mobileOpen={sidebarMobileOpen}
-          onClose={() => setSidebarMobileOpen(false)}
-          onNavigate={navigate}
-        />
-
         <div className="page-wrap" style={{ marginLeft: sideMargin }}>
           <div className="dev-scroll">
             <button className="dev-back" onClick={() => navigate("/settings")}>
@@ -378,7 +328,6 @@ export default function Bip322SignerScreen() {
             </div>
           </div>
         )}
-      </div>
     </>
   );
 }

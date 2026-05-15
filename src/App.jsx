@@ -105,27 +105,29 @@ export default function App() {
   return (
     <ErrorBoundary>
       <HashRouter>
-        <Routes>
-          <Route path="/" element={<PeachAuth />} />
-          <Route path="/home" element={<ProtectedRoute><AppLayout><PeachHome /></AppLayout></ProtectedRoute>} />
-          <Route path="/market" element={<PeachMarket />} />
-          <Route path="/offer/new" element={<ProtectedRoute><OfferCreation /></ProtectedRoute>} />
-          <Route path="/trades" element={<ProtectedRoute><TradesDashboard /></ProtectedRoute>} />
-          <Route path="/trade/:id" element={<ProtectedRoute><TradeExecution /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><SettingsScreen /></ProtectedRoute>} />
-          <Route path="/payment-methods" element={<ProtectedRoute><PeachPaymentMethods /></ProtectedRoute>} />
-          <Route path="/user/:userId" element={<ProtectedRoute><OtherUserPage /></ProtectedRoute>} />
-          {Bip322SignerScreen && (
-            <Route path="/dev-tools/bip322" element={
-              <ProtectedRoute>
-                <Suspense fallback={<div style={{ padding: 40 }}>Loading dev tools…</div>}>
-                  <Bip322SignerScreen />
-                </Suspense>
-              </ProtectedRoute>
-            } />
-          )}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <AppLayout>
+          <Routes>
+            <Route path="/" element={<PeachAuth />} />
+            <Route path="/home" element={<ProtectedRoute><PeachHome /></ProtectedRoute>} />
+            <Route path="/market" element={<PeachMarket />} />
+            <Route path="/offer/new" element={<ProtectedRoute><OfferCreation /></ProtectedRoute>} />
+            <Route path="/trades" element={<ProtectedRoute><TradesDashboard /></ProtectedRoute>} />
+            <Route path="/trade/:id" element={<ProtectedRoute><TradeExecution /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsScreen /></ProtectedRoute>} />
+            <Route path="/payment-methods" element={<ProtectedRoute><PeachPaymentMethods /></ProtectedRoute>} />
+            <Route path="/user/:userId" element={<ProtectedRoute><OtherUserPage /></ProtectedRoute>} />
+            {Bip322SignerScreen && (
+              <Route path="/dev-tools/bip322" element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div style={{ padding: 40 }}>Loading dev tools…</div>}>
+                    <Bip322SignerScreen />
+                  </Suspense>
+                </ProtectedRoute>
+              } />
+            )}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AppLayout>
       </HashRouter>
       {sessionExpired && <SessionExpiredModal onReauth={handleReauth} />}
       {tamperedFields && (

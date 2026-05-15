@@ -4,10 +4,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
-import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
+import { SatsAmount } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useApi, getCached, setCache, clearCache } from "../../hooks/useApi.js";
+import { useCurrency } from "../../components/AppLayout.jsx";
 import { useUserPMs } from "../../hooks/useUserPMs.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
 import { IS_PHONE, buildMobileActionDeepLink } from "../../utils/mobileAction.js";
@@ -26,8 +26,6 @@ import {
   derivePublicKeyArmored,
 } from "../../utils/pgp.js";
 import {
-  SAT,
-  BTC_PRICE_FALLBACK as BTC_PRICE,
   satsToFiatRaw,
   fmtFiat,
   fmt,
@@ -570,7 +568,6 @@ export default function TradesDashboard() {
   const [filterStatuses, setFilterStatuses] = useState([]);
   const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
 
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   // ── AUTH + API ──
   const { get, post, patch, del, auth } = useApi();
@@ -613,47 +610,9 @@ export default function TradesDashboard() {
   }, []);
 
   const { byContract: liveUnread } = useUnread();
-  const {
-    isLoggedIn,
-    handleLogin,
-    handleLogout,
-    showAvatarMenu,
-    setShowAvatarMenu,
-  } = useAuth();
-  useEffect(() => {
-    if (!showAvatarMenu) return;
-    const close = (e) => {
-      if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false);
-    };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [showAvatarMenu]);
-
-  const [allPrices, setAllPrices] = useState(() => getCached("market-prices")?.data ?? null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
-    const cached = getCached("market-prices")?.data;
-    return cached ? Object.keys(cached).sort() : ["EUR", "CHF", "GBP"];
-  });
-  const [selectedCurrency, setSelectedCurrency] = useState("EUR");
-  const pricesLoaded = allPrices !== null;
-  const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? BTC_PRICE);
-
-  useEffect(() => {
-    async function fetchPrices() {
-      try {
-        const res = await get("/market/prices");
-        const data = await res.json();
-        if (data && typeof data === "object") {
-          setAllPrices(data);
-          setAvailableCurrencies(Object.keys(data).sort());
-          setCache("market-prices", data);
-        }
-      } catch {}
-    }
-    fetchPrices();
-    const iv = setInterval(fetchPrices, 30000);
-    return () => clearInterval(iv);
-  }, []);
+  // AppLayout owns Topbar/SideNav state. Dashboard only needs isLoggedIn for guards.
+  const { isLoggedIn } = useAuth();
+  const { allPrices, selectedCurrency, btcPrice } = useCurrency();
 
   // ── NORMALIZE HELPERS (stable across renders — only depend on auth.peachId) ──
   const peachId = auth?.peachId;
@@ -1199,8 +1158,6 @@ export default function TradesDashboard() {
       navigate(location.pathname, { replace: true, state: rest });
     }
   }, [location.state?.refresh]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const satsPerCur = Math.round(SAT / btcPrice);
 
   // Trading limits — API returns CHF: { daily, dailyAmount, yearly, yearlyAmount, monthlyAnonymous, monthlyAnonymousAmount }
   // "daily" = ceiling (CHF), "dailyAmount" = already used (CHF)
@@ -2093,49 +2050,6 @@ export default function TradesDashboard() {
   return (
     <>
       <style>{CSS}</style>
-
-      {/* ── TOPBAR ── */}
-      <Topbar
-        onBurgerClick={() => setMobileOpen((o) => !o)}
-        isLoggedIn={isLoggedIn}
-        handleLogin={handleLogin}
-        handleLogout={handleLogout}
-        showAvatarMenu={showAvatarMenu}
-        setShowAvatarMenu={setShowAvatarMenu}
-        btcPrice={btcPrice}
-        pricesLoaded={pricesLoaded}
-        selectedCurrency={selectedCurrency}
-        availableCurrencies={availableCurrencies}
-        onCurrencyChange={(c) => setSelectedCurrency(c)}
-      />
-
-      <SideNav
-        active="trades"
-        mobileOpen={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-        onNavigate={navigate}
-        mobilePriceSlot={
-          <div className="mobile-price-pill">
-            <IcoBtc size={16} />
-            <div className="mobile-price-text">
-              <span className="mobile-price-main">
-                {pricesLoaded ? btcPrice.toLocaleString("fr-FR") : "?"}{" "}
-                {selectedCurrency}
-              </span>
-              <span className="mobile-price-sats">
-                {pricesLoaded ? satsPerCur.toLocaleString() : "?"} sats /{" "}
-                {selectedCurrency.toLowerCase()}
-              </span>
-            </div>
-            <CurrencyDropdown
-              className="mobile-cur-select"
-              value={selectedCurrency}
-              options={availableCurrencies}
-              onChange={setSelectedCurrency}
-            />
-          </div>
-        }
-      />
 
       {/* ── PAGE ── */}
       <main className="page-wrap">

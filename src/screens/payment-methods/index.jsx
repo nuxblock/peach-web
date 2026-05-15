@@ -5,13 +5,10 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
-import { IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi, getCached } from "../../hooks/useApi.js";
+import { useApi } from "../../hooks/useApi.js";
 import { useUserPMs, invalidateUserPMs } from "../../hooks/useUserPMs.js";
 import { syncPMsToServer } from "../../utils/pmSync.js";
-import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE } from "../../utils/format.js";
 import { CSS } from "./styles.js";
 import { IconPlus, IconEdit, IconTrash, DeleteModal } from "./components.jsx";
 import {
@@ -21,28 +18,10 @@ import { getPaymentLogo } from "../../assets/logos/index.ts";
 
 export default function PeachPaymentMethods() {
   const navigate = useNavigate();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
-  // ── AUTH STATE ──
-  const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
+  // AppLayout owns Topbar/SideNav state + currency. PM screen only needs isLoggedIn + API helpers.
+  const { isLoggedIn, handleLogin } = useAuth();
   const { get, patch, auth } = useApi();
-  useEffect(() => {
-    if (!showAvatarMenu) return;
-    const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [showAvatarMenu]);
-
-  // Live prices
-  const [allPrices, setAllPrices]                   = useState(() => getCached("market-prices")?.data ?? null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
-    const cached = getCached("market-prices")?.data;
-    return cached ? Object.keys(cached).sort() : ["EUR","CHF","GBP"];
-  });
-  const [selectedCurrency, setSelectedCurrency]     = useState("EUR");
-  const pricesLoaded = allPrices !== null;
-  const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? BTC_PRICE);
-  const satsPerCur = Math.round(SAT / btcPrice);
 
   // Payment methods catalogue from API
   const [methodsCatalogue, setMethodsCatalogue] = useState({});
@@ -58,23 +37,6 @@ export default function PeachPaymentMethods() {
   const [showAddFlow, setShowAddFlow]   = useState(false);
   const [editPM, setEditPM]             = useState(null);
   const [deletePM, setDeletePM]         = useState(null);
-
-  // Fetch live prices
-  useEffect(() => {
-    async function fetchPrices() {
-      try {
-        const res = await get('/market/prices');
-        const data = await res.json();
-        if (data && typeof data === "object") {
-          setAllPrices(data);
-          setAvailableCurrencies(Object.keys(data).sort());
-        }
-      } catch {}
-    }
-    fetchPrices();
-    const iv = setInterval(fetchPrices, 30000);
-    return () => clearInterval(iv);
-  }, []);
 
   // Fetch payment methods catalogue
   const fetchCatalogue = async () => {
@@ -198,42 +160,6 @@ export default function PeachPaymentMethods() {
   return (
     <>
       <style>{CSS}</style>
-
-      <Topbar
-        onBurgerClick={() => setMobileOpen(o => !o)}
-        isLoggedIn={isLoggedIn}
-        handleLogin={handleLogin}
-        handleLogout={handleLogout}
-        showAvatarMenu={showAvatarMenu}
-        setShowAvatarMenu={setShowAvatarMenu}
-        btcPrice={btcPrice}
-        pricesLoaded={pricesLoaded}
-        selectedCurrency={selectedCurrency}
-        availableCurrencies={availableCurrencies}
-        onCurrencyChange={c => setSelectedCurrency(c)}
-      />
-
-      <SideNav
-        active="payment-methods"
-        mobileOpen={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-        onNavigate={navigate}
-        mobilePriceSlot={
-          <div className="mobile-price-pill">
-            <IcoBtc size={16}/>
-            <div className="mobile-price-text">
-              <span className="mobile-price-main">{pricesLoaded ? btcPrice.toLocaleString("fr-FR") : "?"} {selectedCurrency}</span>
-              <span className="mobile-price-sats">{pricesLoaded ? satsPerCur.toLocaleString() : "?"} sats / {selectedCurrency.toLowerCase()}</span>
-            </div>
-            <CurrencyDropdown
-              className="mobile-cur-select"
-              value={selectedCurrency}
-              options={availableCurrencies}
-              onChange={setSelectedCurrency}
-            />
-          </div>
-        }
-      />
 
       {/* ── PAGE ── */}
       <main className="page-wrap">

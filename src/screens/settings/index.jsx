@@ -5,10 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
-import { IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi, getCached } from "../../hooks/useApi.js";
 import { CSS } from "./styles.js";
 import { SettingsRow, SettingsSection } from "./components.jsx";
 import { IS_REGTEST } from "../../utils/network.js";
@@ -24,7 +21,6 @@ export default function SettingsScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentView, setCurrentView] = useState("main");
-  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
   // Reset to main view when sidenav "Settings" is clicked (same-route navigation).
   // When the avatar's "Profile" shortcut sets state.openProfile, jump straight to that sub-view.
@@ -36,41 +32,9 @@ export default function SettingsScreen() {
   }, [location.key]);
 
   // ── AUTH STATE ──
-  const { isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
-  const { get } = useApi();
-  useEffect(() => {
-    if (!showAvatarMenu) return;
-    const close = (e) => { if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false); };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [showAvatarMenu]);
+  // AppLayout owns Topbar/SideNav state. Settings only needs isLoggedIn for the auth popup.
+  const { isLoggedIn, handleLogin } = useAuth();
 
-  const [allPrices,           setAllPrices]           = useState(() => getCached("market-prices")?.data ?? null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
-    const cached = getCached("market-prices")?.data;
-    return cached ? Object.keys(cached).sort() : ["EUR","CHF","GBP"];
-  });
-  const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
-  const pricesLoaded = allPrices !== null;
-  const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? 87432);
-
-  useEffect(() => {
-    async function fetchPrices() {
-      try {
-        const res = await get('/market/prices');
-        const data = await res.json();
-        if (data && typeof data === "object") {
-          setAllPrices(data);
-          setAvailableCurrencies(Object.keys(data).sort());
-        }
-      } catch {}
-    }
-    fetchPrices();
-    const iv = setInterval(fetchPrices, 30000);
-    return () => clearInterval(iv);
-  }, []);
-
-  const satsPerCur = Math.round(100_000_000 / btcPrice);
   const sideMargin = 68;
 
   function renderContent() {
@@ -170,43 +134,6 @@ export default function SettingsScreen() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="app">
-        <Topbar
-          onBurgerClick={() => setSidebarMobileOpen(o => !o)}
-          isLoggedIn={isLoggedIn}
-          handleLogin={handleLogin}
-          handleLogout={handleLogout}
-          showAvatarMenu={showAvatarMenu}
-          setShowAvatarMenu={setShowAvatarMenu}
-          btcPrice={btcPrice}
-          pricesLoaded={pricesLoaded}
-          selectedCurrency={selectedCurrency}
-          availableCurrencies={availableCurrencies}
-          onCurrencyChange={c => setSelectedCurrency(c)}
-        />
-
-        <SideNav
-          active="settings"
-          mobileOpen={sidebarMobileOpen}
-          onClose={() => setSidebarMobileOpen(false)}
-          onNavigate={navigate}
-          mobilePriceSlot={
-            <div className="mobile-price-pill">
-              <IcoBtc size={16}/>
-              <div className="mobile-price-text">
-                <span className="mobile-price-main">{pricesLoaded ? btcPrice.toLocaleString("fr-FR") : "?"} {selectedCurrency}</span>
-                <span className="mobile-price-sats">{pricesLoaded ? satsPerCur.toLocaleString() : "?"} sats / {selectedCurrency.toLowerCase()}</span>
-              </div>
-              <CurrencyDropdown
-                className="mobile-cur-select"
-                value={selectedCurrency}
-                options={availableCurrencies}
-                onChange={setSelectedCurrency}
-              />
-            </div>
-          }
-        />
-
         <div className="page-wrap" style={{ marginLeft: sideMargin }}>
           {renderContent()}
         </div>
@@ -224,7 +151,6 @@ export default function SettingsScreen() {
             </div>
           </div>
         )}
-      </div>
     </>
   );
 }
