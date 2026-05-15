@@ -18,7 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, Topbar } from "../../components/Navbars.jsx";
 import { IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi } from "../../hooks/useApi.js";
+import { useApi, getCached } from "../../hooks/useApi.js";
 import { getSigningPeachId } from "../../utils/format.js";
 import {
   deriveAndSign,
@@ -67,8 +67,11 @@ export default function Bip322SignerScreen() {
   const [error, setError] = useState("");
 
   // ── Currency / pricing for topbar ──
-  const [allPrices, setAllPrices] = useState(null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(["EUR","CHF","GBP"]);
+  const [allPrices, setAllPrices] = useState(() => getCached("market-prices")?.data ?? null);
+  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
+    const cached = getCached("market-prices")?.data;
+    return cached ? Object.keys(cached).sort() : ["EUR","CHF","GBP"];
+  });
   const [selectedCurrency, setSelectedCurrency] = useState("EUR");
   const pricesLoaded = allPrices !== null;
   const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? 87432);

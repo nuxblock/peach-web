@@ -51,8 +51,11 @@ export default function PeachMarket() {
   useEffect(() => { setCache("market-show-my-offers", showMyOffers); }, [showMyOffers]);
   const [showMyOffersInfo,    setShowMyOffersInfo]    = useState(false);
   const infoRef = useRef(null);
-  const [allPrices,           setAllPrices]           = useState(null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(["EUR"]);
+  const [allPrices,           setAllPrices]           = useState(() => getCached("market-prices")?.data ?? null);
+  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
+    const cached = getCached("market-prices")?.data;
+    return cached ? Object.keys(cached).sort() : ["EUR"];
+  });
   const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 

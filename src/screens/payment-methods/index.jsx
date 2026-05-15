@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
 import { IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi } from "../../hooks/useApi.js";
+import { useApi, getCached } from "../../hooks/useApi.js";
 import { useUserPMs, invalidateUserPMs } from "../../hooks/useUserPMs.js";
 import { syncPMsToServer } from "../../utils/pmSync.js";
 import { SAT, BTC_PRICE_FALLBACK as BTC_PRICE } from "../../utils/format.js";
@@ -34,8 +34,11 @@ export default function PeachPaymentMethods() {
   }, [showAvatarMenu]);
 
   // Live prices
-  const [allPrices, setAllPrices]                   = useState(null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(["EUR","CHF","GBP"]);
+  const [allPrices, setAllPrices]                   = useState(() => getCached("market-prices")?.data ?? null);
+  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
+    const cached = getCached("market-prices")?.data;
+    return cached ? Object.keys(cached).sort() : ["EUR","CHF","GBP"];
+  });
   const [selectedCurrency, setSelectedCurrency]     = useState("EUR");
   const pricesLoaded = allPrices !== null;
   const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? BTC_PRICE);

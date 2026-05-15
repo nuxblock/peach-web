@@ -629,12 +629,11 @@ export default function TradesDashboard() {
     return () => document.removeEventListener("click", close);
   }, [showAvatarMenu]);
 
-  const [allPrices, setAllPrices] = useState(null);
-  const [availableCurrencies, setAvailableCurrencies] = useState([
-    "EUR",
-    "CHF",
-    "GBP",
-  ]);
+  const [allPrices, setAllPrices] = useState(() => getCached("market-prices")?.data ?? null);
+  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
+    const cached = getCached("market-prices")?.data;
+    return cached ? Object.keys(cached).sort() : ["EUR", "CHF", "GBP"];
+  });
   const [selectedCurrency, setSelectedCurrency] = useState("EUR");
   const pricesLoaded = allPrices !== null;
   const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? BTC_PRICE);

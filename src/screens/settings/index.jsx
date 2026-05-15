@@ -8,7 +8,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
 import { IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi } from "../../hooks/useApi.js";
+import { useApi, getCached } from "../../hooks/useApi.js";
 import { CSS } from "./styles.js";
 import { SettingsRow, SettingsSection } from "./components.jsx";
 import { IS_REGTEST } from "../../utils/network.js";
@@ -45,8 +45,11 @@ export default function SettingsScreen() {
     return () => document.removeEventListener("click", close);
   }, [showAvatarMenu]);
 
-  const [allPrices,           setAllPrices]           = useState(null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(["EUR","CHF","GBP"]);
+  const [allPrices,           setAllPrices]           = useState(() => getCached("market-prices")?.data ?? null);
+  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
+    const cached = getCached("market-prices")?.data;
+    return cached ? Object.keys(cached).sort() : ["EUR","CHF","GBP"];
+  });
   const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
   const pricesLoaded = allPrices !== null;
   const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? 87432);

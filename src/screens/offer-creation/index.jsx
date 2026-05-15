@@ -7,7 +7,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { SideNav, Topbar, CurrencyDropdown } from "../../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../../components/BitcoinAmount.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useApi, clearCache } from "../../hooks/useApi.js";
+import { useApi, clearCache, getCached } from "../../hooks/useApi.js";
 import { useMarketStats } from "../../hooks/useMarketStats.js";
 import { useUserPMs, invalidateUserPMs } from "../../hooks/useUserPMs.js";
 import { fetchWithSessionCheck } from "../../utils/sessionGuard.js";
@@ -100,8 +100,11 @@ export default function OfferCreation({ initialType="buy" }) {
   const typeFromUrl = searchParams.get("type") === "sell" ? "sell" : initialType;
   const [type,         setType]         = useState(typeFromUrl);
   const [step,         setStep]         = useState(0);
-  const [allPrices,           setAllPrices]           = useState(null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(["EUR","CHF","GBP"]);
+  const [allPrices,           setAllPrices]           = useState(() => getCached("market-prices")?.data ?? null);
+  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
+    const cached = getCached("market-prices")?.data;
+    return cached ? Object.keys(cached).sort() : ["EUR","CHF","GBP"];
+  });
   const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
   const pricesLoaded = allPrices !== null;
   const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? BTC_PRICE_INIT);

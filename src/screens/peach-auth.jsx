@@ -10,6 +10,7 @@ import {
 } from "../components/Navbars.jsx";
 import { IcoBtc } from "../components/BitcoinAmount.jsx";
 import { API_URL, API_V1, MOBILE_APP_SCHEME } from "../utils/network.js";
+import { getCached } from "../hooks/useApi.js";
 
 // ─── QR CODE DISPLAY ─────────────────────────────────────────────────────────
 const QRDisplay = ({ qrPayload, size = 189 }) => {
@@ -288,12 +289,11 @@ const Step = ({ n, children }) => (
 export default function PeachAuth() {
   const navigate = useNavigate();
   const TOTAL = 30;
-  const [allPrices, setAllPrices] = useState(null);
-  const [availableCurrencies, setAvailableCurrencies] = useState([
-    "EUR",
-    "CHF",
-    "GBP",
-  ]);
+  const [allPrices, setAllPrices] = useState(() => getCached("market-prices")?.data ?? null);
+  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
+    const cached = getCached("market-prices")?.data;
+    return cached ? Object.keys(cached).sort() : ["EUR", "CHF", "GBP"];
+  });
   const [selectedCurrency, setSelectedCurrency] = useState("EUR");
   const pricesLoaded = allPrices !== null;
   const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? 87432);
