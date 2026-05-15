@@ -73,10 +73,24 @@ export const NAV_ROUTES = {
   settings:          "/settings",
 };
 
+// Map a pathname back to a SideNav item id. Returns null for routes that don't
+// correspond to a nav item (e.g. /, /trade/:id, /user/:id).
+function routeToNavId(pathname) {
+  if (pathname === "/home") return "home";
+  if (pathname === "/market") return "market";
+  if (pathname === "/trades") return "trades";
+  if (pathname.startsWith("/offer/new")) return "create";
+  if (pathname === "/payment-methods") return "payment-methods";
+  if (pathname === "/settings") return "settings";
+  return null;
+}
+
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
-export function SideNav({ active, mobileOpen, onClose, onNavigate, mobilePriceSlot }) {
+export function SideNav({ active: activeProp, mobileOpen, onClose, onNavigate, mobilePriceSlot }) {
   const { urgentCount } = useUrgentCount();
   const { theme, toggleTheme } = useTheme();
+  const location = useLocation();
+  const active = activeProp ?? routeToNavId(location.pathname);
   return (
     <>
       <div className={`sidenav-backdrop${mobileOpen ? " open" : ""}`} onClick={onClose}/>
@@ -193,7 +207,7 @@ export function Topbar({
   onCurrencyChange,
   showPrice = true,
   pricesLoaded = true,
-  hideLoginCta = false,
+  hideLoginCta: hideLoginCtaProp,
 }) {
   const { total: unreadTotal } = useUnread();
   const { notifications, unreadCount: unreadNotifs, readIds, markAllRead, markRead } = useNotifications();
@@ -202,6 +216,7 @@ export function Topbar({
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const hideLoginCta = hideLoginCtaProp ?? (location.pathname === "/");
   const satsPerCur = btcPrice > 0 ? Math.round(100_000_000 / btcPrice) : 0;
 
   const handleLogoClick = () => {

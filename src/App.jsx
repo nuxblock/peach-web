@@ -7,6 +7,7 @@ import { invalidateUserPMs } from './hooks/useUserPMs.js'
 import { resetSessionExpiredFlag, isTokenExpired } from './utils/sessionGuard.js'
 import PeachAuth from './screens/peach-auth.jsx'
 import PeachHome from './screens/peach-home.jsx'
+import AppLayout from './components/AppLayout.jsx'
 import PeachMarket from './screens/market-view/index.jsx'
 import OfferCreation from './screens/offer-creation/index.jsx'
 import TradesDashboard from './screens/trades-dashboard/index.jsx'
@@ -106,7 +107,7 @@ export default function App() {
       <HashRouter>
         <Routes>
           <Route path="/" element={<PeachAuth />} />
-          <Route path="/home" element={<ProtectedRoute><PeachHome /></ProtectedRoute>} />
+          <Route path="/home" element={<ProtectedRoute><AppLayout><PeachHome /></AppLayout></ProtectedRoute>} />
           <Route path="/market" element={<PeachMarket />} />
           <Route path="/offer/new" element={<ProtectedRoute><OfferCreation /></ProtectedRoute>} />
           <Route path="/trades" element={<ProtectedRoute><TradesDashboard /></ProtectedRoute>} />

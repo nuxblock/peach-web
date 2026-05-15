@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { SideNav, Topbar, CurrencyDropdown, formatPeachId } from "../components/Navbars.jsx";
+import { formatPeachId } from "../components/Navbars.jsx";
 import { SatsAmount, IcoBtc } from "../components/BitcoinAmount.jsx";
 import { useAuth } from "../hooks/useAuth.js";
-import { useApi, getCached, setCache } from "../hooks/useApi.js";
+import { useApi, getCached } from "../hooks/useApi.js";
 import { useUrgentCount } from "../hooks/useUrgentCount.js";
 import { STATUS_CONFIG, FINISHED_STATUSES } from "../data/statusConfig.js";
 import { methodDisplayName } from "../data/paymentMethodMeta.js";
-import { BTC_PRICE_FALLBACK as BTC_PRICE, fmt as formatSats, fmtPct, relTime, toPeaches } from "../utils/format.js";
+import { fmt as formatSats, fmtPct, relTime, toPeaches } from "../utils/format.js";
 import PeachRating from "../components/PeachRating.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { RefreshIndicator } from "../components/RefreshIndicator.jsx";
@@ -285,15 +285,6 @@ const css = `
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function PeachHome() {
   const navigate = useNavigate();
-  const [allPrices,           setAllPrices]           = useState(() => getCached("market-prices")?.data ?? null);
-  const [availableCurrencies, setAvailableCurrencies] = useState(() => {
-    const cached = getCached("market-prices")?.data;
-    return cached ? Object.keys(cached).sort() : ["EUR","CHF","GBP"];
-  });
-  const [selectedCurrency,    setSelectedCurrency]    = useState("EUR");
-  const pricesLoaded = allPrices !== null;
-  const btcPrice = Math.round(allPrices?.[selectedCurrency] ?? BTC_PRICE);
-  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [marketStats, setMarketStats] = useState(null);
   const [contractsData, setContractsData] = useState([]);
@@ -310,8 +301,10 @@ export default function PeachHome() {
     { text: "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.", shareText: "", url: "https://peachbitcoin.com" },
   ]);
 
-  // ── AUTH ──
-  const { auth, isLoggedIn, handleLogin, handleLogout, showAvatarMenu, setShowAvatarMenu } = useAuth();
+  // AppLayout owns Topbar/SideNav state (avatar menu, mobile drawer, currency).
+  // Home only needs auth/isLoggedIn for profile + attention-strip, and
+  // handleLogin for the logged-out CTA buttons.
+  const { auth, isLoggedIn, handleLogin } = useAuth();
   const { get } = useApi();
   const liveProfile = auth?.profile ?? null;
   // Build user profile — live data when logged in, empty defaults when logged out.
@@ -341,63 +334,10 @@ export default function PeachHome() {
     totalVolumeBtc: 0, lastTradeDaysAgo: null, blockedByCount: 0,
   };
 
-  // Close avatar menu on outside click
-  useEffect(() => {
-    if (!showAvatarMenu) return;
-    const close = (e) => {
-      if (!e.target.closest(".avatar-menu-wrap")) setShowAvatarMenu(false);
-    };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [showAvatarMenu]);
-
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const retryTimers = [];
-
-    async function fetchPrices() {
-      try {
-        const res = await get('/market/prices');
-        const data = await res.json();
-        if (data && typeof data === "object") {
-          if (!cancelled) {
-            setAllPrices(data);
-            setAvailableCurrencies(Object.keys(data).sort());
-            setCache("market-prices", data);
-          }
-          return true;
-        }
-        return false;
-      } catch (err) {
-        console.warn('[market/prices] fetch failed:', err);
-        return false;
-      }
-    }
-
-    async function initialFetchWithRetry() {
-      if (await fetchPrices()) return;
-      for (const delay of [500, 1000, 2000, 4000]) {
-        if (cancelled) return;
-        await new Promise((r) => retryTimers.push(setTimeout(r, delay)));
-        if (cancelled) return;
-        if (await fetchPrices()) return;
-      }
-    }
-
-    initialFetchWithRetry();
-    const iv = setInterval(fetchPrices, 30000);
-
-    return () => {
-      cancelled = true;
-      retryTimers.forEach(clearTimeout);
-      clearInterval(iv);
-    };
   }, []);
 
   // ── MARKET OFFERS STATS (public, platform-wide) ──
@@ -576,7 +516,6 @@ export default function PeachHome() {
   const topPms        = marketBreakdown.pms.slice(0, 5);
   const topCurrencies = marketBreakdown.currencies.slice(0, 5);
 
-  const satsPerCur  = Math.round(100_000_000 / btcPrice);
   const navWidth = isMobile ? 0 : 68;
 
   // ── ATH DERIVED ──
@@ -588,45 +527,7 @@ export default function PeachHome() {
   return (
     <>
       <style>{css}</style>
-      <div className="app">
-
-        <Topbar
-          onBurgerClick={() => setSidebarMobileOpen(o => !o)}
-          isLoggedIn={isLoggedIn}
-          handleLogin={handleLogin}
-          handleLogout={handleLogout}
-          showAvatarMenu={showAvatarMenu}
-          setShowAvatarMenu={setShowAvatarMenu}
-          btcPrice={btcPrice}
-          pricesLoaded={pricesLoaded}
-          selectedCurrency={selectedCurrency}
-          availableCurrencies={availableCurrencies}
-          onCurrencyChange={c => setSelectedCurrency(c)}
-        />
-
-        <SideNav
-          active="home"
-          mobileOpen={sidebarMobileOpen}
-          onClose={() => setSidebarMobileOpen(false)}
-          onNavigate={navigate}
-          mobilePriceSlot={
-            <div className="mobile-price-pill">
-              <IcoBtc size={16}/>
-              <div className="mobile-price-text">
-                <span className="mobile-price-main">{pricesLoaded ? btcPrice.toLocaleString("fr-FR") : "?"} {selectedCurrency}</span>
-                <span className="mobile-price-sats">{pricesLoaded ? satsPerCur.toLocaleString() : "?"} sats / {selectedCurrency.toLowerCase()}</span>
-              </div>
-              <CurrencyDropdown
-                className="mobile-cur-select"
-                value={selectedCurrency}
-                options={availableCurrencies}
-                onChange={setSelectedCurrency}
-              />
-            </div>
-          }
-        />
-
-        <div className="page-wrap" style={{ marginTop:"var(--topbar)", marginLeft: navWidth, flex:1 }}>
+      <div className="page-wrap" style={{ marginTop:"var(--topbar)", marginLeft: navWidth, flex:1 }}>
           <div className="content">
 
             {/* ── WELCOME ROW ── */}
@@ -954,8 +855,6 @@ export default function PeachHome() {
             onDismiss={dismissAttention}
           />
         )}
-
-      </div>
 
       {seeAllOpen && (
         <div className="seeall-overlay" onClick={() => setSeeAllOpen(false)}>
